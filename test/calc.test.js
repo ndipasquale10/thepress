@@ -100,7 +100,7 @@ scriptBlocks.forEach((code, i) => {
   }
 });
 
-const required = ['calcVegasMoney', 'calcNassauMoney', 'calcSkins', 'calcBonusMoney', 'addBonus', 'removeBonus', 'getBonusCount', 'getPlayingHandicaps', 'readGameOpts', 'computeScoringStats', 'esc', 'safeParseJSON'];
+const required = ['calcVegasMoney', 'calcNassauMoney', 'calcSkins', 'calcBonusMoney', 'addBonus', 'removeBonus', 'getBonusCount', 'getPlayingHandicaps', 'readGameOpts', 'computeScoringStats', 'esc', 'safeParseJSON', 'mergeByName'];
 for (const fn of required) {
   if (typeof context[fn] !== 'function') {
     console.error(`FATAL: ${fn} was not found in the loaded script context. Aborting tests.`);
@@ -381,6 +381,15 @@ console.log('Reliability: safeParseJSON falls back gracefully instead of throwin
 assertEqual(call('safeParseJSON', '{"a":1}', []), { a: 1 }, 'valid JSON parses normally');
 assertEqual(call('safeParseJSON', '{not json', []), [], 'malformed JSON returns the fallback instead of throwing');
 assertEqual(call('safeParseJSON', null, {}), {}, 'null input (missing localStorage key) returns the fallback');
+
+console.log('Reliability: mergeByName dedupes by case-insensitive name, first argument wins ties');
+assertEqual(
+  call('mergeByName', [{ name: 'Alice', hdcp: 5 }], [{ name: 'alice', hdcp: 99 }, { name: 'Bob', hdcp: 8 }]),
+  [{ name: 'Alice', hdcp: 5 }, { name: 'Bob', hdcp: 8 }],
+  'a case-insensitive name collision keeps the base array\'s entry, not the addition\'s'
+);
+assertEqual(call('mergeByName', [{ name: 'Alice' }], []), [{ name: 'Alice' }], 'an empty additions array leaves the base unchanged');
+assertEqual(call('mergeByName', [], [{ name: 'Alice' }]), [{ name: 'Alice' }], 'an empty base array just adopts all additions');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
