@@ -305,5 +305,70 @@ const hasConditionalLabel = html.includes('🐺 Lone Wolf (${state.gameOpts.lone
 if (hasConditionalLabel) { pass++; console.log('  ok - label is rendered conditionally on gameOpts.lone2x'); }
 else { fail++; console.log('  FAIL - static "Lone Wolf (2×)" label found instead of a conditional one'); }
 
+console.log('Wolf: normal-pick payout scales with birdie/eagle and splits across the field (calcWolfMoney)');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }, { name: 'D', hdcp: 0 }],
+  gameType: 'wolf',
+  holeCount: 1,
+  pars: [4, ...Array(17).fill(4)],
+  scores: scoresFor([[3], [4], [5], [5]]), // wolf+partner birdie (3) beats field (5,5)
+  wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } },
+  gameOpts: { wolfVal: 1 },
+}));
+assertEqual(call('calcWolfMoney'), [4, 4, -4, -4], 'wolf(A)+partner(B) birdie beats field 2x multiplier, split $1 x2 field members each');
+
+console.log('Wolf: Lone Wolf pays/collects double via gameOpts.lone2x (Bug 6 follow-through)');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }, { name: 'D', hdcp: 0 }],
+  gameType: 'wolf',
+  holeCount: 1,
+  pars: [4, ...Array(17).fill(4)],
+  scores: scoresFor([[3], [5], [5], [5]]), // lone wolf (A) birdies, field all bogey
+  wolfHoles: { 0: { wolf: 0, partners: [], hammers: 0 } },
+  gameOpts: { wolfVal: 1, lone2x: true },
+}));
+assertEqual(call('calcWolfMoney'), [12, -4, -4, -4], 'lone wolf birdie at 2x collects double from each of the 3 field players');
+
+console.log('Match Play: "perhole" format pays the hole winner from every other player, ties push');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  gameType: 'match',
+  holeCount: 3,
+  scores: scoresFor([[4, 5, 4], [5, 4, 4]]), // A wins hole0, B wins hole1, hole2 ties
+  matchPresses: [],
+  gameOpts: { matchFormat: 'perhole', holeVal: 2 },
+}));
+assertEqual(call('calcMatchMoney'), [0, 0], 'A wins one hole and B wins one hole at $2 each, netting to zero; tied hole pushes');
+
+console.log('Match Play: "nassau" format pays the front/back/overall segment winner once, not per-hole');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  gameType: 'match',
+  holeCount: 3,
+  scores: scoresFor([[4, 4, 4], [5, 5, 4]]), // A wins holes 0-1, hole2 ties -> A wins the only segment (front==overall on a 3-hole round)
+  gameOpts: { matchFormat: 'nassau', matchFront: 1, matchBack: 1, matchOverall: 2 },
+}));
+assertEqual(call('calcMatchMoney'), [3, -3], 'A wins both the front-9 bet ($1) and overall bet ($2) as the unique segment winner, not per-hole');
+
+console.log('Stableford: money is the pairwise zero-sum differential of net Stableford points x $/point');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  gameType: 'stableford',
+  holeCount: 1,
+  pars: [4, ...Array(17).fill(4)],
+  scores: scoresFor([[2], [5]]), // A: net -2 vs par -> 5 pts (eagle); B: net +1 -> -1 pt (bogey)
+  gameOpts: { ptVal: 2 },
+}));
+assertEqual(call('calcStablefordMoney'), [12, -12], 'A (5 pts) vs B (-1 pt): (5-(-1))*$2 = $12 zero-sum');
+
+console.log('Skins: money formula pays skin-holders from the field proportional to $/skin (calcSkinsMoney)');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }],
+  holeCount: 3,
+  scores: scoresFor([[3, 3, 5], [4, 4, 3], [5, 4, 5]]), // A wins skins on holes 0-1, B wins hole 2 -> skins=[2,1,0]
+  gameOpts: { carry: false, skinVal: 5 },
+}));
+assertEqual(call('calcSkinsMoney'), [15, 0, -15], 'A (2 skins) nets $15, B (1 skin) breaks even, C (0 skins) pays $15 at $5/skin');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
