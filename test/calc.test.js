@@ -297,6 +297,8 @@ assertEqual(statsB.best, 12, 'player B best round total is 12 (4+4+4)');
 assertEqual(statsB.scoringAvgVsPar, 1.5, 'player B averages +1.5 vs par across the 2 rounds ((0)+(3))/2');
 assertEqual([statsB.eagles, statsB.birdies, statsB.pars, statsB.bogeys, statsB.doublePlus], [0, 0, 3, 3, 0], 'player B hole-type counts across both rounds');
 assertEqual(stats[0].name, 'A', 'stats are sorted best (lowest avg vs par) first');
+assertEqual(statsA.trend, [0, -2], 'player A trend retains each round\'s score-vs-par diff in order');
+assertEqual(statsB.trend, [0, 3], 'player B trend retains each round\'s score-vs-par diff in order');
 
 console.log('Wolf: "Lone Wolf" button label reflects gameOpts.lone2x, not hardcoded (Bug 6)');
 const hasConditionalLabel = html.includes('🐺 Lone Wolf (${state.gameOpts.lone2x?"2×":"1×"})');
