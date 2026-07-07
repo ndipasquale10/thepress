@@ -100,7 +100,7 @@ scriptBlocks.forEach((code, i) => {
   }
 });
 
-const required = ['calcVegasMoney', 'calcNassauMoney', 'calcSkins', 'calcBonusMoney', 'addBonus', 'removeBonus', 'getBonusCount'];
+const required = ['calcVegasMoney', 'calcNassauMoney', 'calcSkins', 'calcBonusMoney', 'addBonus', 'removeBonus', 'getBonusCount', 'getPlayingHandicaps', 'readGameOpts', 'computeScoringStats'];
 for (const fn of required) {
   if (typeof context[fn] !== 'function') {
     console.error(`FATAL: ${fn} was not found in the loaded script context. Aborting tests.`);
@@ -138,6 +138,7 @@ function freshStateLiteral(overrides) {
     pairings: [],
     currentHole: 0,
     holeCount: 18,
+    selectedTee: null,
   };
   return Object.assign(base, overrides);
 }
@@ -234,6 +235,68 @@ loadState(freshStateLiteral({
   gameOpts: { carry: true },
 }));
 assertEqual(call('calcSkins'), [1, 0], 'carry on: same scores still resolve deterministically (no crash, no double-count)');
+
+console.log('Reliability: Course Handicap mode applies slope/rating, relative to the low handicapper');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 10 }, { name: 'B', hdcp: 20 }],
+  pars: Array(18).fill(4), // total par 72
+  handicapMode: 'course',
+  selectedTee: { rating: 72.6, slope: 142 },
+}));
+// A: 10*(142/113)+(72.6-72) = 12.566+0.6 = 13.166 -> round 13
+// B: 20*(142/113)+(72.6-72) = 25.133+0.6 = 25.733 -> round 26
+// relative to the field's low value (13): A=0, B=13
+assertEqual(call('getPlayingHandicaps'), [0, 13], 'Course Handicap formula computed and zeroed against the low handicapper');
+
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 10 }, { name: 'B', hdcp: 20 }],
+  handicapMode: 'course',
+  selectedTee: null,
+}));
+const courseFallback = call('getPlayingHandicaps');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 10 }, { name: 'B', hdcp: 20 }],
+  handicapMode: 'full',
+}));
+assertEqual(courseFallback, call('getPlayingHandicaps'), 'Course Handicap mode falls back to Full Handicap when no tee data is selected');
+
+console.log('Reliability: game-option $ values clamp to a minimum of 1');
+const clampDocMock = new Proxy(
+  { getElementById: (id) => (id === 'opt-front' ? { value: '0' } : null) },
+  { get: (target, prop) => (prop in target ? target[prop] : () => null) }
+);
+const originalDocument = context.document;
+context.document = clampDocMock;
+loadState(freshStateLiteral({ gameType: 'nassau' }));
+assertEqual(call('readGameOpts').front, 1, 'a "0" front-nine bet value clamps to the $1 minimum instead of passing through as 0');
+context.document = originalDocument;
+
+console.log('Stats: cross-round scoring stats aggregate correctly (computeScoringStats)');
+const fakeRounds = [
+  {
+    finished: true,
+    players: [{ name: 'A', color: '#111' }, { name: 'B', color: '#222' }],
+    pars: [4, 4, 4],
+    scores: { 0: { 0: 3, 1: 4, 2: 5 }, 1: { 0: 4, 1: 4, 2: 4 } }, // A: birdie,par,bogey (even); B: par,par,par
+  },
+  {
+    finished: true,
+    players: [{ name: 'A', color: '#111' }, { name: 'B', color: '#222' }],
+    pars: [4, 4, 4],
+    scores: { 0: { 0: 2, 1: 4, 2: 4 }, 1: { 0: 5, 1: 5, 2: 5 } }, // A: eagle,par,par (-2); B: bogey,bogey,bogey (+3)
+  },
+];
+const stats = call('computeScoringStats', fakeRounds);
+const statsA = stats.find((s) => s.name === 'A');
+const statsB = stats.find((s) => s.name === 'B');
+assertEqual(statsA.rounds, 2, 'player A played 2 rounds');
+assertEqual(statsA.best, 10, 'player A best round total is 10 (2+4+4)');
+assertEqual(statsA.scoringAvgVsPar, -1, 'player A averages -1 vs par across the 2 rounds ((0)+(-2))/2');
+assertEqual([statsA.eagles, statsA.birdies, statsA.pars, statsA.bogeys, statsA.doublePlus], [1, 1, 3, 1, 0], 'player A hole-type counts across both rounds');
+assertEqual(statsB.best, 12, 'player B best round total is 12 (4+4+4)');
+assertEqual(statsB.scoringAvgVsPar, 1.5, 'player B averages +1.5 vs par across the 2 rounds ((0)+(3))/2');
+assertEqual([statsB.eagles, statsB.birdies, statsB.pars, statsB.bogeys, statsB.doublePlus], [0, 0, 3, 3, 0], 'player B hole-type counts across both rounds');
+assertEqual(stats[0].name, 'A', 'stats are sorted best (lowest avg vs par) first');
 
 console.log('Wolf: "Lone Wolf" button label reflects gameOpts.lone2x, not hardcoded (Bug 6)');
 const hasConditionalLabel = html.includes('🐺 Lone Wolf (${state.gameOpts.lone2x?"2×":"1×"})');
