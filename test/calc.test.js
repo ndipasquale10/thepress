@@ -100,7 +100,7 @@ scriptBlocks.forEach((code, i) => {
   }
 });
 
-const required = ['calcVegasMoney', 'calcNassauMoney', 'calcSkins', 'calcBonusMoney', 'addBonus', 'removeBonus', 'getBonusCount', 'getPlayingHandicaps', 'readGameOpts', 'computeScoringStats'];
+const required = ['calcVegasMoney', 'calcNassauMoney', 'calcSkins', 'calcBonusMoney', 'addBonus', 'removeBonus', 'getBonusCount', 'getPlayingHandicaps', 'readGameOpts', 'computeScoringStats', 'esc', 'safeParseJSON'];
 for (const fn of required) {
   if (typeof context[fn] !== 'function') {
     console.error(`FATAL: ${fn} was not found in the loaded script context. Aborting tests.`);
@@ -369,6 +369,18 @@ loadState(freshStateLiteral({
   gameOpts: { carry: false, skinVal: 5 },
 }));
 assertEqual(call('calcSkinsMoney'), [15, 0, -15], 'A (2 skins) nets $15, B (1 skin) breaks even, C (0 skins) pays $15 at $5/skin');
+
+console.log('Security: esc() escapes HTML-significant characters, tolerates null/non-string input');
+assertEqual(call('esc', '<img src=x onerror=alert(1)>'), '&lt;img src=x onerror=alert(1)&gt;', 'angle brackets are escaped so a payload cannot break out of innerHTML');
+assertEqual(call('esc', `O'Brien "Ace" <script>`), 'O&#39;Brien &quot;Ace&quot; &lt;script&gt;', 'quotes and angle brackets are all escaped together');
+assertEqual(call('esc', null), '', 'null coerces to an empty string instead of the literal "null"');
+assertEqual(call('esc', undefined), '', 'undefined coerces to an empty string instead of the literal "undefined"');
+assertEqual(call('esc', 42), '42', 'numbers are coerced to strings unchanged');
+
+console.log('Reliability: safeParseJSON falls back gracefully instead of throwing on malformed storage');
+assertEqual(call('safeParseJSON', '{"a":1}', []), { a: 1 }, 'valid JSON parses normally');
+assertEqual(call('safeParseJSON', '{not json', []), [], 'malformed JSON returns the fallback instead of throwing');
+assertEqual(call('safeParseJSON', null, {}), {}, 'null input (missing localStorage key) returns the fallback');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
