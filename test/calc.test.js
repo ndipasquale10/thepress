@@ -425,5 +425,40 @@ loadState(freshStateLiteral({
 }));
 assertEqual(call('calcSnakeMoney'), [0, 0], 'a snake-less round settles at zero for everyone');
 
+console.log('Nassau: 2v2 team best-ball mode still settles correctly after extracting settleTeamSegment (regression)');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }, { name: 'D', hdcp: 0 }],
+  holeCount: 3,
+  scores: scoresFor([
+    [4, 5, 4], // team0 (A,B) best-ball per hole: 4, 5, 4
+    [5, 5, 4],
+    [5, 4, 5], // team1 (C,D) best-ball per hole: 5, 4, 5
+    [5, 5, 5],
+  ]),
+  gameOpts: { front: 5, back: 0, overall: 3, press: false, nassauTeams: true, nassauTeamRoster: [[0, 1], [2, 3]] },
+}));
+assertEqual(call('calcNassauMoney'), [16, 16, -16, -16], 'team0 wins the hole-count 2-1 on both the front and overall bets ($5+$3 x2 members)');
+
+console.log('Sixes: rotating partners settle each 6-hole segment via the shared settleTeamSegment helper');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }, { name: 'D', hdcp: 0 }],
+  holeCount: 18,
+  // Segment 1 (holes 0-5, pairing [A,B] vs [C,D]): A/B best-ball beats C/D every hole -> team0 wins
+  // Segment 2 (holes 6-11, pairing [A,C] vs [B,D]): tie every hole -> no payout
+  // Segment 3 (holes 12-17, pairing [A,D] vs [B,C]): B/C best-ball beats A/D every hole -> team1 wins
+  scores: scoresFor([
+    [3, 3, 3, 3, 3, 3, /*seg1 A*/ 4, 4, 4, 4, 4, 4, /*seg2 A*/ 5, 5, 5, 5, 5, 5 /*seg3 A*/],
+    [3, 3, 3, 3, 3, 3, /*seg1 B*/ 5, 5, 5, 5, 5, 5, /*seg2 B*/ 3, 3, 3, 3, 3, 3 /*seg3 B*/],
+    [5, 5, 5, 5, 5, 5, /*seg1 C*/ 5, 5, 5, 5, 5, 5, /*seg2 C*/ 3, 3, 3, 3, 3, 3 /*seg3 C*/],
+    [5, 5, 5, 5, 5, 5, /*seg1 D*/ 4, 4, 4, 4, 4, 4, /*seg2 D*/ 5, 5, 5, 5, 5, 5 /*seg3 D*/],
+  ]),
+  gameOpts: { sixesVal: 10 },
+}));
+// seg1: [A,B] (best 3) beats [C,D] (best 5) every hole -> A,B each +10 per opponent = +20; C,D each -20
+// seg2: [A,C] best=min(4,5)=4 vs [B,D] best=min(5,4)=4 -> tie every hole, no payout
+// seg3: [A,D] best=min(5,5)=5 vs [B,C] best=min(3,3)=3 -> [B,C] wins, B,C each +20; A,D each -20
+// totals: A = +20-20 = 0; B = +20+20 = 40; C = -20+20 = 0; D = -20-20 = -40
+assertEqual(call('calcSixesMoney'), [0, 40, 0, -40], 'segment 1 goes to team A/B, segment 2 ties, segment 3 goes to team B/C');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
