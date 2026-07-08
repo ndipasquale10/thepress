@@ -100,7 +100,7 @@ scriptBlocks.forEach((code, i) => {
   }
 });
 
-const required = ['calcVegasMoney', 'calcNassauMoney', 'calcSkins', 'calcBonusMoney', 'addBonus', 'removeBonus', 'getBonusCount', 'getPlayingHandicaps', 'readGameOpts', 'computeScoringStats'];
+const required = ['calcVegasMoney', 'calcNassauMoney', 'calcSkins', 'calcBonusMoney', 'addBonus', 'removeBonus', 'getBonusCount', 'getPlayingHandicaps', 'readGameOpts', 'computeScoringStats', 'esc', 'safeParseJSON', 'mergeByName'];
 for (const fn of required) {
   if (typeof context[fn] !== 'function') {
     console.error(`FATAL: ${fn} was not found in the loaded script context. Aborting tests.`);
@@ -304,6 +304,161 @@ console.log('Wolf: "Lone Wolf" button label reflects gameOpts.lone2x, not hardco
 const hasConditionalLabel = html.includes('🐺 Lone Wolf (${state.gameOpts.lone2x?"2×":"1×"})');
 if (hasConditionalLabel) { pass++; console.log('  ok - label is rendered conditionally on gameOpts.lone2x'); }
 else { fail++; console.log('  FAIL - static "Lone Wolf (2×)" label found instead of a conditional one'); }
+
+console.log('Wolf: normal-pick payout scales with birdie/eagle and splits across the field (calcWolfMoney)');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }, { name: 'D', hdcp: 0 }],
+  gameType: 'wolf',
+  holeCount: 1,
+  pars: [4, ...Array(17).fill(4)],
+  scores: scoresFor([[3], [4], [5], [5]]), // wolf+partner birdie (3) beats field (5,5)
+  wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } },
+  gameOpts: { wolfVal: 1 },
+}));
+assertEqual(call('calcWolfMoney'), [4, 4, -4, -4], 'wolf(A)+partner(B) birdie beats field 2x multiplier, split $1 x2 field members each');
+
+console.log('Wolf: Lone Wolf pays/collects double via gameOpts.lone2x (Bug 6 follow-through)');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }, { name: 'D', hdcp: 0 }],
+  gameType: 'wolf',
+  holeCount: 1,
+  pars: [4, ...Array(17).fill(4)],
+  scores: scoresFor([[3], [5], [5], [5]]), // lone wolf (A) birdies, field all bogey
+  wolfHoles: { 0: { wolf: 0, partners: [], hammers: 0 } },
+  gameOpts: { wolfVal: 1, lone2x: true },
+}));
+assertEqual(call('calcWolfMoney'), [12, -4, -4, -4], 'lone wolf birdie at 2x collects double from each of the 3 field players');
+
+console.log('Match Play: "perhole" format pays the hole winner from every other player, ties push');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  gameType: 'match',
+  holeCount: 3,
+  scores: scoresFor([[4, 5, 4], [5, 4, 4]]), // A wins hole0, B wins hole1, hole2 ties
+  matchPresses: [],
+  gameOpts: { matchFormat: 'perhole', holeVal: 2 },
+}));
+assertEqual(call('calcMatchMoney'), [0, 0], 'A wins one hole and B wins one hole at $2 each, netting to zero; tied hole pushes');
+
+console.log('Match Play: "nassau" format pays the front/back/overall segment winner once, not per-hole');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  gameType: 'match',
+  holeCount: 3,
+  scores: scoresFor([[4, 4, 4], [5, 5, 4]]), // A wins holes 0-1, hole2 ties -> A wins the only segment (front==overall on a 3-hole round)
+  gameOpts: { matchFormat: 'nassau', matchFront: 1, matchBack: 1, matchOverall: 2 },
+}));
+assertEqual(call('calcMatchMoney'), [3, -3], 'A wins both the front-9 bet ($1) and overall bet ($2) as the unique segment winner, not per-hole');
+
+console.log('Stableford: money is the pairwise zero-sum differential of net Stableford points x $/point');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  gameType: 'stableford',
+  holeCount: 1,
+  pars: [4, ...Array(17).fill(4)],
+  scores: scoresFor([[2], [5]]), // A: net -2 vs par -> 5 pts (eagle); B: net +1 -> -1 pt (bogey)
+  gameOpts: { ptVal: 2 },
+}));
+assertEqual(call('calcStablefordMoney'), [12, -12], 'A (5 pts) vs B (-1 pt): (5-(-1))*$2 = $12 zero-sum');
+
+console.log('Skins: money formula pays skin-holders from the field proportional to $/skin (calcSkinsMoney)');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }],
+  holeCount: 3,
+  scores: scoresFor([[3, 3, 5], [4, 4, 3], [5, 4, 5]]), // A wins skins on holes 0-1, B wins hole 2 -> skins=[2,1,0]
+  gameOpts: { carry: false, skinVal: 5 },
+}));
+assertEqual(call('calcSkinsMoney'), [15, 0, -15], 'A (2 skins) nets $15, B (1 skin) breaks even, C (0 skins) pays $15 at $5/skin');
+
+console.log('Security: esc() escapes HTML-significant characters, tolerates null/non-string input');
+assertEqual(call('esc', '<img src=x onerror=alert(1)>'), '&lt;img src=x onerror=alert(1)&gt;', 'angle brackets are escaped so a payload cannot break out of innerHTML');
+assertEqual(call('esc', `O'Brien "Ace" <script>`), 'O&#39;Brien &quot;Ace&quot; &lt;script&gt;', 'quotes and angle brackets are all escaped together');
+assertEqual(call('esc', null), '', 'null coerces to an empty string instead of the literal "null"');
+assertEqual(call('esc', undefined), '', 'undefined coerces to an empty string instead of the literal "undefined"');
+assertEqual(call('esc', 42), '42', 'numbers are coerced to strings unchanged');
+
+console.log('Reliability: safeParseJSON falls back gracefully instead of throwing on malformed storage');
+assertEqual(call('safeParseJSON', '{"a":1}', []), { a: 1 }, 'valid JSON parses normally');
+assertEqual(call('safeParseJSON', '{not json', []), [], 'malformed JSON returns the fallback instead of throwing');
+assertEqual(call('safeParseJSON', null, {}), {}, 'null input (missing localStorage key) returns the fallback');
+
+console.log('Reliability: mergeByName dedupes by case-insensitive name, first argument wins ties');
+assertEqual(
+  call('mergeByName', [{ name: 'Alice', hdcp: 5 }], [{ name: 'alice', hdcp: 99 }, { name: 'Bob', hdcp: 8 }]),
+  [{ name: 'Alice', hdcp: 5 }, { name: 'Bob', hdcp: 8 }],
+  'a case-insensitive name collision keeps the base array\'s entry, not the addition\'s'
+);
+assertEqual(call('mergeByName', [{ name: 'Alice' }], []), [{ name: 'Alice' }], 'an empty additions array leaves the base unchanged');
+assertEqual(call('mergeByName', [], [{ name: 'Alice' }]), [{ name: 'Alice' }], 'an empty base array just adopts all additions');
+
+console.log('Stableford: Quota variant subtracts each player\'s personal target before settling');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  gameType: 'stableford',
+  holeCount: 1,
+  pars: [4, ...Array(17).fill(4)],
+  scores: scoresFor([[2], [5]]), // A: 5 pts (eagle); B: -1 pt (bogey) -- same fixture as the non-quota test
+  gameOpts: { ptVal: 2, quotaEnabled: true, quotas: [3, -2] }, // A needs 3 to break even, B needs -2
+}));
+// effective points: A = 5-3 = 2, B = -1-(-2) = 1 -> diff = 1, at $2/pt = $2 (vs $12 without quotas)
+assertEqual(call('calcStablefordMoney'), [2, -2], 'quotas shrink the gap from $12 (no quota) to $2 once each player\'s target is subtracted');
+
+console.log('Snake: whoever holds the snake on the chronologically-last 3-putt pays the pot');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }],
+  scores: { 0: {}, 1: {}, 2: {} },
+  gameType: 'snake',
+  holeCount: 6,
+  gameOpts: { potVal: 10 },
+}));
+call('addBonus', 0, 1, 0); // A 3-putts hole 2
+call('addBonus', 2, 4, 0); // C 3-putts hole 5 (later) -- C now holds the snake
+assertEqual(call('calcSnakeMoney'), [10, 10, -20], 'C holds the snake (last 3-putt) and pays $10 to each of A and B');
+
+console.log('Snake: no 3-putts at all means nobody owes anything');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  scores: { 0: {}, 1: {} },
+  gameType: 'snake',
+  holeCount: 3,
+  gameOpts: { potVal: 10 },
+}));
+assertEqual(call('calcSnakeMoney'), [0, 0], 'a snake-less round settles at zero for everyone');
+
+console.log('Nassau: 2v2 team best-ball mode still settles correctly after extracting settleTeamSegment (regression)');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }, { name: 'D', hdcp: 0 }],
+  holeCount: 3,
+  scores: scoresFor([
+    [4, 5, 4], // team0 (A,B) best-ball per hole: 4, 5, 4
+    [5, 5, 4],
+    [5, 4, 5], // team1 (C,D) best-ball per hole: 5, 4, 5
+    [5, 5, 5],
+  ]),
+  gameOpts: { front: 5, back: 0, overall: 3, press: false, nassauTeams: true, nassauTeamRoster: [[0, 1], [2, 3]] },
+}));
+assertEqual(call('calcNassauMoney'), [16, 16, -16, -16], 'team0 wins the hole-count 2-1 on both the front and overall bets ($5+$3 x2 members)');
+
+console.log('Sixes: rotating partners settle each 6-hole segment via the shared settleTeamSegment helper');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }, { name: 'D', hdcp: 0 }],
+  holeCount: 18,
+  // Segment 1 (holes 0-5, pairing [A,B] vs [C,D]): A/B best-ball beats C/D every hole -> team0 wins
+  // Segment 2 (holes 6-11, pairing [A,C] vs [B,D]): tie every hole -> no payout
+  // Segment 3 (holes 12-17, pairing [A,D] vs [B,C]): B/C best-ball beats A/D every hole -> team1 wins
+  scores: scoresFor([
+    [3, 3, 3, 3, 3, 3, /*seg1 A*/ 4, 4, 4, 4, 4, 4, /*seg2 A*/ 5, 5, 5, 5, 5, 5 /*seg3 A*/],
+    [3, 3, 3, 3, 3, 3, /*seg1 B*/ 5, 5, 5, 5, 5, 5, /*seg2 B*/ 3, 3, 3, 3, 3, 3 /*seg3 B*/],
+    [5, 5, 5, 5, 5, 5, /*seg1 C*/ 5, 5, 5, 5, 5, 5, /*seg2 C*/ 3, 3, 3, 3, 3, 3 /*seg3 C*/],
+    [5, 5, 5, 5, 5, 5, /*seg1 D*/ 4, 4, 4, 4, 4, 4, /*seg2 D*/ 5, 5, 5, 5, 5, 5 /*seg3 D*/],
+  ]),
+  gameOpts: { sixesVal: 10 },
+}));
+// seg1: [A,B] (best 3) beats [C,D] (best 5) every hole -> A,B each +10 per opponent = +20; C,D each -20
+// seg2: [A,C] best=min(4,5)=4 vs [B,D] best=min(5,4)=4 -> tie every hole, no payout
+// seg3: [A,D] best=min(5,5)=5 vs [B,C] best=min(3,3)=3 -> [B,C] wins, B,C each +20; A,D each -20
+// totals: A = +20-20 = 0; B = +20+20 = 40; C = -20+20 = 0; D = -20-20 = -40
+assertEqual(call('calcSixesMoney'), [0, 40, 0, -40], 'segment 1 goes to team A/B, segment 2 ties, segment 3 goes to team B/C');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
