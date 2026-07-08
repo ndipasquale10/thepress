@@ -391,5 +391,17 @@ assertEqual(
 assertEqual(call('mergeByName', [{ name: 'Alice' }], []), [{ name: 'Alice' }], 'an empty additions array leaves the base unchanged');
 assertEqual(call('mergeByName', [], [{ name: 'Alice' }]), [{ name: 'Alice' }], 'an empty base array just adopts all additions');
 
+console.log('Stableford: Quota variant subtracts each player\'s personal target before settling');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  gameType: 'stableford',
+  holeCount: 1,
+  pars: [4, ...Array(17).fill(4)],
+  scores: scoresFor([[2], [5]]), // A: 5 pts (eagle); B: -1 pt (bogey) -- same fixture as the non-quota test
+  gameOpts: { ptVal: 2, quotaEnabled: true, quotas: [3, -2] }, // A needs 3 to break even, B needs -2
+}));
+// effective points: A = 5-3 = 2, B = -1-(-2) = 1 -> diff = 1, at $2/pt = $2 (vs $12 without quotas)
+assertEqual(call('calcStablefordMoney'), [2, -2], 'quotas shrink the gap from $12 (no quota) to $2 once each player\'s target is subtracted');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
