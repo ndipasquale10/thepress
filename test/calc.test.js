@@ -329,6 +329,47 @@ loadState(freshStateLiteral({
 }));
 assertEqual(call('calcWolfMoney'), [12, -4, -4, -4], 'lone wolf birdie at 2x collects double from each of the 3 field players');
 
+console.log('Wolf: shuck (one player vs everyone) at 2x — collects/pays each opponent, with birdie/eagle + hammer multipliers');
+// shuck win with a birdie: 2x base x2 birdie = 4x, collected from each of 3 opponents
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }, { name: 'D', hdcp: 0 }],
+  gameType: 'wolf', holeCount: 1, pars: [4, ...Array(17).fill(4)],
+  scores: scoresFor([[3], [5], [5], [5]]),
+  wolfHoles: { 0: { wolf: 0, partners: [], blind: false, blindPick: false, shuck: 0, hammers: 0 } },
+  gameOpts: { wolfVal: 1 },
+}));
+assertEqual(call('calcWolfMoney'), [12, -4, -4, -4], 'shuck(A) birdie beats field: 2x*2 = collects 4 from each of 3 opponents');
+
+// shuck loss at par: 2x, pays each opponent (even opponents who scored worse still collect - field best ball)
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }, { name: 'D', hdcp: 0 }],
+  gameType: 'wolf', holeCount: 1, pars: [4, ...Array(17).fill(4)],
+  scores: scoresFor([[6], [4], [5], [5]]),
+  wolfHoles: { 0: { wolf: 0, partners: [], blind: false, blindPick: false, shuck: 0, hammers: 0 } },
+  gameOpts: { wolfVal: 1 },
+}));
+assertEqual(call('calcWolfMoney'), [-6, 2, 2, 2], 'shuck(A) loses to field best: pays 2x to each of 3 opponents');
+
+// shuck win at par with 1 hammer: 2x base x2 hammer = 4x
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }, { name: 'D', hdcp: 0 }],
+  gameType: 'wolf', holeCount: 1, pars: [4, ...Array(17).fill(4)],
+  scores: scoresFor([[4], [5], [5], [5]]),
+  wolfHoles: { 0: { wolf: 0, partners: [], blind: false, blindPick: false, shuck: 0, hammers: 1 } },
+  gameOpts: { wolfVal: 1 },
+}));
+assertEqual(call('calcWolfMoney'), [12, -4, -4, -4], 'shuck(A) par win with 1 hammer: 2x*2 = collects 4 from each');
+
+// shuck tie: nobody moves money
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }, { name: 'D', hdcp: 0 }],
+  gameType: 'wolf', holeCount: 1, pars: [4, ...Array(17).fill(4)],
+  scores: scoresFor([[4], [4], [5], [5]]),
+  wolfHoles: { 0: { wolf: 0, partners: [], blind: false, blindPick: false, shuck: 0, hammers: 0 } },
+  gameOpts: { wolfVal: 1 },
+}));
+assertEqual(call('calcWolfMoney'), [0, 0, 0, 0], 'shuck(A) ties field best: no money moves');
+
 console.log('Match Play: "perhole" format pays the hole winner from every other player, ties push');
 loadState(freshStateLiteral({
   players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
