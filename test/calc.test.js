@@ -501,5 +501,67 @@ loadState(freshStateLiteral({
 // totals: A = +20-20 = 0; B = +20+20 = 40; C = -20+20 = 0; D = -20-20 = -40
 assertEqual(call('calcSixesMoney'), [0, 40, 0, -40], 'segment 1 goes to team A/B, segment 2 ties, segment 3 goes to team B/C');
 
+// ===== Comprehensive money-conservation regression: every game/variant is zero-sum =====
+console.log('Money conservation: every game and variant nets to zero (money is only transferred, never created/destroyed)');
+const _P2 = [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }];
+const _P3 = [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }];
+const _P4 = [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }, { name: 'D', hdcp: 0 }];
+function assertZeroSum(fnName, msg) {
+  const r = call(fnName), s = r.reduce((x, y) => x + y, 0);
+  if (Math.abs(s) < 1e-9) { pass++; console.log(`  ok - ${msg} nets to zero  [${r.join(', ')}]`); }
+  else { fail++; console.log(`  FAIL - ${msg} sum=${s} not zero  [${r.join(', ')}]`); }
+}
+
+loadState(freshStateLiteral({ players: _P4, gameType: 'wolf', holeCount: 1, scores: scoresFor([[3], [4], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
+assertZeroSum('calcWolfMoney', 'Wolf (partner pick)');
+loadState(freshStateLiteral({ players: _P4, gameType: 'wolf', holeCount: 1, scores: scoresFor([[3], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [], hammers: 0 } }, gameOpts: { wolfVal: 1, lone2x: true } }));
+assertZeroSum('calcWolfMoney', 'Wolf (lone wolf 2x)');
+loadState(freshStateLiteral({ players: _P4, gameType: 'wolf', holeCount: 1, scores: scoresFor([[3], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [], shuck: 0, hammers: 2 } }, gameOpts: { wolfVal: 1 } }));
+assertZeroSum('calcWolfMoney', 'Wolf (shuck + 2 hammers)');
+
+loadState(freshStateLiteral({ players: _P2, gameType: 'nassau', holeCount: 6, scores: scoresFor([[4, 4, 5, 4, 5, 4], [5, 5, 4, 5, 4, 5]]), gameOpts: { front: 5, back: 0, overall: 3, press: false } }));
+assertZeroSum('calcNassauMoney', 'Nassau (individual)');
+loadState(freshStateLiteral({ players: _P4, gameType: 'nassau', holeCount: 3, scores: scoresFor([[4, 5, 4], [5, 5, 4], [5, 4, 5], [5, 5, 5]]), gameOpts: { front: 5, back: 0, overall: 3, press: false, nassauTeams: true, nassauTeamRoster: [[0, 1], [2, 3]] } }));
+assertZeroSum('calcNassauMoney', 'Nassau (2v2 team)');
+
+loadState(freshStateLiteral({ players: _P3, gameType: 'skins', holeCount: 3, scores: scoresFor([[3, 3, 5], [4, 4, 3], [5, 4, 5]]), gameOpts: { carry: false, skinVal: 5 } }));
+assertZeroSum('calcSkinsMoney', 'Skins (no carry)');
+loadState(freshStateLiteral({ players: _P3, gameType: 'skins', holeCount: 3, scores: scoresFor([[4, 3, 4], [4, 4, 4], [4, 4, 4]]), gameOpts: { carry: true, skinVal: 5 } }));
+assertZeroSum('calcSkinsMoney', 'Skins (carryover)');
+assertEqual(call('calcSkinsMoney'), [20, -10, -10], 'Skins carry: hole-0 tie carries into hole-1 outright win, so A sweeps 2 skins ($20) and B/C each pay $10');
+
+loadState(freshStateLiteral({ players: _P2, gameType: 'match', holeCount: 3, scores: scoresFor([[4, 5, 4], [5, 4, 4]]), gameOpts: { matchFormat: 'perhole', holeVal: 2 } }));
+assertZeroSum('calcMatchMoney', 'Match (per-hole)');
+loadState(freshStateLiteral({ players: _P2, gameType: 'match', holeCount: 3, scores: scoresFor([[4, 4, 4], [5, 5, 4]]), gameOpts: { matchFormat: 'nassau', matchFront: 1, matchBack: 1, matchOverall: 2 } }));
+assertZeroSum('calcMatchMoney', 'Match (nassau format)');
+
+loadState(freshStateLiteral({ players: _P2, gameType: 'stableford', holeCount: 1, pars: [4, ...Array(17).fill(4)], scores: scoresFor([[2], [5]]), gameOpts: { ptVal: 2 } }));
+assertZeroSum('calcStablefordMoney', 'Stableford');
+loadState(freshStateLiteral({ players: _P2, gameType: 'stableford', holeCount: 1, pars: [4, ...Array(17).fill(4)], scores: scoresFor([[2], [5]]), gameOpts: { ptVal: 2, quotaEnabled: true, quotas: [3, -2] } }));
+assertZeroSum('calcStablefordMoney', 'Stableford (quota)');
+
+loadState(freshStateLiteral({ players: _P4, gameType: 'vegas', holeCount: 1, scores: scoresFor([[4], [4], [5], [6]]), gameOpts: { vegasTeams: [[0, 1], [2, 3]], vegasVal: 1, vegasFlip: false } }));
+assertZeroSum('calcVegasMoney', 'Vegas');
+
+loadState(freshStateLiteral({ players: _P3, gameType: 'bingo', scores: { 0: {}, 1: {}, 2: {} }, gameOpts: { ptVal: 1 } }));
+call('addBonus', 0, 0, 0); call('addBonus', 0, 0, 1); call('addBonus', 0, 0, 2); call('addBonus', 1, 1, 0); // A=3 pts, B=1 pt, C=0
+assertZeroSum('calcBonusMoney', 'Bingo-Bango-Bongo (unequal points)');
+assertEqual(call('calcBonusMoney'), [5, -1, -4], 'bingo pairwise: A(3) collects the point-diff from B(1) and C(0) at $1/pt');
+loadState(freshStateLiteral({ players: _P4, gameType: 'dots', scores: { 0: {}, 1: {}, 2: {}, 3: {} }, gameOpts: { dotVal: 2 } }));
+call('addBonus', 0, 0, 0); call('addBonus', 0, 0, 1); call('addBonus', 2, 1, 0);
+assertZeroSum('calcBonusMoney', 'Dots (multi-category)');
+
+loadState(freshStateLiteral({ players: _P3, gameType: 'snake', scores: { 0: {}, 1: {}, 2: {} }, holeCount: 6, gameOpts: { potVal: 10 } }));
+call('addBonus', 0, 1, 0); call('addBonus', 2, 4, 0);
+assertZeroSum('calcSnakeMoney', 'Snake');
+
+loadState(freshStateLiteral({ players: _P4, gameType: 'sixes', holeCount: 18, scores: scoresFor([
+  [3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5],
+  [3, 3, 3, 3, 3, 3, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3, 3, 3],
+  [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3, 3, 3],
+  [5, 5, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5],
+]), gameOpts: { sixesVal: 10 } }));
+assertZeroSum('calcSixesMoney', 'Sixes (rotating partners)');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
