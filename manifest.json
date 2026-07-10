@@ -1,14 +1,14 @@
 {
-  "name": "Greenside",
-  "short_name": "Greenside",
+  "name": "The Press",
+  "short_name": "The Press",
   "description": "Golf betting tracker — Score. Bet. Settle up.",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#0f4d2e",
   "theme_color": "#0f4d2e",
   "icons": [
-    { "src": "logo.png", "sizes": "1254x1254", "type": "image/png" },
-    { "src": "logo-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "logo-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "logo-64.png", "sizes": "64x64", "type": "image/png" }
   ]
 }
