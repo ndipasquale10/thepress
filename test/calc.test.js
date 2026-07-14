@@ -528,7 +528,13 @@ loadState(freshStateLiteral({ players: _P3, gameType: 'skins', holeCount: 3, sco
 assertZeroSum('calcSkinsMoney', 'Skins (no carry)');
 loadState(freshStateLiteral({ players: _P3, gameType: 'skins', holeCount: 3, scores: scoresFor([[4, 3, 4], [4, 4, 4], [4, 4, 4]]), gameOpts: { carry: true, skinVal: 5 } }));
 assertZeroSum('calcSkinsMoney', 'Skins (carryover)');
-assertEqual(call('calcSkinsMoney'), [20, -10, -10], 'Skins carry: hole-0 tie carries into hole-1 outright win, so A sweeps 2 skins ($20) and B/C each pay $10');
+assertEqual(call('calcSkinsMoney').map((v) => Math.round(v * 100) / 100), [20, -10, -10], 'Skins carry: A sweeps holes 0-1 for 2 skins ($20); the hole-2 all-3 tie carry splits evenly (money-neutral, at cent precision) so B/C still each pay $10');
+
+// Unresolved carry that ends on a *subset* tie is split among just those tied leaders.
+loadState(freshStateLiteral({ players: _P3, gameType: 'skins', holeCount: 2, scores: scoresFor([[4, 3], [4, 3], [4, 5]]), gameOpts: { carry: true, skinVal: 5 } }));
+assertZeroSum('calcSkinsMoney', 'Skins (unresolved carry, subset tie)');
+assertEqual(call('calcSkins'), [1, 1, 0], 'hole 0 ties (carry), hole 1 A&B tie for low -> the 2-skin carry pot splits between A and B, C never contended');
+assertEqual(call('calcSkinsMoney'), [5, 5, -10], 'A and B each net $5 from the split carry; C pays $10');
 
 loadState(freshStateLiteral({ players: _P2, gameType: 'match', holeCount: 3, scores: scoresFor([[4, 5, 4], [5, 4, 4]]), gameOpts: { matchFormat: 'perhole', holeVal: 2 } }));
 assertZeroSum('calcMatchMoney', 'Match (per-hole)');
