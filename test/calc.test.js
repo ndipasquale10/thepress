@@ -613,5 +613,19 @@ loadState(freshStateLiteral({
 }));
 assertEqual(call('calcNassauMoney'), [5, -5], 'with presses off, the identical round pays only the $5 front bet');
 
+// ===== Spectator mode: mutation guards make watching strictly read-only =====
+console.log('Spectator: mutation guards block scoring changes while watching');
+assertEqual(call('canMutateRound'), true, 'canMutateRound defaults to true (not spectating)');
+loadState(freshStateLiteral({ players: _P2, gameType: 'bingo', scores: { 0: {}, 1: {} }, gameOpts: { ptVal: 1 } }));
+vm.runInContext('isSpectator=true', context);
+assertEqual(call('canMutateRound'), false, 'canMutateRound flips false while spectating');
+call('addBonus', 0, 0, 0);
+assertEqual(call('getBonusCount', 0, 0), 0, 'addBonus is a no-op for spectators');
+vm.runInContext('isSpectator=false', context);
+call('addBonus', 0, 0, 0);
+assertEqual(call('getBonusCount', 0, 0), 1, 'addBonus works again once no longer spectating');
+assertEqual(typeof context.appConfirm === 'function' && typeof context.appPrompt === 'function', true, 'themed appConfirm/appPrompt dialog helpers are defined');
+assertEqual(typeof context.startSpectator === 'function' && typeof context.exitSpectator === 'function', true, 'spectator entry/exit functions are defined');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
