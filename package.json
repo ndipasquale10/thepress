@@ -1,0 +1,9 @@
+{
+  "name": "thepress",
+  "version": "1.0.0",
+  "description": "The Press — golf betting tracker PWA. Score. Bet. Settle up.",
+  "private": true,
+  "scripts": {
+    "test": "node test/calc.test.js"
+  }
+}

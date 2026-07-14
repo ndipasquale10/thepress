@@ -100,7 +100,7 @@ scriptBlocks.forEach((code, i) => {
   }
 });
 
-const required = ['calcVegasMoney', 'calcNassauMoney', 'calcSkins', 'calcBonusMoney', 'addBonus', 'removeBonus', 'getBonusCount', 'getPlayingHandicaps', 'readGameOpts', 'computeScoringStats', 'esc', 'safeParseJSON', 'mergeByName'];
+const required = ['calcVegasMoney', 'calcNassauMoney', 'calcSkins', 'calcBonusMoney', 'addBonus', 'removeBonus', 'getBonusCount', 'getPlayingHandicaps', 'readGameOpts', 'computeScoringStats', 'esc', 'safeParseJSON', 'mergeByName', 'roundNetsToCents', 'sixesSetupValid', 'vegasSetupValid'];
 for (const fn of required) {
   if (typeof context[fn] !== 'function') {
     console.error(`FATAL: ${fn} was not found in the loaded script context. Aborting tests.`);
@@ -562,6 +562,50 @@ loadState(freshStateLiteral({ players: _P4, gameType: 'sixes', holeCount: 18, sc
   [5, 5, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5],
 ]), gameOpts: { sixesVal: 10 } }));
 assertZeroSum('calcSixesMoney', 'Sixes (rotating partners)');
+
+// ===== Setup guards: games with a fixed team size must reject wrong player counts =====
+console.log('Setup guards: Sixes and Vegas require exactly 4 players (no silently-$0 rounds)');
+loadState(freshStateLiteral({ players: _P3, gameType: 'sixes' }));
+assertEqual(call('sixesSetupValid'), false, 'Sixes with 3 players is rejected at setup');
+const _P5 = [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }, { name: 'C', hdcp: 0 }, { name: 'D', hdcp: 0 }, { name: 'E', hdcp: 0 }];
+loadState(freshStateLiteral({ players: _P5, gameType: 'sixes' }));
+assertEqual(call('sixesSetupValid'), false, 'Sixes with 5 players is rejected at setup');
+loadState(freshStateLiteral({ players: _P4, gameType: 'sixes' }));
+assertEqual(call('sixesSetupValid'), true, 'Sixes with exactly 4 players is allowed');
+loadState(freshStateLiteral({ players: _P2, gameType: 'nassau' }));
+assertEqual(call('sixesSetupValid'), true, 'sixesSetupValid is a no-op when the game is not Sixes');
+loadState(freshStateLiteral({ players: _P3, gameType: 'vegas' }));
+assertEqual(call('vegasSetupValid'), false, 'Vegas with 3 players is rejected at setup');
+loadState(freshStateLiteral({ players: _P5, gameType: 'vegas' }));
+assertEqual(call('vegasSetupValid'), false, 'Vegas with 5 players is rejected (the 5th would be silently dropped from the teams)');
+
+// ===== Cent-accurate settlement: rounded nets stay whole cents and total exactly zero =====
+console.log('Settlement: roundNetsToCents rounds to whole cents while preserving an exact $0 total');
+const rcThirds = call('roundNetsToCents', [10 / 3, 10 / 3, 10 / 3, -10]);
+assertEqual(rcThirds, [3.34, 3.33, 3.33, -10], 'a $10 pot split three ways rounds to cents that still total exactly $0');
+assertEqual(Math.abs(rcThirds.reduce((x, y) => x + y, 0)) < 1e-9, true, 'the rounded thirds sum to exactly zero');
+const rcHalves = call('roundNetsToCents', [5.5, 5.5, -5.5, -5.5]);
+assertEqual(rcHalves, [5.5, 5.5, -5.5, -5.5], 'values already on a cent boundary are returned unchanged');
+const rcMessy = call('roundNetsToCents', [1 / 3, 1 / 3, 1 / 3, 2 / 3, -5 / 3]);
+assertEqual(rcMessy.every((v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-9), true, 'every returned value is a whole number of cents');
+assertEqual(Math.abs(rcMessy.reduce((x, y) => x + y, 0)) < 1e-9, true, 'a messy fractional vector still reconciles to exactly zero');
+assertEqual(call('roundNetsToCents', []), [], 'an empty net vector is handled without throwing');
+
+// ===== Nassau auto-press generation + payout (previously untested path) =====
+console.log('Nassau: an auto-press is generated when a player falls 2 down, then pays out on the pressed holes');
+const nassauPressOpts = { front: 5, back: 0, overall: 0, pressVal: 5 };
+loadState(freshStateLiteral({
+  players: _P2, gameType: 'nassau', holeCount: 3,
+  scores: scoresFor([[6, 3, 3], [4, 4, 4]]), // A loses hole 0 (2 down -> press), then wins holes 1 & 2
+  gameOpts: Object.assign({ press: true }, nassauPressOpts),
+}));
+assertEqual(call('calcNassauMoney'), [10, -10], 'A wins the $5 front bet (2 holes to 1) plus the $5 auto-press on holes 1-2 = $10');
+loadState(freshStateLiteral({
+  players: _P2, gameType: 'nassau', holeCount: 3,
+  scores: scoresFor([[6, 3, 3], [4, 4, 4]]),
+  gameOpts: Object.assign({ press: false }, nassauPressOpts),
+}));
+assertEqual(call('calcNassauMoney'), [5, -5], 'with presses off, the identical round pays only the $5 front bet');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
