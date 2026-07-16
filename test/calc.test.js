@@ -638,5 +638,18 @@ assertEqual(call('wolfPickMissing', 0), false, 'lone wolf (partners: []) counts 
 loadState(freshStateLiteral({ players: _P2, gameType: 'skins', holeCount: 1 }));
 assertEqual(call('wolfPickMissing', 0), false, 'non-wolf games are never flagged');
 
+// ===== Bonus tap-off: removeBonusCategory un-awards a single category =====
+console.log('Bonus: removeBonusCategory removes one category without touching the rest');
+loadState(freshStateLiteral({ players: _P2, gameType: 'bingo', scores: { 0: {}, 1: {} }, gameOpts: { ptVal: 1 } }));
+call('addBonus', 0, 0, 0);
+call('addBonus', 0, 0, 1);
+assertEqual(call('getBonusCount', 0, 0), 2, 'two categories awarded');
+call('removeBonusCategory', 0, 0, 1);
+assertEqual(call('getBonusCount', 0, 0), 1, 'removing category 1 leaves category 0 intact');
+assertEqual(call('isBonusAwarded', 0, 0, 0), true, 'category 0 still awarded');
+assertEqual(call('isBonusAwarded', 0, 0, 1), false, 'category 1 no longer awarded');
+call('removeBonusCategory', 0, 0, 1);
+assertEqual(call('getBonusCount', 0, 0), 1, 'removing an unawarded category is a no-op');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
