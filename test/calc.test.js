@@ -627,5 +627,29 @@ assertEqual(call('getBonusCount', 0, 0), 1, 'addBonus works again once no longer
 assertEqual(typeof context.appConfirm === 'function' && typeof context.appPrompt === 'function', true, 'themed appConfirm/appPrompt dialog helpers are defined');
 assertEqual(typeof context.startSpectator === 'function' && typeof context.exitSpectator === 'function', true, 'spectator entry/exit functions are defined');
 
+// ===== Wolf pick guard: unpicked wolf holes are detectable =====
+console.log('Wolf: wolfPickMissing flags holes where the wolf never made a decision');
+loadState(freshStateLiteral({ players: _P4, gameType: 'wolf', holeCount: 3, wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 }, 1: { wolf: 1, hammers: 0 } } }));
+assertEqual(call('wolfPickMissing', 0), false, 'a hole with a partner pick is not flagged');
+assertEqual(call('wolfPickMissing', 1), true, 'a hole where only a hammer/entry exists but partners is undefined is flagged');
+assertEqual(call('wolfPickMissing', 2), true, 'a hole with no wolfHoles entry at all is flagged');
+loadState(freshStateLiteral({ players: _P4, gameType: 'wolf', holeCount: 1, wolfHoles: { 0: { wolf: 0, partners: [], hammers: 0 } } }));
+assertEqual(call('wolfPickMissing', 0), false, 'lone wolf (partners: []) counts as a made decision');
+loadState(freshStateLiteral({ players: _P2, gameType: 'skins', holeCount: 1 }));
+assertEqual(call('wolfPickMissing', 0), false, 'non-wolf games are never flagged');
+
+// ===== Bonus tap-off: removeBonusCategory un-awards a single category =====
+console.log('Bonus: removeBonusCategory removes one category without touching the rest');
+loadState(freshStateLiteral({ players: _P2, gameType: 'bingo', scores: { 0: {}, 1: {} }, gameOpts: { ptVal: 1 } }));
+call('addBonus', 0, 0, 0);
+call('addBonus', 0, 0, 1);
+assertEqual(call('getBonusCount', 0, 0), 2, 'two categories awarded');
+call('removeBonusCategory', 0, 0, 1);
+assertEqual(call('getBonusCount', 0, 0), 1, 'removing category 1 leaves category 0 intact');
+assertEqual(call('isBonusAwarded', 0, 0, 0), true, 'category 0 still awarded');
+assertEqual(call('isBonusAwarded', 0, 0, 1), false, 'category 1 no longer awarded');
+call('removeBonusCategory', 0, 0, 1);
+assertEqual(call('getBonusCount', 0, 0), 1, 'removing an unawarded category is a no-op');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
