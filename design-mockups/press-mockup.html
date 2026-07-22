@@ -1,0 +1,723 @@
+<title>The Press — Visual Identity</title>
+<style>
+  /* ============ GLOBAL BOARD TOKENS (respond to viewer theme) ============ */
+  :root{
+    --bg:#EEF1EC; --panel:#FFFFFF; --ink:#14201A; --body:#485249; --muted:#87908A;
+    --line:#D8DED6; --line-soft:#E7EBE4; --accent:#0B6E4F; --accent-2:#17A673;
+    --red:#E23A2E; --gold:#B98E23;
+    --shadow:0 1px 2px rgba(20,32,26,.06),0 12px 34px rgba(20,32,26,.10);
+    --shadow-sm:0 1px 2px rgba(20,32,26,.08);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0C1611; --panel:#12201A; --ink:#EAF1EA; --body:#AEB9B1; --muted:#6C776F;
+      --line:#22332B; --line-soft:#1A2A22; --accent:#17A673; --accent-2:#2ED89A;
+      --red:#F0574B; --gold:#D9B24A;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 18px 40px rgba(0,0,0,.45);
+      --shadow-sm:0 1px 2px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#EEF1EC; --panel:#FFFFFF; --ink:#14201A; --body:#485249; --muted:#87908A;
+    --line:#D8DED6; --line-soft:#E7EBE4; --accent:#0B6E4F; --accent-2:#17A673;
+    --red:#E23A2E; --gold:#B98E23;
+    --shadow:0 1px 2px rgba(20,32,26,.06),0 12px 34px rgba(20,32,26,.10);
+    --shadow-sm:0 1px 2px rgba(20,32,26,.08);
+  }
+  :root[data-theme="dark"]{
+    --bg:#0C1611; --panel:#12201A; --ink:#EAF1EA; --body:#AEB9B1; --muted:#6C776F;
+    --line:#22332B; --line-soft:#1A2A22; --accent:#17A673; --accent-2:#2ED89A;
+    --red:#F0574B; --gold:#D9B24A;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 18px 40px rgba(0,0,0,.45);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.35);
+  }
+
+  /* ============ TYPE ROLES ============ */
+  :root{
+    --sans: system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --display:"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;
+    --serif:Georgia,"Times New Roman",serif;
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--body);
+    font-family:var(--sans); line-height:1.55;
+    font-size:16px; letter-spacing:.005em;
+    transition:background .3s ease,color .3s ease;
+  }
+  .num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1}
+
+  /* ============ PAGE HEADER ============ */
+  header.top{
+    position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; gap:16px;
+    padding:14px clamp(16px,4vw,40px);
+    background:color-mix(in srgb,var(--bg) 82%,transparent);
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .top .mark{display:flex;align-items:center;gap:11px;min-width:0}
+  .top .wm{
+    font-family:var(--display); font-weight:800; letter-spacing:-.02em;
+    text-transform:uppercase; font-size:1.02rem; color:var(--ink); line-height:1;
+  }
+  .top .wm b{color:var(--accent)}
+  .top .sub{
+    font-family:var(--serif); font-style:italic; color:var(--muted);
+    font-size:.82rem; margin-left:2px; white-space:nowrap;
+  }
+  .spacer{flex:1}
+  .tog{
+    display:inline-flex; align-items:center; gap:7px; cursor:pointer;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink);
+    font:inherit; font-size:.8rem; font-weight:600; padding:7px 13px; border-radius:999px;
+    transition:border-color .2s,transform .1s;
+  }
+  .tog:hover{border-color:var(--accent)}
+  .tog:active{transform:translateY(1px)}
+  .tog:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ============ LAYOUT ============ */
+  main{max-width:1120px; margin:0 auto; padding:0 clamp(16px,4vw,40px) 100px}
+  section{padding-top:clamp(48px,7vw,84px)}
+  .kick{
+    font-family:var(--display); text-transform:uppercase; letter-spacing:.2em;
+    font-weight:700; font-size:.7rem; color:var(--accent);
+  }
+  h2.sec{
+    font-family:var(--display); font-weight:800; letter-spacing:-.02em;
+    text-transform:uppercase; font-size:clamp(1.7rem,4.4vw,2.7rem);
+    line-height:.98; color:var(--ink); margin:.35rem 0 .5rem; text-wrap:balance;
+  }
+  .lede{max-width:60ch; color:var(--body); font-size:1.02rem; margin:0 0 .2rem}
+  .lede em{font-family:var(--serif); color:var(--ink); font-style:italic}
+  .rule{height:1px;background:var(--line);border:0;margin:22px 0 0}
+
+  /* ============ IDENTITY BOARD ============ */
+  .board{display:grid; grid-template-columns:repeat(12,1fr); gap:18px; margin-top:30px}
+  .cell{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:22px; box-shadow:var(--shadow-sm);
+  }
+  .cell h3{
+    font-family:var(--display); text-transform:uppercase; letter-spacing:.12em;
+    font-size:.7rem; font-weight:700; color:var(--muted); margin:0 0 16px;
+  }
+  .col-4{grid-column:span 4} .col-5{grid-column:span 5}
+  .col-6{grid-column:span 6} .col-7{grid-column:span 7}
+  .col-8{grid-column:span 8} .col-12{grid-column:span 12}
+  @media (max-width:820px){
+    .col-4,.col-5,.col-6,.col-7,.col-8{grid-column:span 12}
+  }
+
+  /* logo lockup */
+  .lockup{display:flex; align-items:center; gap:20px; flex-wrap:wrap}
+  .seal{width:96px;height:96px;flex:none;filter:drop-shadow(0 6px 14px rgba(11,110,79,.28))}
+  .lockup .name{font-family:var(--display);font-weight:800;text-transform:uppercase;
+    letter-spacing:-.025em; font-size:2.5rem; line-height:.9; color:var(--ink)}
+  .lockup .name b{color:var(--accent)}
+  .lockup .tag{font-family:var(--serif);font-style:italic;color:var(--muted);font-size:1rem;margin-top:6px}
+  .lockup .est{font-family:var(--display);text-transform:uppercase;letter-spacing:.24em;
+    font-size:.6rem;color:var(--muted);margin-top:9px}
+
+  /* palette swatches */
+  .pal{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pal .edlabel{grid-column:1/-1;font-family:var(--display);text-transform:uppercase;
+    letter-spacing:.14em;font-size:.62rem;font-weight:700;color:var(--muted);margin-top:6px}
+  .sw{border-radius:9px;overflow:hidden;border:1px solid var(--line)}
+  .sw .chip{height:46px}
+  .sw .meta{display:flex;justify-content:space-between;gap:6px;padding:6px 9px;background:var(--panel);
+    font-size:.66rem;color:var(--body)}
+  .sw .meta b{color:var(--ink);font-weight:600}
+  .sw .meta .hex{font-family:ui-monospace,Menlo,monospace;color:var(--muted);font-size:.62rem}
+
+  /* type scale */
+  .typerow{display:flex;align-items:baseline;gap:14px;padding:11px 0;border-top:1px solid var(--line-soft)}
+  .typerow:first-of-type{border-top:0}
+  .typerow .lab{width:118px;flex:none;font-family:var(--display);text-transform:uppercase;
+    letter-spacing:.1em;font-size:.58rem;font-weight:700;color:var(--muted)}
+  .t-disp{font-family:var(--display);font-weight:800;text-transform:uppercase;letter-spacing:-.02em;
+    color:var(--ink);font-size:1.9rem;line-height:1}
+  .t-num{font-family:var(--display);font-weight:800;color:var(--accent);font-size:1.9rem;line-height:1}
+  .t-body{font-family:var(--sans);color:var(--ink);font-size:1rem}
+  .t-serif{font-family:var(--serif);font-style:italic;color:var(--body);font-size:1.05rem}
+  .t-kick{font-family:var(--display);text-transform:uppercase;letter-spacing:.2em;font-weight:700;
+    font-size:.72rem;color:var(--accent)}
+
+  /* component swatches */
+  .comps{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+  .b{font-family:var(--sans);font-weight:700;font-size:.82rem;border-radius:10px;padding:11px 18px;
+    cursor:pointer;border:1px solid transparent;letter-spacing:.01em;transition:transform .1s,filter .2s}
+  .b:active{transform:translateY(1px)}
+  .b-go{background:var(--accent);color:#fff}
+  .b-go:hover{filter:brightness(1.06)}
+  .b-press{background:var(--red);color:#fff;text-transform:uppercase;letter-spacing:.08em;font-size:.76rem}
+  .b-press:hover{filter:brightness(1.05)}
+  .b-ghost{background:transparent;border-color:var(--line);color:var(--ink)}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--display);text-transform:uppercase;
+    letter-spacing:.1em;font-size:.6rem;font-weight:700;padding:5px 10px;border-radius:999px}
+  .pill-pop{background:color-mix(in srgb,var(--gold) 20%,var(--panel));color:var(--gold);
+    border:1px solid color-mix(in srgb,var(--gold) 45%,transparent)}
+  .pill-team{background:color-mix(in srgb,var(--accent) 14%,var(--panel));color:var(--accent);
+    border:1px solid color-mix(in srgb,var(--accent) 40%,transparent)}
+  .pill-up{color:var(--accent-2)} .pill-dn{color:var(--red)}
+  .ledgerdemo{width:100%;border-top:1px solid var(--line);margin-top:4px}
+  .ledgerdemo .lr{display:flex;justify-content:space-between;padding:9px 2px;border-bottom:1px solid var(--line-soft);
+    font-size:.9rem}
+  .ledgerdemo .lr b{color:var(--ink);font-weight:600}
+  .up{color:var(--accent-2);font-weight:700} .dn{color:var(--red);font-weight:700}
+
+  /* principle chips */
+  .prin{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:8px}
+  @media (max-width:720px){.prin{grid-template-columns:1fr}}
+  .prin div{padding:14px 16px;border-left:2px solid var(--accent);background:var(--line-soft);border-radius:0 10px 10px 0}
+  .prin b{display:block;font-family:var(--display);text-transform:uppercase;letter-spacing:.06em;
+    font-size:.72rem;color:var(--ink);margin-bottom:4px}
+  .prin span{font-size:.86rem;color:var(--body)}
+  .prin .accent-red{border-left-color:var(--red)}
+
+  /* ============ PHONE GALLERY ============ */
+  .screens{display:flex;flex-direction:column;gap:clamp(40px,6vw,68px);margin-top:34px}
+  .screenrow{display:grid;grid-template-columns:1fr;gap:26px;align-items:start}
+  @media (min-width:900px){.screenrow{grid-template-columns:1.05fr 1fr}}
+  .screencopy .n{font-family:var(--display);font-weight:800;color:var(--accent);
+    font-size:1.1rem;letter-spacing:-.01em}
+  .screencopy h3{font-family:var(--display);text-transform:uppercase;letter-spacing:-.015em;font-weight:800;
+    font-size:clamp(1.3rem,3.2vw,1.8rem);color:var(--ink);margin:.1rem 0 .5rem;line-height:1}
+  .screencopy p{margin:0 0 .8rem;max-width:46ch;color:var(--body);font-size:.98rem}
+  .screencopy ul{margin:.2rem 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+  .screencopy li{position:relative;padding-left:20px;font-size:.9rem;color:var(--body)}
+  .screencopy li::before{content:"";position:absolute;left:2px;top:.55em;width:7px;height:7px;border-radius:2px;
+    background:var(--accent);transform:rotate(45deg)}
+  .screencopy li.r::before{background:var(--red)}
+  .devices{display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
+
+  /* device frame */
+  .phone{width:296px;flex:none;border-radius:38px;padding:9px;position:relative;
+    background:linear-gradient(160deg,#20272f,#0c0f13);
+    box-shadow:0 2px 4px rgba(0,0,0,.3),0 26px 56px rgba(0,0,0,.30);}
+  .phone .edtag{position:absolute;top:-10px;left:50%;transform:translateX(-50%);z-index:3;
+    font-family:var(--display);text-transform:uppercase;letter-spacing:.16em;font-size:.56rem;font-weight:700;
+    padding:4px 11px;border-radius:999px;color:#fff}
+  .phone.ed-light .edtag{background:#0B6E4F}
+  .phone.ed-night .edtag{background:#0b0f0c;border:1px solid #2ED89A;color:#2ED89A}
+  .glass{border-radius:30px;overflow:hidden;position:relative;height:606px;
+    display:flex;flex-direction:column}
+  .notch{position:absolute;top:0;left:0;right:0;height:30px;display:flex;align-items:center;
+    justify-content:space-between;padding:0 20px;font-size:.66rem;font-weight:700;z-index:4}
+  .notch .dots{display:flex;gap:3px;align-items:center}
+  .notch i{width:5px;height:5px;border-radius:50%;display:block}
+
+  /* ---- PHONE EDITION TOKENS ---- */
+  .ed-light{--p-bg:#EEF1EC;--p-paper:#FFFFFF;--p-ink:#14201A;--p-body:#4B554C;--p-muted:#8A938C;
+    --p-line:#E1E6DE;--p-line2:#EDF0EA;--p-green:#0B6E4F;--p-green2:#17A673;--p-red:#E23A2E;
+    --p-gold:#B98E23;--p-chip:#F3F6F1;--p-shadow:0 1px 2px rgba(20,32,26,.08),0 10px 22px rgba(20,32,26,.08)}
+  .ed-night{--p-bg:#0B1610;--p-paper:#12211A;--p-ink:#EAF1EA;--p-body:#A7B2A9;--p-muted:#63705F;
+    --p-line:#213229;--p-line2:#182720;--p-green:#2ED89A;--p-green2:#54E7B0;--p-red:#F0574B;
+    --p-gold:#D9B24A;--p-chip:#18291F;--p-shadow:0 1px 2px rgba(0,0,0,.4),0 12px 26px rgba(0,0,0,.4)}
+  .screen{background:var(--p-bg);color:var(--p-body);flex:1;overflow-y:auto;overflow-x:hidden;
+    font-family:var(--sans);-ms-overflow-style:none;scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+  .ed-light .notch{color:#14201A} .ed-night .notch{color:#EAF1EA}
+  .ed-light .notch i{background:#14201A} .ed-night .notch i{background:#EAF1EA}
+
+  /* shared phone-screen atoms */
+  .scr-pad{padding:38px 16px 18px}
+  .app-mast{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .app-mast .lg{display:flex;align-items:center;gap:9px}
+  .app-mast .lg .s{width:26px;height:26px}
+  .app-mast .lg .t{font-family:var(--display);font-weight:800;text-transform:uppercase;letter-spacing:-.02em;
+    font-size:1rem;color:var(--p-ink)}
+  .app-mast .lg .t b{color:var(--p-green)}
+  .app-mast .gear{width:30px;height:30px;border-radius:9px;border:1px solid var(--p-line);
+    display:flex;align-items:center;justify-content:center;color:var(--p-muted)}
+  .pk{font-family:var(--display);text-transform:uppercase;letter-spacing:.18em;font-weight:700;
+    font-size:.62rem;color:var(--p-green)}
+  .card{background:var(--p-paper);border:1px solid var(--p-line);border-radius:15px;box-shadow:var(--p-shadow)}
+
+  /* stepper (setup) */
+  .steps{display:flex;gap:6px;margin:6px 0 16px}
+  .steps div{flex:1;text-align:center;font-family:var(--display);text-transform:uppercase;letter-spacing:.06em;
+    font-size:.54rem;font-weight:700;color:var(--p-muted);padding-bottom:7px;border-bottom:2px solid var(--p-line)}
+  .steps div.on{color:var(--p-green);border-bottom-color:var(--p-green)}
+  .steps div.done{color:var(--p-ink);border-bottom-color:var(--p-ink)}
+
+  .fieldcard{padding:13px 14px;margin-bottom:11px}
+  .fieldcard .fl{font-family:var(--display);text-transform:uppercase;letter-spacing:.12em;font-size:.55rem;
+    font-weight:700;color:var(--p-muted);display:block;margin-bottom:4px}
+  .fieldcard .fv{color:var(--p-ink);font-weight:600;font-size:.98rem}
+  .fieldcard .fsub{color:var(--p-muted);font-size:.78rem;margin-top:2px}
+  .avs{display:flex;gap:7px;margin-top:9px}
+  .av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    color:#fff;font-weight:700;font-size:.78rem;font-family:var(--display)}
+  .av.add{background:transparent;border:1.5px dashed var(--p-line);color:var(--p-muted)}
+
+  /* games desk */
+  .deskhead{display:flex;align-items:baseline;justify-content:space-between;margin:18px 2px 8px}
+  .deskhead .dt{font-family:var(--display);text-transform:uppercase;font-weight:800;letter-spacing:-.01em;
+    font-size:1.05rem;color:var(--p-ink)}
+  .deskhead .dc{font-family:var(--serif);font-style:italic;color:var(--p-muted);font-size:.76rem}
+  .game{display:flex;gap:11px;align-items:flex-start;padding:12px 13px;border-bottom:1px solid var(--p-line2);
+    position:relative}
+  .game:last-child{border-bottom:0}
+  .game.sel{background:var(--p-chip)}
+  .game.sel::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--p-red)}
+  .badge{width:34px;height:34px;flex:none;border-radius:9px;background:var(--p-chip);border:1px solid var(--p-line);
+    display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;
+    font-size:1rem;color:var(--p-green)}
+  .game.sel .badge{background:var(--p-green);border-color:var(--p-green);color:#fff}
+  .ginfo{min-width:0;flex:1}
+  .gname{font-family:var(--display);text-transform:uppercase;font-weight:700;letter-spacing:.01em;
+    font-size:.92rem;color:var(--p-ink);display:flex;align-items:center;gap:8px}
+  .gdek{font-family:var(--serif);font-style:italic;color:var(--p-muted);font-size:.8rem;line-height:1.35;margin-top:1px}
+  .stamp{align-self:center;font-family:var(--display);text-transform:uppercase;letter-spacing:.1em;
+    font-size:.56rem;font-weight:800;color:var(--p-red);border:1.5px solid var(--p-red);border-radius:5px;
+    padding:2px 6px;transform:rotate(-7deg)}
+  .gpill{font-family:var(--display);text-transform:uppercase;letter-spacing:.08em;font-size:.5rem;font-weight:700;
+    padding:2px 6px;border-radius:999px}
+  .gpill.pop{color:var(--p-gold);border:1px solid color-mix(in srgb,var(--p-gold) 50%,transparent)}
+  .gpill.team{color:var(--p-green);border:1px solid color-mix(in srgb,var(--p-green) 50%,transparent)}
+
+  .teebtn{display:flex;align-items:center;justify-content:center;gap:8px;margin:16px 0 4px;
+    background:var(--p-green);color:#fff;font-family:var(--display);text-transform:uppercase;letter-spacing:.08em;
+    font-weight:800;font-size:.9rem;padding:14px;border-radius:13px}
+
+  /* scoring */
+  .holedots{display:flex;gap:4px;justify-content:center;margin-bottom:12px;flex-wrap:wrap}
+  .holedots i{width:6px;height:6px;border-radius:50%;background:var(--p-line);display:block}
+  .holedots i.done{background:var(--p-green)}
+  .holedots i.now{background:var(--p-red);box-shadow:0 0 0 3px color-mix(in srgb,var(--p-red) 25%,transparent)}
+  .holehero{text-align:center;padding:6px 0 10px}
+  .holehero .hk{font-family:var(--display);text-transform:uppercase;letter-spacing:.2em;font-size:.6rem;
+    font-weight:700;color:var(--p-muted)}
+  .holehero .hn{font-family:var(--display);font-weight:800;color:var(--p-ink);font-size:4.6rem;line-height:.85;
+    letter-spacing:-.03em;margin:2px 0}
+  .holehero .hp{font-family:var(--serif);font-style:italic;color:var(--p-green);font-size:.9rem}
+  .scoregrid{padding:6px 4px 10px}
+  .srow{display:flex;align-items:center;gap:11px;padding:9px 10px;border-top:1px solid var(--p-line2)}
+  .srow:first-child{border-top:0}
+  .srow .dot{width:10px;height:10px;border-radius:50%;flex:none}
+  .srow .sn{flex:1;color:var(--p-ink);font-weight:600;font-size:.92rem}
+  .srow .tag{font-family:var(--display);text-transform:uppercase;letter-spacing:.08em;font-size:.5rem;
+    font-weight:800;color:var(--p-red)}
+  .srow .st{font-family:var(--display);font-weight:800;color:var(--p-ink);font-size:1.5rem;min-width:26px;
+    text-align:center}
+  .srow .step{width:26px;height:26px;border-radius:8px;border:1px solid var(--p-line);color:var(--p-muted);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem}
+
+  .moneyhead{display:flex;align-items:center;justify-content:space-between;margin:16px 2px 6px}
+  .moneyhead .mt{font-family:var(--display);text-transform:uppercase;font-weight:800;letter-spacing:.02em;
+    font-size:.86rem;color:var(--p-ink)}
+  .moneyhead .ms{font-family:var(--serif);font-style:italic;color:var(--p-muted);font-size:.72rem}
+  .ledger{padding:2px 13px 6px}
+  .lgrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--p-line2)}
+  .lgrow:last-child{border-bottom:0}
+  .lgrow .rk{font-family:var(--display);font-weight:800;color:var(--p-muted);font-size:.8rem;width:14px}
+  .lgrow .nm{flex:1;color:var(--p-ink);font-weight:600;font-size:.9rem}
+  .lgrow .amt{font-family:var(--display);font-weight:800;font-size:1.05rem}
+  .actionbar{display:flex;gap:9px;margin:14px 0 4px}
+  .press-btn{flex:1;background:var(--p-red);color:#fff;font-family:var(--display);text-transform:uppercase;
+    letter-spacing:.1em;font-weight:800;font-size:.86rem;padding:13px;border-radius:12px;text-align:center;
+    display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer}
+  .side-btn{width:52px;border:1px solid var(--p-line);border-radius:12px;background:var(--p-paper);
+    color:var(--p-ink);display:flex;align-items:center;justify-content:center;font-size:1.1rem}
+
+  /* history */
+  .issue{padding:14px 14px;margin-bottom:11px}
+  .issue .imeta{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .issue .idate{font-family:var(--display);text-transform:uppercase;letter-spacing:.12em;font-weight:800;
+    font-size:.6rem;color:var(--p-red)}
+  .issue .icourse{font-family:var(--serif);font-style:italic;color:var(--p-muted);font-size:.76rem}
+  .issue .ihead{font-family:var(--display);text-transform:uppercase;font-weight:800;letter-spacing:-.01em;
+    font-size:1.02rem;color:var(--p-ink);line-height:1.05}
+  .issue .isettle{font-size:.8rem;color:var(--p-body);margin-top:5px}
+  .issue .isettle b{color:var(--p-ink)}
+  .tablehead{display:flex;align-items:baseline;justify-content:space-between;margin:18px 2px 8px}
+  .tablehead .tt{font-family:var(--display);text-transform:uppercase;font-weight:800;font-size:1.05rem;color:var(--p-ink)}
+  .tablehead .ts{font-family:var(--serif);font-style:italic;color:var(--p-muted);font-size:.74rem}
+  .standrow{display:flex;align-items:center;gap:11px;padding:11px 13px;border-bottom:1px solid var(--p-line2)}
+  .standrow:last-child{border-bottom:0}
+  .standrow .rank{font-family:var(--display);font-weight:800;color:var(--p-muted);font-size:1rem;width:20px;text-align:center}
+  .standrow.lead .rank{color:var(--p-gold)}
+  .standrow .who{flex:1}
+  .standrow .who b{display:block;color:var(--p-ink);font-weight:600;font-size:.94rem}
+  .standrow .who span{font-size:.72rem;color:var(--p-muted)}
+  .standrow .net{font-family:var(--display);font-weight:800;font-size:1.15rem}
+  .leadflag{width:15px;height:15px;vertical-align:-2px;margin-left:5px}
+
+  .footnote{margin-top:60px;padding-top:22px;border-top:1px solid var(--line);color:var(--muted);
+    font-size:.84rem;max-width:70ch}
+  .footnote b{color:var(--ink)}
+
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<header class="top">
+  <div class="mark">
+    <svg class="brandmini" width="30" height="30" viewBox="0 0 100 100" aria-hidden="true">
+      <circle cx="50" cy="50" r="47" fill="var(--accent)"/>
+      <circle cx="50" cy="50" r="47" fill="none" stroke="var(--gold)" stroke-width="3"/>
+      <circle cx="50" cy="50" r="39" fill="none" stroke="var(--gold)" stroke-width="1.2" opacity=".7"/>
+      <text x="50" y="70" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="56" fill="#fff">P</text>
+    </svg>
+    <span class="wm">THE&nbsp;<b>PRESS</b></span>
+    <span class="sub">visual identity</span>
+  </div>
+  <span class="spacer"></span>
+  <button class="tog" id="themeToggle" aria-label="Toggle board theme">
+    <span id="togIcon">◐</span><span id="togText">Theme</span>
+  </button>
+</header>
+
+<main>
+  <!-- ============ HERO / DIRECTION ============ -->
+  <section id="direction" style="padding-top:clamp(34px,5vw,58px)">
+    <div class="kick">Design Direction · A Bolder Reinvention</div>
+    <h2 class="sec">The Action Sheet</h2>
+    <p class="lede">The Press is a golf betting tracker — <em>score, bet, settle up</em>. This
+      identity leans all the way into the name: not a country-club scorecard, but a
+      <em>tote board and settle-up ledger</em>. A heavy grotesque does the shouting, tabular
+      figures keep the money honest, and a single hot red is spent only where it counts —
+      the <em>press</em>, and what you owe.</p>
+    <div class="prin">
+      <div><b>Light-first &amp; readable</b><span>A cool green-grey newsprint that survives direct sun — the round is played outdoors.</span></div>
+      <div><b>The ledger is the hero</b><span>Money and scores line up in tabular columns. Green means up, red means owe. No decoration.</span></div>
+      <div class="accent-red"><b>Spend red once</b><span>Vermilion is reserved for the press and the deficit — everywhere else stays quiet.</span></div>
+    </div>
+    <hr class="rule">
+  </section>
+
+  <!-- ============ IDENTITY BOARD ============ -->
+  <section id="brand">
+    <div class="kick">01 — Brand &amp; System</div>
+    <h2 class="sec">One Mark, One Ledger</h2>
+    <div class="board">
+
+      <!-- lockup -->
+      <div class="cell col-7">
+        <h3>Wordmark &amp; Seal</h3>
+        <div class="lockup">
+          <svg class="seal" viewBox="0 0 100 100" role="img" aria-label="The Press seal">
+            <circle cx="50" cy="50" r="47" fill="var(--accent)"/>
+            <circle cx="50" cy="50" r="47" fill="none" stroke="var(--gold)" stroke-width="2.5"/>
+            <circle cx="50" cy="50" r="40" fill="none" stroke="var(--gold)" stroke-width="1" opacity=".65"/>
+            <!-- flag motif -->
+            <line x1="66" y1="20" x2="66" y2="40" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M66 21 L80 25 L66 30 Z" fill="var(--red)"/>
+            <text x="46" y="71" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="58" fill="#fff">P</text>
+          </svg>
+          <div>
+            <div class="name">THE&nbsp;<b>PRESS</b></div>
+            <div class="tag">Score. Bet. Settle up.</div>
+            <div class="est">The golf action sheet · est. 2026</div>
+          </div>
+        </div>
+        <p style="margin:18px 0 0;color:var(--body);font-size:.9rem;max-width:52ch">
+          A serif <b style="color:var(--ink)">P</b> struck inside a gold ring — the printer's roundel —
+          with a flag flying from the rule. One SVG source drives both the in-app seal and the PWA
+          icon, ending today's split between the CSS mark and the PNG.</p>
+      </div>
+
+      <!-- palettes -->
+      <div class="cell col-5">
+        <h3>Palette · Both Editions</h3>
+        <div class="pal" id="palette"></div>
+      </div>
+
+      <!-- type -->
+      <div class="cell col-7">
+        <h3>Type System</h3>
+        <div class="typerow"><span class="lab">Display</span><span class="t-disp">THE&nbsp;PRESS</span></div>
+        <div class="typerow"><span class="lab">Tote figure</span><span class="t-num num">+$32</span></div>
+        <div class="typerow"><span class="lab">Kicker</span><span class="t-kick">Hole 7 · Par 4</span></div>
+        <div class="typerow"><span class="lab">Body</span><span class="t-body">Nick presses the back nine.</span></div>
+        <div class="typerow"><span class="lab">Dek · serif</span><span class="t-serif">Three bets in one — front, back, total.</span></div>
+        <p style="margin:16px 0 0;color:var(--body);font-size:.86rem">
+          Heavy grotesque display + tabular numerals carry the scoreboard voice; Georgia
+          <i>italic</i> is kept small as the "press" wink. System stacks only — nothing to
+          download, so the offline PWA never falls back.</p>
+      </div>
+
+      <!-- components -->
+      <div class="cell col-5">
+        <h3>Components</h3>
+        <div class="comps">
+          <button class="b b-go">Tee off →</button>
+          <button class="b b-press">Press</button>
+          <button class="b b-ghost">Scorecard</button>
+        </div>
+        <div class="comps" style="margin-top:12px">
+          <span class="pill pill-pop">★ Popular</span>
+          <span class="pill pill-team">Team</span>
+          <span class="pill"><span class="pill-up num">▲ +$14</span></span>
+          <span class="pill"><span class="pill-dn num">▼ −$12</span></span>
+        </div>
+        <div class="ledgerdemo" style="margin-top:16px">
+          <div class="lr"><b>Nick</b><span class="up num">+$14</span></div>
+          <div class="lr"><b>Sam</b><span class="up num">+$6</span></div>
+          <div class="lr"><b>Dre</b><span class="dn num">−$8</span></div>
+          <div class="lr"><b>Pat</b><span class="dn num">−$12</span></div>
+        </div>
+      </div>
+
+    </div>
+    <hr class="rule" style="margin-top:34px">
+  </section>
+
+  <!-- ============ PRODUCT SCREENS ============ -->
+  <section id="product">
+    <div class="kick">02 — The Product</div>
+    <h2 class="sec">Three Screens, Both Editions</h2>
+    <p class="lede">The reinvention applied to the app's most-used surfaces — each shown in the
+      daytime <em>Light</em> and <em>Night</em> editions, side by side.</p>
+
+    <div class="screens">
+
+      <!-- SCREEN 1: SETUP -->
+      <div class="screenrow">
+        <div class="screencopy">
+          <div class="n">Screen 1</div>
+          <h3>The Games Desk</h3>
+          <p>Setup reads like a listings page. Course, players and game sit in a clean numbered
+            masthead; the eleven betting games become an editorial index — a lettered badge, the
+            name, and a one-line serif <i>dek</i> that finally explains how each one plays.</p>
+          <ul>
+            <li>Every game shares one row template, so all eleven look like one family.</li>
+            <li class="r">The chosen game is marked with a red rule and a "PICKED" stamp.</li>
+            <li>Tags — <i>Popular</i>, <i>Team</i> — help newcomers choose fast.</li>
+          </ul>
+        </div>
+        <div class="devices">
+          <div class="phone ed-light"><span class="edtag">Light</span>
+            <div class="glass"><div class="notch"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+              <div class="screen" data-screen="setup"></div></div></div>
+          <div class="phone ed-night"><span class="edtag">Night</span>
+            <div class="glass"><div class="notch"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+              <div class="screen" data-screen="setup"></div></div></div>
+        </div>
+      </div>
+
+      <!-- SCREEN 2: SCORING -->
+      <div class="screenrow">
+        <div class="screencopy">
+          <div class="n">Screen 2</div>
+          <h3>Scoring &amp; the Money Line</h3>
+          <p>The busiest screen, unstacked. A tote-board hole number tops the page; scores are
+            entered as big tabular figures; and a single <b>Money Line</b> ledger keeps the running
+            settle-up in view — the one thing everyone actually wants to see.</p>
+          <ul>
+            <li>Boxed cards give way to one calm column with ledger rules.</li>
+            <li class="r">The <b>Press</b> button is the loud, deliberate action — one tap doubles the bet.</li>
+            <li>Card and standings tuck into sheets instead of stacking.</li>
+          </ul>
+        </div>
+        <div class="devices">
+          <div class="phone ed-light"><span class="edtag">Light</span>
+            <div class="glass"><div class="notch"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+              <div class="screen" data-screen="score"></div></div></div>
+          <div class="phone ed-night"><span class="edtag">Night</span>
+            <div class="glass"><div class="notch"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+              <div class="screen" data-screen="score"></div></div></div>
+        </div>
+      </div>
+
+      <!-- SCREEN 3: HISTORY -->
+      <div class="screenrow">
+        <div class="screencopy">
+          <div class="n">Screen 3</div>
+          <h3>Back Issues &amp; Standings</h3>
+          <p>History becomes an archive of <i>back issues</i> — each finished round a dated entry
+            with the headline result and the settle-up beneath it. The season rolls up into a proper
+            league table, leader flagged in gold.</p>
+          <ul>
+            <li>Every round reads as a one-line story, not a data dump.</li>
+            <li>Season standings use tabular net figures — green up, red down.</li>
+            <li>The leader carries the flag; the table is sorted by money, not name.</li>
+          </ul>
+        </div>
+        <div class="devices">
+          <div class="phone ed-light"><span class="edtag">Light</span>
+            <div class="glass"><div class="notch"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+              <div class="screen" data-screen="history"></div></div></div>
+          <div class="phone ed-night"><span class="edtag">Night</span>
+            <div class="glass"><div class="notch"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+              <div class="screen" data-screen="history"></div></div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <p class="footnote">
+      <b>Scope:</b> this is a visual identity mockup — the production app
+      (<b>index.html</b>) is untouched. It maps onto the real build by rewriting the
+      <b>:root</b> token block into a light-default + Night-Edition pair, restyling the existing
+      <b>.card</b>, <b>.game-card</b>, <b>.btn</b> and nav primitives, and reworking the scoring and
+      games-desk layouts. Every color and figure above is drawn from real golf-betting content.
+    </p>
+  </section>
+</main>
+
+<script>
+  /* ---------- board theme toggle ---------- */
+  (function(){
+    var root=document.documentElement, t=document.getElementById('togText'), ic=document.getElementById('togIcon');
+    function cur(){ return root.getAttribute('data-theme') ||
+      (matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'); }
+    function paint(){ var d=cur()==='dark'; t.textContent=d?'Light':'Dark'; ic.textContent=d?'☀':'☾'; }
+    document.getElementById('themeToggle').addEventListener('click',function(){
+      root.setAttribute('data-theme', cur()==='dark'?'light':'dark'); paint();
+    });
+    matchMedia('(prefers-color-scheme:dark)').addEventListener('change',paint); paint();
+  })();
+
+  /* ---------- palette board ---------- */
+  (function(){
+    var eds={
+      'Light Edition':[['Newsprint','#EEF1EC'],['Paper','#FFFFFF'],['Ink','#14201A'],
+        ['Fairway','#0B6E4F'],['Action red','#E23A2E'],['Leader gold','#B98E23']],
+      'Night Edition':[['Ground','#0B1610'],['Panel','#12211A'],['Ink','#EAF1EA'],
+        ['Fairway','#2ED89A'],['Action red','#F0574B'],['Leader gold','#D9B24A']]
+    };
+    var html='';
+    for(var name in eds){
+      html+='<div class="edlabel">'+name+'</div>';
+      eds[name].forEach(function(c){
+        var dark=/[0-3][0-9A-F]{5}/i.test(c[1].replace('#',''))&&parseInt(c[1].slice(1,3),16)<90;
+        html+='<div class="sw"><div class="chip" style="background:'+c[1]+
+          (c[1].toUpperCase()==='#FFFFFF'?';box-shadow:inset 0 0 0 1px #E1E6DE':'')+'"></div>'+
+          '<div class="meta"><b>'+c[0]+'</b><span class="hex">'+c[1].toUpperCase()+'</span></div></div>';
+      });
+    }
+    document.getElementById('palette').innerHTML=html;
+  })();
+
+  /* ---------- phone screen content ---------- */
+  var PC={green:'#0B6E4F',blue:'#3A6EA5',clay:'#C56A3B',plum:'#7A5B8F'};
+  var players=[{n:'Nick',i:'N',c:PC.green},{n:'Sam',i:'S',c:PC.blue},
+               {n:'Dre',i:'D',c:PC.clay},{n:'Pat',i:'P',c:PC.plum}];
+
+  var games=[
+    {b:'N',name:'Nassau',dek:'Three bets in one — front, back, and total.',pill:'pop',sel:true},
+    {b:'S',name:'Skins',dek:'Win a hole outright to take the pot. Ties carry.'},
+    {b:'W',name:'Wolf',dek:'Each hole a new Wolf picks a partner — or goes lone.',pill:'team'},
+    {b:'M',name:'Match Play',dek:'Hole by hole, one-on-one. Most holes wins.'},
+    {b:'T',name:'Stableford',dek:'Points for scores. Go low, stack points.'}
+  ];
+
+  function money(v){ var s=v<0?'−':'+'; return s+'$'+Math.abs(v); }
+
+  var flagSVG='<svg class="leadflag" viewBox="0 0 24 24" aria-hidden="true">'+
+    '<line x1="7" y1="3" x2="7" y2="21" stroke="var(--p-gold)" stroke-width="2" stroke-linecap="round"/>'+
+    '<path d="M7 4 L18 7 L7 11 Z" fill="var(--p-gold)"/></svg>';
+
+  function setupScreen(){
+    var av=players.map(function(p){return '<span class="av" style="background:'+p.c+'">'+p.i+'</span>';}).join('')+
+      '<span class="av add">+</span>';
+    var gl=games.map(function(g){
+      var pill=g.pill==='pop'?'<span class="gpill pop">★ Popular</span>':
+               g.pill==='team'?'<span class="gpill team">Team</span>':'';
+      return '<div class="game'+(g.sel?' sel':'')+'"><div class="badge">'+g.b+'</div>'+
+        '<div class="ginfo"><div class="gname">'+g.name+' '+pill+'</div>'+
+        '<div class="gdek">'+g.dek+'</div></div>'+
+        (g.sel?'<div class="stamp">Picked</div>':'')+'</div>';
+    }).join('');
+    return '<div class="scr-pad">'+
+      '<div class="app-mast"><div class="lg">'+seal(26)+'<span class="t">THE&nbsp;<b>PRESS</b></span></div>'+
+        '<div class="gear">⚙</div></div>'+
+      '<div class="pk">New Round</div>'+
+      '<div class="steps"><div class="done">1 Course</div><div class="done">2 Players</div>'+
+        '<div class="on">3 Game</div><div>4 Tee</div></div>'+
+      '<div class="card fieldcard"><span class="fl">Course</span>'+
+        '<div class="fv">Pebble Beach Golf Links</div><div class="fsub">Par 72 · 6,828 yds · 18 holes</div></div>'+
+      '<div class="card fieldcard"><span class="fl">Players</span>'+
+        '<div class="fv">4 in the group</div><div class="avs">'+av+'</div></div>'+
+      '<div class="deskhead"><span class="dt">The Games Desk</span><span class="dc">pick your action</span></div>'+
+      '<div class="card">'+gl+'</div>'+
+      '<div class="teebtn">Tee off →</div>'+
+      '</div>';
+  }
+
+  function scoreScreen(){
+    var dots=''; for(var i=1;i<=18;i++){dots+='<i class="'+(i<7?'done':i===7?'now':'')+'"></i>';}
+    var scores=[{p:players[0],s:4},{p:players[1],s:5},{p:players[2],s:3,tag:'Birdie'},{p:players[3],s:6}];
+    var srows=scores.map(function(r){
+      return '<div class="srow"><span class="dot" style="background:'+r.p.c+'"></span>'+
+        '<span class="sn">'+r.p.n+(r.tag?' <span class="tag">'+r.tag+'</span>':'')+'</span>'+
+        '<span class="step">–</span><span class="st num">'+r.s+'</span><span class="step">+</span></div>';
+    }).join('');
+    var stand=[{n:'Nick',v:14},{n:'Sam',v:6},{n:'Dre',v:-8},{n:'Pat',v:-12}];
+    var lg=stand.map(function(r,i){
+      return '<div class="lgrow"><span class="rk num">'+(i+1)+'</span><span class="nm">'+r.n+'</span>'+
+        '<span class="amt num" style="color:'+(r.v>=0?'var(--p-green)':'var(--p-red)')+'" data-count="'+r.v+'">'+money(r.v)+'</span></div>';
+    }).join('');
+    return '<div class="scr-pad">'+
+      '<div class="app-mast"><div class="lg">'+seal(26)+'<span class="t">Front Nine</span></div>'+
+        '<div class="gear">⤢</div></div>'+
+      '<div class="holedots">'+dots+'</div>'+
+      '<div class="holehero"><div class="hk">Hole · Par 4 · 412 yds</div>'+
+        '<div class="hn num">7</div><div class="hp">Nassau · $5 · stroke play</div></div>'+
+      '<div class="card scoregrid">'+srows+'</div>'+
+      '<div class="moneyhead"><span class="mt">Money Line</span><span class="ms">through 7 holes</span></div>'+
+      '<div class="card ledger">'+lg+'</div>'+
+      '<div class="actionbar"><div class="press-btn">⦿ Press the bet</div>'+
+        '<div class="side-btn">▦</div><div class="side-btn">≡</div></div>'+
+      '</div>';
+  }
+
+  function historyScreen(){
+    var issues=[
+      {d:'JUL 19',c:'Pebble Beach',h:'Nick takes the card',s:'Pat → Nick <b>$32</b> · Dre → Sam <b>$10</b>'},
+      {d:'JUL 12',c:'Torrey Pines South',h:'Skins all go to Dre',s:'Sam → Dre <b>$18</b> · Nick → Dre <b>$6</b>'}
+    ];
+    var iss=issues.map(function(x){
+      return '<div class="card issue"><div class="imeta"><span class="idate">'+x.d+'</span>'+
+        '<span class="icourse">'+x.c+'</span></div><div class="ihead">'+x.h+'</div>'+
+        '<div class="isettle">Settled — '+x.s+'</div></div>';
+    }).join('');
+    var stand=[{r:1,n:'Nick',ro:9,v:86},{r:2,n:'Sam',ro:9,v:24},{r:3,n:'Dre',ro:8,v:-18},{r:4,n:'Pat',ro:9,v:-92}];
+    var rows=stand.map(function(s){
+      return '<div class="standrow'+(s.r===1?' lead':'')+'"><span class="rank num">'+s.r+'</span>'+
+        '<div class="who"><b>'+s.n+(s.r===1?flagSVG:'')+'</b><span>'+s.ro+' rounds played</span></div>'+
+        '<span class="net num" style="color:'+(s.v>=0?'var(--p-green)':'var(--p-red)')+'" data-count="'+s.v+'">'+money(s.v)+'</span></div>';
+    }).join('');
+    return '<div class="scr-pad">'+
+      '<div class="app-mast"><div class="lg">'+seal(26)+'<span class="t">The&nbsp;<b>Archive</b></span></div>'+
+        '<div class="gear">⇪</div></div>'+
+      '<div class="pk">Back Issues</div>'+
+      '<div style="height:8px"></div>'+iss+
+      '<div class="tablehead"><span class="tt">Season Standings</span><span class="ts">net, all games</span></div>'+
+      '<div class="card">'+rows+'</div>'+
+      '</div>';
+  }
+
+  function seal(sz){
+    return '<svg class="s" width="'+sz+'" height="'+sz+'" viewBox="0 0 100 100" aria-hidden="true">'+
+      '<circle cx="50" cy="50" r="47" fill="var(--p-green)"/>'+
+      '<circle cx="50" cy="50" r="47" fill="none" stroke="var(--p-gold)" stroke-width="4"/>'+
+      '<text x="50" y="70" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="56" fill="#fff">P</text></svg>';
+  }
+
+  (function(){
+    var map={setup:setupScreen,score:scoreScreen,history:historyScreen};
+    document.querySelectorAll('.screen[data-screen]').forEach(function(el){
+      el.innerHTML=map[el.getAttribute('data-screen')]();
+    });
+
+    /* subtle count-up on money figures */
+    if(matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting) return; io.unobserve(e.target);
+        var el=e.target, target=parseInt(el.getAttribute('data-count'),10), start=performance.now(), dur=850;
+        function tick(now){
+          var k=Math.min(1,(now-start)/dur), val=Math.round(target*(1-Math.pow(1-k,3)));
+          el.textContent=money(val); if(k<1) requestAnimationFrame(tick); else el.textContent=money(target);
+        }
+        requestAnimationFrame(tick);
+      });
+    },{threshold:.6});
+    document.querySelectorAll('[data-count]').forEach(function(el){io.observe(el);});
+  })();
+</script>

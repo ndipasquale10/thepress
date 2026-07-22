@@ -1,0 +1,621 @@
+<title>The Press — Wolf Hammer</title>
+<style>
+  /* ===== BOARD TOKENS (page chrome + phone editions share these) ===== */
+  :root{
+    --bg:#EEF1EC; --panel:#FFFFFF; --ink:#14201A; --body:#485249; --muted:#87908A;
+    --line:#D8DED6; --line-soft:#E7EBE4; --accent:#0B6E4F; --accent-2:#17A673;
+    --red:#E23A2E; --gold:#B98E23;
+    --shadow:0 1px 2px rgba(20,32,26,.06),0 12px 34px rgba(20,32,26,.10);
+    --shadow-sm:0 1px 2px rgba(20,32,26,.08);
+    /* phone edition tokens (light default) */
+    --p-bg:#EEF1EC;--p-paper:#FFFFFF;--p-ink:#14201A;--p-body:#4B554C;--p-muted:#8A938C;
+    --p-line:#E1E6DE;--p-line2:#EDF0EA;--p-green:#0B6E4F;--p-green2:#17A673;--p-red:#E23A2E;
+    --p-gold:#B98E23;--p-chip:#F3F6F1;--p-hammerbg:#FCEFEC;
+    --p-shadow:0 1px 2px rgba(20,32,26,.08),0 10px 22px rgba(20,32,26,.08);
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --display:"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;
+    --serif:Georgia,"Times New Roman",serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0C1611;--panel:#12201A;--ink:#EAF1EA;--body:#AEB9B1;--muted:#6C776F;
+      --line:#22332B;--line-soft:#1A2A22;--accent:#17A673;--accent-2:#2ED89A;--red:#F0574B;--gold:#D9B24A;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 18px 40px rgba(0,0,0,.45);--shadow-sm:0 1px 2px rgba(0,0,0,.35);
+      --p-bg:#0B1610;--p-paper:#12211A;--p-ink:#EAF1EA;--p-body:#A7B2A9;--p-muted:#63705F;
+      --p-line:#213229;--p-line2:#182720;--p-green:#2ED89A;--p-green2:#54E7B0;--p-red:#F0574B;
+      --p-gold:#D9B24A;--p-chip:#18291F;--p-hammerbg:#241512;
+      --p-shadow:0 1px 2px rgba(0,0,0,.4),0 12px 26px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#EEF1EC;--panel:#FFFFFF;--ink:#14201A;--body:#485249;--muted:#87908A;
+    --line:#D8DED6;--line-soft:#E7EBE4;--accent:#0B6E4F;--accent-2:#17A673;--red:#E23A2E;--gold:#B98E23;
+    --shadow:0 1px 2px rgba(20,32,26,.06),0 12px 34px rgba(20,32,26,.10);--shadow-sm:0 1px 2px rgba(20,32,26,.08);
+    --p-bg:#EEF1EC;--p-paper:#FFFFFF;--p-ink:#14201A;--p-body:#4B554C;--p-muted:#8A938C;
+    --p-line:#E1E6DE;--p-line2:#EDF0EA;--p-green:#0B6E4F;--p-green2:#17A673;--p-red:#E23A2E;
+    --p-gold:#B98E23;--p-chip:#F3F6F1;--p-hammerbg:#FCEFEC;
+    --p-shadow:0 1px 2px rgba(20,32,26,.08),0 10px 22px rgba(20,32,26,.08);
+  }
+  :root[data-theme="dark"]{
+    --bg:#0C1611;--panel:#12201A;--ink:#EAF1EA;--body:#AEB9B1;--muted:#6C776F;
+    --line:#22332B;--line-soft:#1A2A22;--accent:#17A673;--accent-2:#2ED89A;--red:#F0574B;--gold:#D9B24A;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 18px 40px rgba(0,0,0,.45);--shadow-sm:0 1px 2px rgba(0,0,0,.35);
+    --p-bg:#0B1610;--p-paper:#12211A;--p-ink:#EAF1EA;--p-body:#A7B2A9;--p-muted:#63705F;
+    --p-line:#213229;--p-line2:#182720;--p-green:#2ED89A;--p-green2:#54E7B0;--p-red:#F0574B;
+    --p-gold:#D9B24A;--p-chip:#18291F;--p-hammerbg:#241512;
+    --p-shadow:0 1px 2px rgba(0,0,0,.4),0 12px 26px rgba(0,0,0,.4);
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--body);font-family:var(--sans);line-height:1.55;
+    font-size:16px;transition:background .3s,color .3s}
+  .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+  header.top{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;
+    padding:14px clamp(16px,4vw,40px);background:color-mix(in srgb,var(--bg) 82%,transparent);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .top .wm{font-family:var(--display);font-weight:800;letter-spacing:-.02em;text-transform:uppercase;
+    font-size:1.02rem;color:var(--ink);line-height:1}
+  .top .wm b{color:var(--accent)}
+  .top .sub{font-family:var(--serif);font-style:italic;color:var(--muted);font-size:.82rem;white-space:nowrap}
+  .spacer{flex:1}
+  .tog{display:inline-flex;align-items:center;gap:7px;cursor:pointer;border:1px solid var(--line);
+    background:var(--panel);color:var(--ink);font:inherit;font-size:.8rem;font-weight:600;padding:7px 13px;
+    border-radius:999px;transition:border-color .2s,transform .1s}
+  .tog:hover{border-color:var(--accent)} .tog:active{transform:translateY(1px)}
+  .tog:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  main{max-width:1080px;margin:0 auto;padding:clamp(28px,5vw,52px) clamp(16px,4vw,40px) 90px}
+  .kick{font-family:var(--display);text-transform:uppercase;letter-spacing:.2em;font-weight:700;
+    font-size:.7rem;color:var(--accent)}
+  h1.sec{font-family:var(--display);font-weight:800;letter-spacing:-.02em;text-transform:uppercase;
+    font-size:clamp(1.8rem,5vw,2.9rem);line-height:.96;color:var(--ink);margin:.35rem 0 .5rem;text-wrap:balance}
+  .lede{max-width:64ch;color:var(--body);font-size:1.02rem;margin:0}
+  .lede em{font-family:var(--serif);font-style:italic;color:var(--ink)}
+
+  .layout{display:grid;grid-template-columns:1fr;gap:26px;margin-top:34px;align-items:start}
+  @media (min-width:900px){.layout{grid-template-columns:320px 1fr}}
+
+  /* device */
+  .stage{display:flex;justify-content:center}
+  .phone{width:300px;flex:none;border-radius:40px;padding:9px;position:relative;position:sticky;top:84px;
+    background:linear-gradient(160deg,#20272f,#0c0f13);
+    box-shadow:0 2px 4px rgba(0,0,0,.3),0 26px 56px rgba(0,0,0,.30)}
+  .glass{border-radius:32px;overflow:hidden;position:relative;height:640px;display:flex;flex-direction:column;
+    background:var(--p-bg)}
+  .notch{position:absolute;top:0;left:0;right:0;height:30px;display:flex;align-items:center;
+    justify-content:space-between;padding:0 20px;font-size:.66rem;font-weight:700;z-index:4;color:var(--p-ink)}
+  .notch .dots{display:flex;gap:3px} .notch i{width:5px;height:5px;border-radius:50%;background:var(--p-ink);display:block}
+  .screen{flex:1;overflow-y:auto;overflow-x:hidden;color:var(--p-body);font-family:var(--sans);
+    -ms-overflow-style:none;scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+  .sp{padding:38px 15px 20px}
+
+  .amast{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .amast .lg{display:flex;align-items:center;gap:9px}
+  .amast .t{font-family:var(--display);font-weight:800;text-transform:uppercase;letter-spacing:-.02em;
+    font-size:1rem;color:var(--p-ink)}
+  .amast .t b{color:var(--p-red)}
+  .amast .gear{width:30px;height:30px;border-radius:9px;border:1px solid var(--p-line);display:flex;
+    align-items:center;justify-content:center;color:var(--p-muted);font-size:.9rem}
+  .pk{font-family:var(--display);text-transform:uppercase;letter-spacing:.18em;font-weight:700;
+    font-size:.6rem;color:var(--p-green)}
+  .card{background:var(--p-paper);border:1px solid var(--p-line);border-radius:15px;box-shadow:var(--p-shadow)}
+  .card+.card{margin-top:11px}
+  .sec-l{font-family:var(--display);text-transform:uppercase;letter-spacing:.12em;font-size:.56rem;
+    font-weight:700;color:var(--p-muted);margin:16px 3px 7px}
+
+  /* rotation strip */
+  .rot{display:flex;gap:6px;padding:11px}
+  .rp{flex:1;text-align:center;padding:8px 2px;border-radius:10px;border:1px solid var(--p-line);
+    background:var(--p-chip);position:relative}
+  .rp.w{border-color:var(--p-gold);background:color-mix(in srgb,var(--p-gold) 14%,var(--p-paper));
+    box-shadow:0 0 0 2px color-mix(in srgb,var(--p-gold) 30%,transparent)}
+  .rp .ini{font-family:var(--display);font-weight:800;font-size:.9rem;color:var(--p-ink)}
+  .rp .rl{font-family:var(--display);text-transform:uppercase;letter-spacing:.08em;font-size:.44rem;
+    font-weight:700;color:var(--p-muted);margin-top:1px}
+  .rp.w .rl{color:var(--p-gold)}
+
+  /* choice chips */
+  .chips{display:flex;flex-wrap:wrap;gap:7px;padding:11px}
+  .chip{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:1.5px solid var(--p-line);
+    border-radius:11px;background:var(--p-paper);font-family:var(--sans);font-size:.82rem;font-weight:700;
+    color:var(--p-ink);cursor:pointer;transition:border-color .15s,background .15s,transform .1s;line-height:1}
+  .chip:hover{border-color:var(--p-green)} .chip:active{transform:translateY(1px)}
+  .chip .mx{font-family:var(--display);font-size:.66rem;color:var(--p-muted);font-weight:800}
+  .chip.sel{background:color-mix(in srgb,var(--p-green) 12%,var(--p-paper));border-color:var(--p-green)}
+  .chip.sel .mx{color:var(--p-green)}
+  .chip.hi.sel{background:color-mix(in srgb,var(--p-gold) 16%,var(--p-paper));border-color:var(--p-gold)}
+  .chip.hi.sel .mx{color:var(--p-gold)}
+  .chip .av{width:20px;height:20px;border-radius:50%;color:#fff;font-family:var(--display);font-weight:800;
+    font-size:.64rem;display:flex;align-items:center;justify-content:center}
+  .chip .ck{font-weight:900;color:var(--p-green)} .chip.hi .ck{color:var(--p-gold)}
+  .steplab{font-family:var(--display);text-transform:uppercase;letter-spacing:.1em;font-size:.55rem;
+    font-weight:700;color:var(--p-muted);padding:12px 13px 0}
+  .steplab b{color:var(--p-gold)}
+
+  /* score entry */
+  .scores{padding:7px 6px 2px}
+  .scr-row{display:flex;align-items:center;gap:10px;padding:8px;border-top:1px solid var(--p-line2)}
+  .scr-row:first-child{border-top:0}
+  .scr-row .d{width:24px;height:24px;border-radius:50%;color:#fff;font-family:var(--display);font-weight:800;
+    font-size:.68rem;display:flex;align-items:center;justify-content:center;flex:none}
+  .scr-row .nm{flex:1;color:var(--p-ink);font-weight:600;font-size:.9rem}
+  .scr-row .par{font-family:var(--display);font-weight:800;font-size:.64rem;padding:2px 8px;border-radius:999px;
+    min-width:32px;text-align:center}
+  .par-e{color:var(--p-muted);background:var(--p-chip)}
+  .par-u{color:var(--p-green);background:color-mix(in srgb,var(--p-green) 14%,var(--p-paper))}
+  .par-o{color:var(--p-body);background:var(--p-chip)}
+  .stp{display:inline-flex;align-items:center;border:1px solid var(--p-line);border-radius:9px;overflow:hidden;flex:none}
+  .stp button{width:30px;height:30px;border:0;background:var(--p-paper);color:var(--p-ink);font-weight:800;
+    font-size:1.05rem;cursor:pointer;line-height:1}
+  .stp button:hover{background:var(--p-chip)} .stp button:disabled{opacity:.4;cursor:default}
+  .stp .v{min-width:30px;text-align:center;font-family:var(--display);font-weight:800;font-size:1.1rem;color:var(--p-ink)}
+  .scr-foot{padding:8px 8px 4px;font-size:.68rem;color:var(--p-muted);border-top:1px solid var(--p-line2);margin-top:2px}
+  .scr-foot b{color:var(--p-gold)}
+
+  /* teams */
+  .teams{padding:12px 13px}
+  .trow{display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px solid var(--p-line2)}
+  .trow:first-child{border-top:0}
+  .tlab{font-family:var(--display);text-transform:uppercase;letter-spacing:.06em;font-weight:800;
+    font-size:.62rem;width:74px;flex:none}
+  .tlab.wolf{color:var(--p-gold)} .tlab.field{color:var(--p-green)}
+  .tmem{display:flex;gap:5px;flex-wrap:wrap;flex:1}
+  .tav{display:inline-flex;align-items:center;gap:5px;background:var(--p-chip);border:1px solid var(--p-line);
+    border-radius:999px;padding:2px 9px 2px 2px;font-size:.76rem;font-weight:600;color:var(--p-ink)}
+  .tav .d{width:18px;height:18px;border-radius:50%;color:#fff;font-family:var(--display);font-weight:800;
+    font-size:.6rem;display:flex;align-items:center;justify-content:center}
+  .uneven{margin:9px 13px 0;font-size:.68rem;font-weight:700;color:var(--p-gold);
+    background:color-mix(in srgb,var(--p-gold) 12%,var(--p-paper));border:1px solid color-mix(in srgb,var(--p-gold) 40%,transparent);
+    padding:6px 10px;border-radius:9px}
+  .banner{margin:0;padding:12px 13px;font-size:.85rem;font-weight:700;color:var(--p-ink)}
+  .banner .big{font-family:var(--display);text-transform:uppercase;letter-spacing:.02em}
+  .banner.shuck{background:color-mix(in srgb,var(--p-red) 8%,var(--p-paper))}
+  .banner.shuck .big{color:var(--p-red)}
+  .lnk{background:none;border:0;color:var(--p-red);font:inherit;font-weight:700;font-size:.76rem;
+    cursor:pointer;text-decoration:underline;padding:0;margin-left:6px}
+
+  /* hammer zone */
+  .hz{margin:14px 0 0;border:1.5px solid var(--p-red);border-radius:15px;background:var(--p-hammerbg);
+    padding:13px;box-shadow:var(--p-shadow)}
+  .hzhead{display:flex;align-items:center;gap:12px;margin-bottom:11px}
+  .mult{font-family:var(--display);font-weight:800;color:#fff;background:var(--p-red);font-size:1.5rem;
+    padding:6px 15px;border-radius:11px;min-width:62px;text-align:center;line-height:1;
+    box-shadow:0 3px 10px color-mix(in srgb,var(--p-red) 40%,transparent)}
+  .mult.bump{animation:stamp .32s ease}
+  @keyframes stamp{0%{transform:scale(1) rotate(0)}35%{transform:scale(1.22) rotate(-4deg)}100%{transform:scale(1) rotate(0)}}
+  .hzmeta .pp{font-family:var(--display);font-weight:800;color:var(--p-ink);font-size:1rem;line-height:1.1}
+  .hzmeta .bt{font-size:.7rem;color:var(--p-body);margin-top:1px}
+  .hzmeta .bt .bo{color:var(--p-gold);font-weight:700}
+  .hbtns{display:flex;gap:8px}
+  .hb{flex:1;padding:12px 8px;border-radius:11px;font-family:var(--display);text-transform:uppercase;
+    letter-spacing:.05em;font-weight:800;font-size:.7rem;cursor:pointer;border:1.5px solid var(--p-red);
+    transition:filter .15s,transform .1s;line-height:1.1}
+  .hb:active{transform:translateY(1px)}
+  .hb.solid{background:var(--p-red);color:#fff} .hb.solid:hover{filter:brightness(1.06)}
+  .hb.ghost{background:transparent;color:var(--p-red)} .hb.ghost:hover{background:color-mix(in srgb,var(--p-red) 8%,transparent)}
+  .hhist{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:11px}
+  .hchip{font-family:var(--display);text-transform:uppercase;letter-spacing:.04em;font-size:.6rem;font-weight:700;
+    padding:3px 9px;border-radius:999px;border:1px solid var(--p-line)}
+  .hchip.wolf{color:var(--p-gold);background:color-mix(in srgb,var(--p-gold) 12%,var(--p-paper))}
+  .hchip.sheep{color:var(--p-green);background:color-mix(in srgb,var(--p-green) 12%,var(--p-paper))}
+  .undo{margin-left:auto;background:none;border:1px solid var(--p-line);color:var(--p-muted);font:inherit;
+    font-size:.66rem;font-weight:700;padding:4px 10px;border-radius:999px;cursor:pointer}
+  .undo:hover{border-color:var(--p-red);color:var(--p-red)}
+
+  .confirm{margin-top:13px;width:100%;padding:13px;border:0;border-radius:12px;background:var(--p-green);
+    color:#fff;font-family:var(--display);text-transform:uppercase;letter-spacing:.06em;font-weight:800;
+    font-size:.86rem;cursor:pointer}
+  .locked{margin-top:13px;display:flex;align-items:center;justify-content:center;gap:10px;padding:11px;
+    border:1px dashed var(--p-green);border-radius:12px;color:var(--p-green);font-weight:700;font-size:.86rem}
+  .locked .ed{background:none;border:1px solid var(--p-green);color:var(--p-green);font:inherit;font-size:.7rem;
+    font-weight:700;padding:3px 11px;border-radius:999px;cursor:pointer}
+
+  /* pairing editor */
+  .pair{padding:12px 13px}
+  .pteam{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--p-chip);border:1px solid var(--p-line);
+    border-radius:10px;margin-bottom:7px}
+  .pteam .pl{font-family:var(--display);text-transform:uppercase;letter-spacing:.06em;font-weight:800;
+    font-size:.6rem;color:var(--p-gold);width:52px;flex:none}
+  .pteam .pn{font-weight:600;color:var(--p-ink);font-size:.84rem}
+  .lockbtn{width:100%;margin-top:4px;padding:11px;border:0;border-radius:11px;background:var(--p-gold);color:#3a2c07;
+    font-family:var(--display);text-transform:uppercase;letter-spacing:.05em;font-weight:800;font-size:.78rem;cursor:pointer}
+  .pnote{margin:8px 13px 0;font-size:.66rem;color:var(--p-muted);font-style:italic;font-family:var(--serif)}
+
+  /* ===== SIDE PANEL (controls + checklist) ===== */
+  .side{display:flex;flex-direction:column;gap:20px}
+  .pcard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow-sm)}
+  .pcard h2{font-family:var(--display);text-transform:uppercase;letter-spacing:-.01em;font-weight:800;
+    font-size:1.05rem;color:var(--ink);margin:0 0 3px}
+  .pcard .h-sub{font-family:var(--serif);font-style:italic;color:var(--muted);font-size:.82rem;margin:0 0 16px}
+
+  .ctl{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;
+    border-top:1px solid var(--line-soft)}
+  .ctl:first-of-type{border-top:0}
+  .ctl .cl{font-weight:600;color:var(--ink);font-size:.9rem}
+  .ctl .cl small{display:block;color:var(--muted);font-weight:400;font-size:.74rem}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;flex:none}
+  .seg button{background:var(--panel);border:0;color:var(--body);font:inherit;font-size:.78rem;font-weight:600;
+    padding:6px 11px;cursor:pointer;border-left:1px solid var(--line)}
+  .seg button:first-child{border-left:0}
+  .seg button.on{background:var(--accent);color:#fff}
+  .stepin{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .stepin button{background:var(--panel);border:0;color:var(--ink);font:inherit;font-size:1rem;font-weight:800;
+    width:30px;height:30px;cursor:pointer}
+  .stepin span{min-width:42px;text-align:center;font-weight:700;color:var(--ink);font-size:.86rem}
+  .sw{position:relative;width:42px;height:24px;flex:none;cursor:pointer}
+  .sw input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+  .sw .tr{position:absolute;inset:0;background:var(--line);border-radius:999px;transition:background .2s}
+  .sw .kn{position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;
+    transition:transform .2s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+  .sw input:checked~.tr{background:var(--accent)} .sw input:checked~.kn{transform:translateX(18px)}
+  .sw input:focus-visible~.tr{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* checklist */
+  .chk{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+  .chk li{display:flex;gap:11px;padding:10px 0;border-top:1px solid var(--line-soft);align-items:flex-start;
+    transition:opacity .2s}
+  .chk li:first-child{border-top:0}
+  .chk .mk{width:20px;height:20px;flex:none;border-radius:6px;border:1.5px solid var(--line);
+    display:flex;align-items:center;justify-content:center;color:transparent;font-weight:900;font-size:.8rem;
+    margin-top:1px;transition:background .2s,border-color .2s,color .2s}
+  .chk li.on .mk{background:var(--accent);border-color:var(--accent);color:#fff}
+  .chk .ct b{display:block;color:var(--ink);font-size:.88rem;font-weight:600;line-height:1.3}
+  .chk .ct span{font-size:.78rem;color:var(--muted)}
+  .chk li.on .ct b{color:var(--ink)}
+  .chk li:not(.on){opacity:.62}
+  .legend{margin-top:14px;font-size:.76rem;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .legend .mk{width:16px;height:16px;background:var(--accent);border-color:var(--accent);border-radius:5px;
+    border:1.5px solid var(--accent);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:.62rem;font-weight:900}
+
+  .foot{margin-top:34px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);
+    font-size:.84rem;max-width:74ch}
+  .foot b{color:var(--ink)}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<header class="top">
+  <svg width="30" height="30" viewBox="0 0 100 100" aria-hidden="true">
+    <circle cx="50" cy="50" r="47" fill="var(--accent)"/>
+    <circle cx="50" cy="50" r="47" fill="none" stroke="var(--gold)" stroke-width="3"/>
+    <line x1="66" y1="22" x2="66" y2="40" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M66 22 L79 26 L66 30 Z" fill="var(--red)"/>
+    <text x="46" y="70" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="54" fill="#fff">P</text>
+  </svg>
+  <span class="wm">THE&nbsp;<b>PRESS</b></span>
+  <span class="sub">· Wolf Hammer</span>
+  <span class="spacer"></span>
+  <button class="tog" id="themeToggle" aria-label="Toggle theme"><span id="togIcon">☾</span><span id="togText">Dark</span></button>
+</header>
+
+<main>
+  <div class="kick">Functional Parity · Wolf Hammer</div>
+  <h1 class="sec">Every Mechanic, Kept</h1>
+  <p class="lede">The richest game in The Press, rebuilt in the <em>Action Sheet</em> language —
+    and made <em>live</em> so you can prove nothing was lost. Pick a partner, go lone, declare a
+    shuck, then <em>hammer</em> and watch the stakes double. The checklist on the right lights up
+    as each existing feature is exercised.</p>
+
+  <div class="layout">
+    <!-- PHONE -->
+    <div class="stage">
+      <div class="phone">
+        <div class="glass">
+          <div class="notch"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+          <div class="screen" id="screen"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDE -->
+    <div class="side">
+      <div class="pcard">
+        <h2>Try it</h2>
+        <p class="h-sub">the same options that live in Settings → Wolf</p>
+        <div class="ctl"><span class="cl">$ per point <small>base stake (wolfVal)</small></span>
+          <span class="stepin"><button id="valDn">–</button><span class="num" id="valOut">$5</span><button id="valUp">+</button></span></div>
+        <div class="ctl"><span class="cl">Lone Wolf pays 2× <small>else 1×</small></span>
+          <label class="sw"><input type="checkbox" id="optLone" checked><span class="tr"></span><span class="kn"></span></label></div>
+        <div class="ctl"><span class="cl">Blind Lone Wolf (3×) <small>enables the 3× pick</small></span>
+          <label class="sw"><input type="checkbox" id="optBlind3" checked><span class="tr"></span><span class="kn"></span></label></div>
+        <div class="ctl"><span class="cl">Fixed pairings <small>lock 2v2 teams at hole 1</small></span>
+          <label class="sw"><input type="checkbox" id="optFixed"><span class="tr"></span><span class="kn"></span></label></div>
+        <div class="ctl"><span class="cl">Players in group</span>
+          <span class="seg" id="segPlayers"><button data-n="4" class="on">4</button><button data-n="5">5</button></span></div>
+        <div class="ctl"><span class="cl">Net score bonus <small>auto-computed from entered scores</small></span>
+          <span style="font-family:var(--serif);font-style:italic;color:var(--muted);font-size:.82rem">lower a stroke to trigger it →</span></div>
+      </div>
+
+      <div class="pcard">
+        <h2>Parity Checklist</h2>
+        <p class="h-sub">every Wolf Hammer feature that survives the redesign</p>
+        <ul class="chk" id="chk">
+          <li id="c-rot"><span class="mk">✓</span><span class="ct"><b>Wolf rotation by hole</b><span>Wolf = hole ÷ players, shown in the rotation strip.</span></span></li>
+          <li id="c-pick"><span class="mk">✓</span><span class="ct"><b>Pick type · Normal / Blind / Lone / Blind&nbsp;Lone</b><span>1× · 2× · 2×/1× · 3×.</span></span></li>
+          <li id="c-partner"><span class="mk">✓</span><span class="ct"><b>Partner select + limit</b><span>1 partner under 5 players, up to 2 at 5+; oldest shifts out.</span></span></li>
+          <li id="c-teams"><span class="mk">✓</span><span class="ct"><b>Wolf Pack vs Field lineups</b><span>Live team display with avatars.</span></span></li>
+          <li id="c-shuck"><span class="mk">✓</span><span class="ct"><b>Shuck — 1 vs everyone (2×)</b><span>Any player can shuck; cancellable.</span></span></li>
+          <li id="c-hammer"><span class="mk">✓</span><span class="ct"><b>Hammer — double + turn-taking + undo</b><span>2ⁿ stakes; last side can't re-hammer; history chips.</span></span></li>
+          <li id="c-stakes"><span class="mk">✓</span><span class="ct"><b>Live multiplier &amp; $/pt</b><span>wolfVal × pick × hammer, with hammer count.</span></span></li>
+          <li id="c-bonus"><span class="mk">✓</span><span class="ct"><b>Score multipliers stack</b><span>Team birdie 2×, eagle+ 3×.</span></span></li>
+          <li id="c-uneven"><span class="mk">✓</span><span class="ct"><b>Uneven-team stakes (5+)</b><span>Smaller team bets 2×/member, larger 1×.</span></span></li>
+          <li id="c-fixed"><span class="mk">✓</span><span class="ct"><b>Fixed-pairings variant</b><span>Lock teams at hole 1; team hammering.</span></span></li>
+          <li id="c-lock"><span class="mk">✓</span><span class="ct"><b>Hole confirm / lock + edit</b><span>Lock the hole, unlock to edit.</span></span></li>
+          <li id="c-options"><span class="mk">✓</span><span class="ct"><b>Carried game options</b><span>$/pt, lone2×, blind3×, fixed pairings.</span></span></li>
+        </ul>
+        <div class="legend"><span class="mk">✓</span> lit = currently demonstrated in the phone</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="foot"><b>Scope:</b> this is an interactive visual mockup — the production
+    <b>index.html</b> is untouched. The logic here mirrors the real
+    <b>calcWolfMoney()</b> / hammer rules so parity is verifiable by tapping; a real build would
+    reuse the existing <b>state.wolfHoles</b> data and calc functions and only re-skin
+    <b>renderHole()</b>'s wolf branch. Toggle the theme (top-right) to check the Night edition.</p>
+</main>
+
+<script>
+(function(){
+  var root=document.documentElement,tt=document.getElementById('togText'),ti=document.getElementById('togIcon');
+  function cur(){return root.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}
+  function paint(){var d=cur()==='dark';tt.textContent=d?'Light':'Dark';ti.textContent=d?'☀':'☾';}
+  document.getElementById('themeToggle').addEventListener('click',function(){root.setAttribute('data-theme',cur()==='dark'?'light':'dark');paint();});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',paint);paint();
+})();
+
+/* ---------------- Wolf Hammer interactive model ---------------- */
+var ROSTER=[{n:'Nick',i:'N',c:'#0B6E4F'},{n:'Sam',i:'S',c:'#3A6EA5'},
+            {n:'Dre',i:'D',c:'#C56A3B'},{n:'Pat',i:'P',c:'#7A5B8F'},{n:'Val',i:'V',c:'#2C8C8C'}];
+var S={
+  hole:5, n:4, wolf:0,
+  mode:'normal',          // normal|blind|lone|blindlone|shuck
+  partners:[], shuck:null,
+  hammers:0, last:null, log:[],
+  scores:[4,4,4,4,4], par:4, val:5, lone2x:true, blind3x:true,
+  fixed:false, locked:false,       // locked = pairings locked
+  holeLocked:false,
+  pairs:[[0,1],[2,3]], shuckOpen:false, bump:false
+};
+function players(){return ROSTER.slice(0,S.n);}
+function computeWolf(){S.wolf=(S.hole-1)%S.n;}
+function limit(){return S.n<5?1:2;}
+
+function pickMult(){
+  if(S.mode==='blindlone') return 3;
+  if(S.mode==='blind') return 2;
+  if(S.mode==='lone') return S.lone2x?2:1;
+  if(S.mode==='shuck') return 2;
+  return 1;
+}
+function hammerMult(){return Math.pow(2,S.hammers);}
+function bestToPar(){var b=99;for(var i=0;i<S.n;i++){var d=S.scores[i]-S.par;if(d<b)b=d;}return b;}
+function scoreMult(){var b=bestToPar();return b<=-2?3:b===-1?2:1;}
+function bonusLabel(){var b=bestToPar();return b<=-2?'Eagle 3×':b===-1?'Birdie 2×':'';}
+function badge(){return pickMult()*hammerMult();}
+
+function teamsSet(){
+  if(S.fixed) return S.locked;
+  if(S.mode==='lone'||S.mode==='blindlone') return true;
+  if(S.mode==='shuck') return S.shuck!==null;
+  return S.partners.length>0;
+}
+function wolfPack(){
+  if(S.mode==='shuck') return S.shuck!==null?[S.shuck]:[];
+  if(S.mode==='lone'||S.mode==='blindlone') return [S.wolf];
+  return [S.wolf].concat(S.partners);
+}
+function field(){var w=wolfPack();return players().map(function(_,i){return i;}).filter(function(i){return w.indexOf(i)<0;});}
+
+/* ---- mutators ---- */
+function setMode(m){ if(S.holeLocked) return;
+  S.mode=m; S.partners=[]; S.shuck=null; S.shuckOpen=(m==='shuck'); resetHammer(); render(); }
+function togglePartner(i){ if(S.holeLocked) return;
+  var p=S.partners, k=p.indexOf(i);
+  if(k>=0) p.splice(k,1); else { p.push(i); if(p.length>limit()) p.shift(); }
+  resetHammer(); render(); }
+function setShuck(i){ if(S.holeLocked) return; S.shuck=i; S.shuckOpen=false; resetHammer(); render(); }
+function cancelShuck(){ S.shuck=null; S.shuckOpen=true; resetHammer(); render(); }
+function resetHammer(){ S.hammers=0; S.last=null; S.log=[]; }
+function hammer(team){ if(team===S.last) return; S.hammers++; S.log.push(team); S.last=team; S.bump=true; render(); }
+function undoHammer(){ if(S.hammers>0){ S.hammers--; S.log.pop(); S.last=S.log.length?S.log[S.log.length-1]:null; render(); } }
+function lockPairs(){ S.locked=true; render(); }
+function lockHole(){ S.holeLocked=true; render(); }
+function unlockHole(){ S.holeLocked=false; render(); }
+function score(i,d){ if(S.holeLocked) return; S.scores[i]=Math.max(1,Math.min(12,S.scores[i]+d)); render(); }
+window._wh={setMode:setMode,togglePartner:togglePartner,setShuck:setShuck,cancelShuck:cancelShuck,
+  hammer:hammer,undoHammer:undoHammer,lockPairs:lockPairs,lockHole:lockHole,unlockHole:unlockHole,score:score,
+  openShuck:function(){S.mode='shuck';S.shuckOpen=true;S.partners=[];resetHammer();render();}};
+
+/* ---- render ---- */
+function av(i,cls){var p=ROSTER[i];return '<span class="'+(cls||'d')+'" style="background:'+p.c+'">'+p.i+'</span>';}
+function names(arr){return arr.map(function(i){return ROSTER[i].n;}).join(' & ');}
+
+function rotStrip(){
+  return '<div class="card"><div class="rot">'+players().map(function(p,i){
+    return '<div class="rp'+(i===S.wolf?' w':'')+'"><div class="ini">'+p.i+'</div>'+
+      '<div class="rl">'+(i===S.wolf?'Wolf':p.n)+'</div></div>';
+  }).join('')+'</div></div>';
+}
+
+function pickStep(){
+  if(S.fixed) return '';
+  var b3=S.blind3x;
+  function chip(m,label,mx,hi){
+    var sel=(S.mode===m); return '<button class="chip'+(hi?' hi':'')+(sel?' sel':'')+'" onclick="_wh.setMode(\''+m+'\')">'+
+      label+' <span class="mx">'+mx+'</span></button>';
+  }
+  var out='<div class="steplab">Step 1 — choose pick type</div><div class="chips">'+
+    chip('normal','Normal','1×',false)+
+    chip('blind','Blind Pick','2×',true)+
+    chip('lone','Lone Wolf',(S.lone2x?'2×':'1×'),true)+
+    (b3?chip('blindlone','Blind Lone','3×',true):'')+
+    '<button class="chip'+(S.mode==='shuck'?' sel':'')+'" onclick="_wh.openShuck()" style="color:var(--p-red);border-color:'+(S.mode==='shuck'?'var(--p-red)':'var(--p-line)')+'">Shuck <span class="mx" style="color:var(--p-red)">2×</span></button>'+
+    '</div>';
+
+  // step 2 / banners
+  if(S.mode==='normal'||S.mode==='blind'){
+    var lb=S.mode==='blind'?' <b>(BLIND 2×)</b>':'';
+    out+='<div class="steplab">Step 2 — select partner'+lb+' · pick up to '+limit()+'</div><div class="chips">'+
+      players().map(function(p,i){ if(i===S.wolf) return '';
+        var sel=S.partners.indexOf(i)>=0;
+        return '<button class="chip'+(sel?' sel':'')+'" onclick="_wh.togglePartner('+i+')">'+av(i,'av')+p.n+
+          (sel?' <span class="ck">'+(S.mode==='blind'?'2×':'✓')+'</span>':'')+'</button>';
+      }).join('')+'</div>';
+  } else if(S.mode==='lone'||S.mode==='blindlone'){
+    var mx=S.mode==='blindlone'?'3×':(S.lone2x?'2×':'1×');
+    out+='<div class="banner"><span class="big">Lone Wolf</span> — '+ROSTER[S.wolf].n+' vs '+(S.n-1)+' opponents <b style="color:var(--p-gold)">('+mx+')</b></div>';
+  } else if(S.mode==='shuck'){
+    if(S.shuck===null){
+      out+='<div class="steplab">Who’s shucking? <b>(2×)</b></div><div class="chips">'+
+        players().map(function(p,i){return '<button class="chip" onclick="_wh.setShuck('+i+')">'+av(i,'av')+p.n+'</button>';}).join('')+'</div>';
+    } else {
+      out+='<div class="banner shuck"><span class="big">Shuck!</span> '+ROSTER[S.shuck].n+' vs everyone <b>(2×)</b>'+
+        '<button class="lnk" onclick="_wh.cancelShuck()">cancel</button></div>';
+    }
+  }
+  return '<div class="card">'+out+'</div>';
+}
+
+function fixedStep(){
+  if(!S.fixed) return '';
+  if(!S.locked){
+    var ed='<div class="pair">'+S.pairs.map(function(t,k){
+      return '<div class="pteam"><span class="pl">Team '+(k+1)+'</span><span class="pn">'+names(t)+'</span></div>';
+    }).join('')+'<button class="lockbtn" onclick="_wh.lockPairs()">Lock pairings for the round</button>'+
+    '<div class="pnote">Locked at Hole 1 for the whole round — just like the real game.</div></div>';
+    return '<div class="card"><div class="steplab">Fixed pairings — set your 2v2 teams</div>'+ed+'</div>';
+  }
+  var wt=S.pairs[(S.hole-1)%S.pairs.length];
+  return '<div class="card"><div class="teams">'+
+    '<div class="trow"><span class="tlab wolf">Wolf Team</span><span class="tmem">'+
+      wt.map(function(i){return '<span class="tav">'+av(i)+ROSTER[i].n+'</span>';}).join('')+'</span></div>'+
+    '<div class="trow"><span class="tlab field">Field</span><span class="tmem">'+
+      players().map(function(_,i){return i;}).filter(function(i){return wt.indexOf(i)<0;}).map(function(i){return '<span class="tav">'+av(i)+ROSTER[i].n+'</span>';}).join('')+'</span></div>'+
+    '</div><div class="pnote">Ally-team picks &amp; “Lone Pair” unlock with 6 players (3 teams).</div></div>';
+}
+
+function teamsCard(){
+  if(S.fixed || !teamsSet()) return '';
+  if(S.mode==='shuck'){
+    return '<div class="card"><div class="teams">'+
+      '<div class="trow"><span class="tlab wolf">Shuck</span><span class="tmem"><span class="tav">'+av(S.shuck)+ROSTER[S.shuck].n+'</span></span></div>'+
+      '<div class="trow"><span class="tlab field">Everyone</span><span class="tmem">'+field().map(function(i){return '<span class="tav">'+av(i)+ROSTER[i].n+'</span>';}).join('')+'</span></div>'+
+      '</div></div>';
+  }
+  var wp=wolfPack(),fl=field();
+  var uneven='';
+  if(S.n>=5 && S.mode!=='lone' && S.mode!=='blindlone' && wp.length!==fl.length){
+    var sm=Math.min(wp.length,fl.length),lg=Math.max(wp.length,fl.length);
+    uneven='<div class="uneven">Smaller team ('+sm+') bets 2×/player · larger team ('+lg+') bets 1×/player.</div>';
+  }
+  return '<div class="card"><div class="teams">'+
+    '<div class="trow"><span class="tlab wolf">Wolf Pack</span><span class="tmem">'+wp.map(function(i){return '<span class="tav">'+av(i)+ROSTER[i].n+'</span>';}).join('')+'</span></div>'+
+    '<div class="trow"><span class="tlab field">Field</span><span class="tmem">'+fl.map(function(i){return '<span class="tav">'+av(i)+ROSTER[i].n+'</span>';}).join('')+'</span></div>'+
+    '</div>'+uneven+'</div>';
+}
+
+function scoreCard(){
+  var par=S.par;
+  var rows=players().map(function(p,i){
+    var d=S.scores[i]-par, lbl=d===0?'E':(d>0?'+'+d:''+d), cls=d<0?'par-u':d>0?'par-o':'par-e';
+    var dis=S.holeLocked?' disabled':'';
+    return '<div class="scr-row">'+av(i,'d')+'<span class="nm">'+p.n+'</span>'+
+      '<span class="par '+cls+'">'+lbl+'</span>'+
+      '<span class="stp"><button onclick="_wh.score('+i+',-1)"'+dis+'>–</button>'+
+      '<span class="v num">'+S.scores[i]+'</span>'+
+      '<button onclick="_wh.score('+i+',1)"'+dis+'>+</button></span></div>';
+  }).join('');
+  var bl=bonusLabel();
+  var foot=bl?'<div class="scr-foot">Low net on the hole → <b>'+bl+'</b> stacks on the bet</div>'
+             :'<div class="scr-foot">Par '+par+' · tap ± to enter strokes — a birdie/eagle auto-stacks the bet</div>';
+  return '<div class="card"><div class="steplab">Enter scores — Hole '+S.hole+' · Par '+par+'</div>'+
+    '<div class="scores">'+rows+foot+'</div></div>';
+}
+
+function hammerZone(){
+  if(!teamsSet()) return '';
+  var f=badge(), pp=S.val*f, sc=scoreMult();
+  var bl=bonusLabel(), bonusTxt = bl?' · <span class="bo">'+bl+'</span>':'';
+  var cnt=S.hammers>0?' · '+S.hammers+' hammer'+(S.hammers>1?'s':''):'';
+  var wolfLabel = S.fixed?'Wolf Team Hammers!':(S.mode==='shuck'?'Shucker Hammers!':'Wolf Pack Hammers!');
+  var btns='<div class="hbtns">'+
+    (S.last!=='wolf'?'<button class="hb solid" onclick="_wh.hammer(\'wolf\')">'+wolfLabel+'</button>':'')+
+    (S.last!=='sheep'?'<button class="hb ghost" onclick="_wh.hammer(\'sheep\')">Field Hammers Back!</button>':'')+
+    '</div>';
+  var hist='';
+  if(S.log.length){
+    hist='<div class="hhist">'+S.log.map(function(t,i){
+      return '<span class="hchip '+(t==='wolf'?'wolf':'sheep')+'">'+(t==='wolf'?'Wolf':'Field')+' → '+Math.pow(2,i+1)+'×</span>';
+    }).join('')+'<button class="undo" onclick="_wh.undoHammer()">Undo</button></div>';
+  }
+  var worth = S.val*f*sc;
+  return '<div class="hz"><div class="hzhead">'+
+      '<span class="mult'+(S.bump?' bump':'')+'" id="multBadge">'+f+'×</span>'+
+      '<span class="hzmeta"><span class="pp num">$'+pp+'/pt'+'</span>'+
+      '<span class="bt">stake × pick × hammer'+cnt+bonusTxt+' → winner takes <b>$'+worth+'</b>/pt</span></span>'+
+    '</div>'+btns+hist+'</div>';
+}
+
+function confirmRow(){
+  if(!teamsSet()) return '';
+  if(S.holeLocked){
+    return '<div class="locked">Hole '+S.hole+' locked <button class="ed" onclick="_wh.unlockHole()">Edit</button></div>';
+  }
+  return '<button class="confirm" onclick="_wh.lockHole()">Confirm Hole '+S.hole+' scores</button>';
+}
+
+function render(){
+  computeWolf();
+  var html='<div class="sp">'+
+    '<div class="amast"><div class="lg">'+seal(26)+'<span class="t">Wolf&nbsp;<b>Hammer</b></span></div><div class="gear">⚙</div></div>'+
+    '<div class="pk">Hole '+S.hole+' · Par 4 · the wolf tees last</div>'+
+    '<div class="sec-l">Rotation — Wolf of the hole</div>'+ rotStrip()+
+    pickStep()+ fixedStep()+ teamsCard()+ scoreCard()+ hammerZone()+ confirmRow()+
+    '</div>';
+  document.getElementById('screen').innerHTML=html;
+  if(S.bump){ var b=document.getElementById('multBadge'); if(b){ b.addEventListener('animationend',function(){S.bump=false;}); } S.bump=false; }
+  updateChk();
+}
+function seal(sz){return '<svg width="'+sz+'" height="'+sz+'" viewBox="0 0 100 100" aria-hidden="true">'+
+  '<circle cx="50" cy="50" r="47" fill="var(--p-green)"/><circle cx="50" cy="50" r="47" fill="none" stroke="var(--p-gold)" stroke-width="4"/>'+
+  '<text x="50" y="70" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="56" fill="#fff">P</text></svg>';}
+
+function updateChk(){
+  var on={
+    'c-rot':true,'c-pick':true,'c-stakes':true,'c-options':true,
+    'c-partner':!S.fixed&&(S.mode==='normal'||S.mode==='blind'),
+    'c-teams':teamsSet(),
+    'c-shuck':S.mode==='shuck',
+    'c-hammer':S.hammers>0,
+    'c-bonus':scoreMult()>1,
+    'c-uneven':(S.n>=5&&!S.fixed&&S.mode!=='lone'&&S.mode!=='blindlone'&&teamsSet()&&wolfPack().length!==field().length),
+    'c-fixed':S.fixed,
+    'c-lock':S.holeLocked
+  };
+  Object.keys(on).forEach(function(id){var el=document.getElementById(id);if(el)el.classList.toggle('on',!!on[id]);});
+}
+
+/* ---- side controls ---- */
+function setVal(v){S.val=Math.max(1,v);document.getElementById('valOut').textContent='$'+S.val;render();}
+document.getElementById('valUp').onclick=function(){setVal(S.val+1);};
+document.getElementById('valDn').onclick=function(){setVal(S.val-1);};
+document.getElementById('optLone').onchange=function(){S.lone2x=this.checked;render();};
+document.getElementById('optBlind3').onchange=function(){S.blind3x=this.checked; if(!S.blind3x&&S.mode==='blindlone')S.mode='lone'; render();};
+document.getElementById('optFixed').onchange=function(){
+  S.fixed=this.checked; S.locked=false; S.holeLocked=false; resetHammer();
+  if(S.fixed){ S.n=4; syncPlayers(); } render();
+};
+document.getElementById('segPlayers').addEventListener('click',function(e){
+  var b=e.target.closest('button'); if(!b) return;
+  S.n=+b.dataset.n; if(S.n===5&&S.fixed){S.fixed=false;document.getElementById('optFixed').checked=false;}
+  if(S.partners.length>limit()) S.partners=S.partners.slice(-limit());
+  S.partners=S.partners.filter(function(i){return i<S.n;}); if(S.shuck!==null&&S.shuck>=S.n)S.shuck=null;
+  resetHammer(); syncPlayers(); render();
+});
+function syncPlayers(){document.querySelectorAll('#segPlayers button').forEach(function(b){b.classList.toggle('on',+b.dataset.n===S.n);});}
+
+render();
+</script>
