@@ -519,6 +519,45 @@ assertZeroSum('calcWolfMoney', 'Wolf (lone wolf 2x)');
 loadState(freshStateLiteral({ players: _P4, gameType: 'wolf', holeCount: 1, scores: scoresFor([[3], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [], shuck: 0, hammers: 2 } }, gameOpts: { wolfVal: 1 } }));
 assertZeroSum('calcWolfMoney', 'Wolf (shuck + 2 hammers)');
 
+// --- Wolf uneven teams (5-8 players): outnumbered team is doubled, symmetrically both ways ---
+console.log('Wolf: uneven-team payouts double the outnumbered side and stay symmetric win/loss (calcWolfMoney)');
+const _W5 = [..._P4, { name: 'E', hdcp: 0 }];
+const _W6 = [..._W5, { name: 'F', hdcp: 0 }];
+const _W7 = [..._W6, { name: 'G', hdcp: 0 }];
+const _W8 = [..._W7, { name: 'H', hdcp: 0 }];
+function assertClose(fnName, expected, msg) {
+  const r = call(fnName);
+  const ok = Array.isArray(r) && r.length === expected.length && r.every((v, i) => Math.abs(v - expected[i]) < 1e-6);
+  if (ok) { pass++; console.log(`  ok - ${msg}  [${r.map((x) => +x.toFixed(3)).join(', ')}]`); }
+  else { fail++; console.log(`  FAIL - ${msg}\n    expected: ${JSON.stringify(expected.map((x) => +x.toFixed(3)))}\n    actual:   ${JSON.stringify(r)}`); }
+}
+// 5-player 2v3: wolf(0)+partner(1) vs field(2,3,4). Par win, $1/pt.
+loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
+assertClose('calcWolfMoney', [2, 2, -4 / 3, -4 / 3, -4 / 3], '5p 2v3: pair beats three -> pair doubled (+2 each), three split -4/3');
+loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[5], [5], [4], [4], [4]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
+assertClose('calcWolfMoney', [-2, -2, 4 / 3, 4 / 3, 4 / 3], '5p 2v3: three beat pair -> pair pays double (-2 each), mirror of the win case');
+// Blind partner pick (2x) must stack on the outnumbered double.
+loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], blindPick: true, hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
+assertClose('calcWolfMoney', [4, 4, -8 / 3, -8 / 3, -8 / 3], '5p 2v3 blind pick: 2x multiplier applied in uneven teams');
+// Hammer (x2) stacks.
+loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 1 } }, gameOpts: { wolfVal: 1 } }));
+assertClose('calcWolfMoney', [4, 4, -8 / 3, -8 / 3, -8 / 3], '5p 2v3 one hammer: stake doubled');
+// Birdie (x2) on the winning pair.
+loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[3], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
+assertClose('calcWolfMoney', [4, 4, -8 / 3, -8 / 3, -8 / 3], '5p 2v3 birdie win: pair best is a birdie -> 2x');
+// 6-player equal 3v3 (control) and uneven 2v4.
+loadState(freshStateLiteral({ players: _W6, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1, 2], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
+assertClose('calcWolfMoney', [3, 3, 3, -3, -3, -3], '6p 3v3 equal: each player faces each opponent at $1');
+loadState(freshStateLiteral({ players: _W6, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [5], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
+assertClose('calcWolfMoney', [2, 2, -1, -1, -1, -1], '6p 2v4: pair doubled (+2), four split -1 each');
+// 7-player 3v4 and 8-player 3v5.
+loadState(freshStateLiteral({ players: _W7, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [4], [5], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1, 2], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
+assertClose('calcWolfMoney', [2, 2, 2, -1.5, -1.5, -1.5, -1.5], '7p 3v4: outnumbered trio doubled (+2 each), four split -1.5');
+assertZeroSum('calcWolfMoney', 'Wolf 7p 3v4');
+loadState(freshStateLiteral({ players: _W8, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [4], [5], [5], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1, 2], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
+assertClose('calcWolfMoney', [2, 2, 2, -1.2, -1.2, -1.2, -1.2, -1.2], '8p 3v5: trio doubled (+2 each), five split -1.2');
+assertZeroSum('calcWolfMoney', 'Wolf 8p 3v5');
+
 loadState(freshStateLiteral({ players: _P2, gameType: 'nassau', holeCount: 6, scores: scoresFor([[4, 4, 5, 4, 5, 4], [5, 5, 4, 5, 4, 5]]), gameOpts: { front: 5, back: 0, overall: 3, press: false } }));
 assertZeroSum('calcNassauMoney', 'Nassau (individual)');
 loadState(freshStateLiteral({ players: _P4, gameType: 'nassau', holeCount: 3, scores: scoresFor([[4, 5, 4], [5, 5, 4], [5, 4, 5], [5, 5, 5]]), gameOpts: { front: 5, back: 0, overall: 3, press: false, nassauTeams: true, nassauTeamRoster: [[0, 1], [2, 3]] } }));
