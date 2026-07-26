@@ -571,6 +571,33 @@ loadState(freshStateLiteral({ players: _W8, gameType: 'wolf', holeCount: 1, scor
 assertWolf([2, 2, 1, -1, -1, -1, -1, -1], '8p 3v5: five each -$1; trio split the $5 pot -> +2/+2/+1');
 assertZeroSum('calcWolfMoney', 'Wolf 8p 3v5');
 
+// --- Concede: a team can give up the hole; the other team wins at the current
+// stakes (blind/lone/hammer multipliers apply, but no birdie/eagle bonus), and
+// the payout is awarded even when no scores have been entered for the hole. ---
+console.log('Wolf: a team can concede the hole and the other team is paid without needing scores (calcWolfMoney)');
+// 4p 2v2, wolf pack concedes with NO scores entered -> field wins the point.
+loadState(freshStateLiteral({ players: _P4, gameType: 'wolf', holeCount: 1, scores: {}, wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0, conceded: 'wolf' } }, gameOpts: { wolfVal: 1 } }));
+assertWolf([-1, -1, 1, 1], '4p 2v2 wolf concedes (no scores): pack pays the point, field wins');
+// 4p 2v2, field concedes -> wolf pack wins the point.
+loadState(freshStateLiteral({ players: _P4, gameType: 'wolf', holeCount: 1, scores: {}, wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0, conceded: 'sheep' } }, gameOpts: { wolfVal: 1 } }));
+assertWolf([1, 1, -1, -1], '4p 2v2 field concedes: pack wins the point');
+// Hammer multiplier still applies to a conceded hole (1 hammer = 2x).
+loadState(freshStateLiteral({ players: _P4, gameType: 'wolf', holeCount: 1, scores: {}, wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 1, conceded: 'wolf' } }, gameOpts: { wolfVal: 1 } }));
+assertWolf([-2, -2, 2, 2], '4p 2v2 wolf concedes with 1 hammer: stakes doubled');
+// Lone wolf concedes (lone2x) -> lone pays each of the 3 opponents at 2x base.
+loadState(freshStateLiteral({ players: _P4, gameType: 'wolf', holeCount: 1, scores: {}, wolfHoles: { 0: { wolf: 0, partners: [], hammers: 0, conceded: 'wolf' } }, gameOpts: { wolfVal: 1, lone2x: true } }));
+assertWolf([-6, 2, 2, 2], 'lone wolf concedes at 2x: pays 2 to each of the 3 field players');
+// Shuck concede: the shucker concedes and pays every opponent at the 2x shuck stake.
+loadState(freshStateLiteral({ players: _P4, gameType: 'wolf', holeCount: 1, scores: {}, wolfHoles: { 0: { wolf: 0, partners: [], shuck: 0, hammers: 0, conceded: 'wolf' } }, gameOpts: { wolfVal: 1 } }));
+assertWolf([-6, 2, 2, 2], 'shuck concede: shucker pays 2 to each of the 3 opponents');
+// 5p 2v3 concede keeps the outnumbered-team doubling rule (pair concedes -> pays 2x each).
+loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: {}, wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0, conceded: 'wolf' } }, gameOpts: { wolfVal: 1 } }));
+assertWolf([-2, -2, 2, 1, 1], '5p 2v3 pair concedes: outnumbered pair pays 2x, the three split the pot');
+assertZeroSum('calcWolfMoney', 'Wolf concede zero-sum (5p 2v3)');
+// A conceded field (majority) still stakes the base $1 each while the pair splits the pot.
+loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: {}, wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0, conceded: 'sheep' } }, gameOpts: { wolfVal: 1 } }));
+assertWolf([2, 1, -1, -1, -1], '5p 2v3 field concedes: three each pay $1, winning pair splits the $3 pot');
+
 // --- Deselecting a Wolf partner returns to "no pick", not silent Lone Wolf ---
 console.log('Wolf: deselecting the last partner reopens the picker (partners:undefined), not Lone Wolf (partners:[])');
 // toggleWolfPartner ends by calling renderHole() (DOM-heavy) and gates on canMutateRound()
