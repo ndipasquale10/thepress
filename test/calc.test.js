@@ -315,7 +315,7 @@ loadState(freshStateLiteral({
   wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } },
   gameOpts: { wolfVal: 1 },
 }));
-assertEqual(call('calcWolfMoney'), [4, 4, -4, -4], 'wolf(A)+partner(B) birdie beats field 2x multiplier, split $1 x2 field members each');
+assertEqual(call('calcWolfMoney'), [2, 2, -2, -2], 'wolf(A)+partner(B) birdie on a balanced 2v2: each player wins/loses the point x2 (birdie)');
 
 console.log('Wolf: Lone Wolf pays/collects double via gameOpts.lone2x (Bug 6 follow-through)');
 loadState(freshStateLiteral({
@@ -519,10 +519,11 @@ assertZeroSum('calcWolfMoney', 'Wolf (lone wolf 2x)');
 loadState(freshStateLiteral({ players: _P4, gameType: 'wolf', holeCount: 1, scores: scoresFor([[3], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [], shuck: 0, hammers: 2 } }, gameOpts: { wolfVal: 1 } }));
 assertZeroSum('calcWolfMoney', 'Wolf (shuck + 2 hammers)');
 
-// --- Wolf uneven teams (5-8 players): "everyone pays everyone" -> whole-dollar payouts ---
-// Each player settles the point value with EACH opponent, so the outnumbered team plays for more
-// (they face more opponents) and every result is an integer multiple of the point (no decimals).
-console.log('Wolf: uneven-team payouts settle per-opponent and stay whole numbers, symmetric win/loss (calcWolfMoney)');
+// --- Wolf teams: balanced holes pay the point; uneven holes have the outnumbered team pay double ---
+// Each player stakes the point (base = wolfVal x hammer/blind/birdie), except the strictly-smaller
+// (outnumbered) team stakes 2x. Losers pay their stake; the winners split the pot in whole dollars
+// (odd dollar goes to the lowest-index winners). Balanced teams => +/-point per player (no doubling).
+console.log('Wolf: balanced holes = the point; uneven holes have the outnumbered team pay double (calcWolfMoney)');
 const _W5 = [..._P4, { name: 'E', hdcp: 0 }];
 const _W6 = [..._W5, { name: 'F', hdcp: 0 }];
 const _W7 = [..._W6, { name: 'G', hdcp: 0 }];
@@ -534,35 +535,40 @@ function assertWolf(expected, msg) {
   if (same && whole) { pass++; console.log(`  ok - ${msg}  [${r.join(', ')}]`); }
   else { fail++; console.log(`  FAIL - ${msg}${whole ? '' : ' (non-integer payout!)'}\n    expected: ${JSON.stringify(expected)}\n    actual:   ${JSON.stringify(r)}`); }
 }
-// 5-player 2v3: wolf(0)+partner(1) vs field(2,3,4). Par win, $1/pt.
-// pair faces 3 opponents (+3 each); the three face 2 (-2 each).
+// 5-player 2v3: wolf(0)+partner(1) vs field(2,3,4).
+// three (majority) lose -> each pays the base $1; the winning pair splits the $3 pot -> +2/+1.
 loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
-assertWolf([3, 3, -2, -2, -2], '5p 2v3: pair beats three -> pair +3 (faces 3), three -2 (face 2)');
+assertWolf([2, 1, -1, -1, -1], '5p 2v3: three lose -> each pays base $1; winning pair splits the $3 pot (+2/+1)');
+// pair (outnumbered) lose -> each pays double $2; the three split the $4 pot -> +2/+1/+1.
 loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[5], [5], [4], [4], [4]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
-assertWolf([-3, -3, 2, 2, 2], '5p 2v3: three beat pair -> mirror of the win case (symmetric)');
-// Blind partner pick (2x) stacks on the per-opponent base.
+assertWolf([-2, -2, 2, 1, 1], '5p 2v3: pair lose -> each pays double $2; the three split the $4 pot');
+// $5 point, pair wins: the three each pay the base $5; the pair split the $15 pot -> +8/+7.
+loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 5 } }));
+assertWolf([8, 7, -5, -5, -5], '5p 2v3 $5: three each -$5 (base); winning pair splits $15 -> +8/+7');
+// $5 point, pair loses: the pair each pay double $10; the three split the $20 pot -> +7/+7/+6.
+loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[5], [5], [4], [4], [4]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 5 } }));
+assertWolf([-10, -10, 7, 7, 6], '5p 2v3 $5: pair each -$10 (double); the three split $20 -> +7/+7/+6');
+// Blind pick (x2) scales the base: three each -$2, pair split the $6 pot -> +3/+3.
 loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], blindPick: true, hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
-assertWolf([6, 6, -4, -4, -4], '5p 2v3 blind pick: 2x applied, still whole numbers');
-// Hammer (x2) stacks and stays whole (the "especially with hammer" case).
+assertWolf([3, 3, -2, -2, -2], '5p 2v3 blind pick: base x2');
+// One hammer (x2) scales the base.
 loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 1 } }, gameOpts: { wolfVal: 1 } }));
-assertWolf([6, 6, -4, -4, -4], '5p 2v3 one hammer: doubled, no decimals');
-// Real-money check: $5 point with a hammer -> whole dollars.
-loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 1 } }, gameOpts: { wolfVal: 5 } }));
-assertWolf([30, 30, -20, -20, -20], '5p 2v3 $5 + hammer: pair +$30, three -$20 (whole dollars)');
+assertWolf([3, 3, -2, -2, -2], '5p 2v3 one hammer: base x2');
 // Birdie (x2) on the winning pair.
 loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[3], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
-assertWolf([6, 6, -4, -4, -4], '5p 2v3 birdie win: pair best is a birdie -> 2x');
-// 6-player equal 3v3 (control) and uneven 2v4.
+assertWolf([3, 3, -2, -2, -2], '5p 2v3 birdie win: base x2');
+// 6-player balanced 3v3 -> each player wins/loses the point (no doubling).
 loadState(freshStateLiteral({ players: _W6, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1, 2], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
-assertWolf([3, 3, 3, -3, -3, -3], '6p 3v3 equal: each player faces each opponent at $1');
+assertWolf([1, 1, 1, -1, -1, -1], '6p 3v3 balanced: each player wins/loses the point');
+// 6-player 2v4: four each -$1 (base); pair split the $4 pot -> +2/+2 (divides evenly).
 loadState(freshStateLiteral({ players: _W6, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [5], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
-assertWolf([4, 4, -2, -2, -2, -2], '6p 2v4: pair +4 (faces 4), four -2 (face 2)');
-// 7-player 3v4 and 8-player 3v5.
+assertWolf([2, 2, -1, -1, -1, -1], '6p 2v4: four each -$1; pair split the $4 pot -> +2/+2');
+// 7-player 3v4 and 8-player 3v5 (odd dollar to the lowest-index winners).
 loadState(freshStateLiteral({ players: _W7, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [4], [5], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1, 2], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
-assertWolf([4, 4, 4, -3, -3, -3, -3], '7p 3v4: trio +4 (face 4), four -3 (face 3)');
+assertWolf([2, 1, 1, -1, -1, -1, -1], '7p 3v4: four each -$1; trio split the $4 pot -> +2/+1/+1');
 assertZeroSum('calcWolfMoney', 'Wolf 7p 3v4');
 loadState(freshStateLiteral({ players: _W8, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [4], [5], [5], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1, 2], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
-assertWolf([5, 5, 5, -3, -3, -3, -3, -3], '8p 3v5: trio +5 (face 5), five -3 (face 3)');
+assertWolf([2, 2, 1, -1, -1, -1, -1, -1], '8p 3v5: five each -$1; trio split the $5 pot -> +2/+2/+1');
 assertZeroSum('calcWolfMoney', 'Wolf 8p 3v5');
 
 // --- Deselecting a Wolf partner returns to "no pick", not silent Lone Wolf ---
