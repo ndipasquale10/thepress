@@ -558,6 +558,26 @@ loadState(freshStateLiteral({ players: _W8, gameType: 'wolf', holeCount: 1, scor
 assertClose('calcWolfMoney', [2, 2, 2, -1.2, -1.2, -1.2, -1.2, -1.2], '8p 3v5: trio doubled (+2 each), five split -1.2');
 assertZeroSum('calcWolfMoney', 'Wolf 8p 3v5');
 
+// --- Deselecting a Wolf partner returns to "no pick", not silent Lone Wolf ---
+console.log('Wolf: deselecting the last partner reopens the picker (partners:undefined), not Lone Wolf (partners:[])');
+// toggleWolfPartner ends by calling renderHole() (DOM-heavy) and gates on canMutateRound()
+// (which is `!isSpectator`); stub the render and ensure we're not in spectator mode.
+vm.runInContext('renderHole=function(){};isSpectator=false;', context);
+function wolfPartners0() { return JSON.parse(vm.runInContext('JSON.stringify(state.wolfHoles[0]&&state.wolfHoles[0].partners===undefined?"__undef__":state.wolfHoles[0].partners)', context)); }
+loadState(freshStateLiteral({ players: _P4, gameType: 'wolf', holeCount: 1, wolfHoles: {}, gameOpts: { wolfVal: 1 } }));
+call('toggleWolfPartner', 0, 1);
+assertEqual(wolfPartners0(), [1], 'selecting player 1 as partner sets partners:[1]');
+call('toggleWolfPartner', 0, 1); // deselect the same player
+assertEqual(wolfPartners0(), '__undef__', 'deselecting the only partner resets partners to undefined (picker stays), not []');
+assertEqual(call('wolfPickMissing', 0), true, 'after deselect the hole is flagged as needing a pick');
+// 6-player: deselecting one of two partners keeps the other
+loadState(freshStateLiteral({ players: _W6, gameType: 'wolf', holeCount: 1, wolfHoles: {}, gameOpts: { wolfVal: 1 } }));
+call('toggleWolfPartner', 0, 1);
+call('toggleWolfPartner', 0, 2);
+assertEqual(wolfPartners0(), [1, 2], '6p: two partners selected');
+call('toggleWolfPartner', 0, 1); // deselect one
+assertEqual(wolfPartners0(), [2], '6p: deselecting one of two partners keeps the other, not undefined');
+
 loadState(freshStateLiteral({ players: _P2, gameType: 'nassau', holeCount: 6, scores: scoresFor([[4, 4, 5, 4, 5, 4], [5, 5, 4, 5, 4, 5]]), gameOpts: { front: 5, back: 0, overall: 3, press: false } }));
 assertZeroSum('calcNassauMoney', 'Nassau (individual)');
 loadState(freshStateLiteral({ players: _P4, gameType: 'nassau', holeCount: 3, scores: scoresFor([[4, 5, 4], [5, 5, 4], [5, 4, 5], [5, 5, 5]]), gameOpts: { front: 5, back: 0, overall: 3, press: false, nassauTeams: true, nassauTeamRoster: [[0, 1], [2, 3]] } }));
