@@ -598,6 +598,16 @@ assertZeroSum('calcWolfMoney', 'Wolf concede zero-sum (5p 2v3)');
 loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: {}, wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0, conceded: 'sheep' } }, gameOpts: { wolfVal: 1 } }));
 assertWolf([2, 1, -1, -1, -1], '5p 2v3 field concedes: three each pay $1, winning pair splits the $3 pot');
 
+// Per-hole money attribution must reflect a concede. computeHoleMoney diffs money
+// with vs. without a hole's scores; since concede money is awarded independently of
+// scores, the baseline must also drop the concede flag or the hole shows $0 (Bug:
+// "money doesn't get awarded to the winning team" in the per-hole log / result popup).
+console.log('Wolf concede: computeHoleMoney attributes the concede award to the hole (not $0)');
+loadState(freshStateLiteral({ players: _P4, gameType: 'wolf', holeCount: 1, scores: { 0: [], 1: [], 2: [], 3: [] }, wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0, conceded: 'sheep' } }, gameOpts: { wolfVal: 5 } }));
+const _chm = call('computeHoleMoney');
+const _chmDeltas = Array.isArray(_chm) && _chm.length === 1 && _chm[0] ? _chm[0].deltas : _chm;
+assertEqual(_chmDeltas, [5, 5, -5, -5], 'computeHoleMoney: field concedes -> conceded hole shows wolf pack +$5 each (not $0)');
+
 // --- Deselecting a Wolf partner returns to "no pick", not silent Lone Wolf ---
 console.log('Wolf: deselecting the last partner reopens the picker (partners:undefined), not Lone Wolf (partners:[])');
 // toggleWolfPartner ends by calling renderHole() (DOM-heavy) and gates on canMutateRound()
