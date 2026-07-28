@@ -598,6 +598,29 @@ assertZeroSum('calcWolfMoney', 'Wolf concede zero-sum (5p 2v3)');
 loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: {}, wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0, conceded: 'sheep' } }, gameOpts: { wolfVal: 1 } }));
 assertWolf([2, 1, -1, -1, -1], '5p 2v3 field concedes: three each pay $1, winning pair splits the $3 pot');
 
+// --- Uneven teams: the per-player stake for each side is configurable via
+// gameOpts.wolfTeamVal (the smaller/outnumbered team) and gameOpts.fieldVal
+// (the larger team), set from the two Home Screen inputs. The losing side pays
+// its per-player amount (x hammer/blind/birdie multipliers); the winners split
+// the pot. When the opts are absent the old default applies (smaller = 2x wolfVal,
+// larger = 1x wolfVal), so all the tests above still hold. ---
+console.log('Wolf: uneven-team payouts honor configurable wolfTeamVal (smaller) / fieldVal (larger) (calcWolfMoney)');
+// 5p 2v3, wolfTeamVal=3 (pair), fieldVal=2 (the three). Pair (smaller) wins:
+// the three each pay fieldVal $2 -> $6 pot, the pair split it -> +3/+3.
+loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 1, wolfTeamVal: 3, fieldVal: 2 } }));
+assertWolf([3, 3, -2, -2, -2], '5p 2v3: pair win -> the three each pay fieldVal $2; pair split the $6 pot -> +3/+3');
+assertZeroSum('calcWolfMoney', 'Wolf uneven configurable (pair win)');
+// Same opts, pair (smaller) loses: each pays wolfTeamVal $3 -> $6 pot, the three split it -> +2/+2/+2.
+loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[5], [5], [4], [4], [4]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 1, wolfTeamVal: 3, fieldVal: 2 } }));
+assertWolf([-3, -3, 2, 2, 2], '5p 2v3: pair lose -> each pays wolfTeamVal $3; the three split the $6 pot -> +2/+2/+2');
+// Birdie (x2) scales the configured field amount: pair birdie -> the three each pay $4, pair split $12 -> +6/+6.
+loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[3], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 1, wolfTeamVal: 3, fieldVal: 2 } }));
+assertWolf([6, 6, -4, -4, -4], '5p 2v3: pair birdie -> fieldVal $2 doubled to $4 each; pair split the $12 pot -> +6/+6');
+// Configurable amounts also apply to a conceded uneven hole: pair concedes -> each pays wolfTeamVal $3.
+loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: {}, wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0, conceded: 'wolf' } }, gameOpts: { wolfVal: 1, wolfTeamVal: 3, fieldVal: 2 } }));
+assertWolf([-3, -3, 2, 2, 2], '5p 2v3 pair concedes: each pays wolfTeamVal $3; the three split the $6 pot');
+assertZeroSum('calcWolfMoney', 'Wolf uneven configurable concede zero-sum');
+
 // Per-hole money attribution must reflect a concede. computeHoleMoney diffs money
 // with vs. without a hole's scores; since concede money is awarded independently of
 // scores, the baseline must also drop the concede flag or the hole shows $0 (Bug:
