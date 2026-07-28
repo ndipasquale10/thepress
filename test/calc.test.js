@@ -621,6 +621,26 @@ loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scor
 assertWolf([-3, -3, 2, 2, 2], '5p 2v3 pair concedes: each pays wolfTeamVal $3; the three split the $6 pot');
 assertZeroSum('calcWolfMoney', 'Wolf uneven configurable concede zero-sum');
 
+// --- The two uneven-team dollar fields (opt-wolf-team-val / opt-wolf-field-val) are
+// only shown, and only read into gameOpts, when the roster is odd and >= 5 players
+// (5 or 7) so Wolf teams are necessarily uneven. wolfTeamsUneven() drives both the
+// Home Screen field visibility (syncWolfUnevenOpts) and the readGameOpts gate. For
+// even rosters the fields are absent from gameOpts, so calcWolfMoney falls back to the
+// classic default (smaller = 2x wolfVal, larger = 1x wolfVal). ---
+console.log('Wolf: uneven-team dollar fields are gated on odd rosters of 5+ (wolfTeamsUneven / readGameOpts)');
+[[_P4, false, '4'], [_W5, true, '5'], [_W6, false, '6'], [_W7, true, '7'], [_W8, false, '8']].forEach(([roster, expected, n]) => {
+  loadState(freshStateLiteral({ players: roster, gameType: 'wolf' }));
+  assertEqual(call('wolfTeamsUneven'), expected, `${n} players -> wolfTeamsUneven() === ${expected}`);
+});
+// readGameOpts: odd roster (5) reads the two fields (defaults from blank mocked inputs: 2 / 1);
+// even roster (4) leaves them undefined so the calc uses the classic default.
+loadState(freshStateLiteral({ players: _W5, gameType: 'wolf' }));
+const _goOdd = call('readGameOpts');
+assertEqual([_goOdd.wolfTeamVal, _goOdd.fieldVal], [2, 1], '5 players: readGameOpts sets wolfTeamVal/fieldVal');
+loadState(freshStateLiteral({ players: _P4, gameType: 'wolf' }));
+const _goEven = call('readGameOpts');
+assertEqual([_goEven.wolfTeamVal ?? null, _goEven.fieldVal ?? null], [null, null], '4 players: readGameOpts leaves wolfTeamVal/fieldVal unset (classic default applies)');
+
 // Per-hole money attribution must reflect a concede. computeHoleMoney diffs money
 // with vs. without a hole's scores; since concede money is awarded independently of
 // scores, the baseline must also drop the concede flag or the hole shows $0 (Bug:
