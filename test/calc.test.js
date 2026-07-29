@@ -519,11 +519,11 @@ assertZeroSum('calcWolfMoney', 'Wolf (lone wolf 2x)');
 loadState(freshStateLiteral({ players: _P4, gameType: 'wolf', holeCount: 1, scores: scoresFor([[3], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [], shuck: 0, hammers: 2 } }, gameOpts: { wolfVal: 1 } }));
 assertZeroSum('calcWolfMoney', 'Wolf (shuck + 2 hammers)');
 
-// --- Wolf teams: balanced holes pay the point; uneven holes have the outnumbered team pay double ---
-// Each player stakes the point (base = wolfVal x hammer/blind/birdie), except the strictly-smaller
-// (outnumbered) team stakes 2x. Losers pay their stake; the winners split the pot in whole dollars
-// (odd dollar goes to the lowest-index winners). Balanced teams => +/-point per player (no doubling).
-console.log('Wolf: balanced holes = the point; uneven holes have the outnumbered team pay double (calcWolfMoney)');
+// --- Wolf teams: every player stakes the same point amount; there is no doubling for the
+// smaller team. base = wolfVal x hammer/blind/birdie (or the Home Screen wolfTeamVal/fieldVal
+// when set). Losers pay their stake; the winners split the pot in whole dollars (odd dollar
+// goes to the lowest-index winners). Balanced teams => +/-point per player. ---
+console.log('Wolf: balanced holes = the point; uneven holes stake the point with no smaller-team doubling (calcWolfMoney)');
 const _W5 = [..._P4, { name: 'E', hdcp: 0 }];
 const _W6 = [..._W5, { name: 'F', hdcp: 0 }];
 const _W7 = [..._W6, { name: 'G', hdcp: 0 }];
@@ -539,15 +539,15 @@ function assertWolf(expected, msg) {
 // three (majority) lose -> each pays the base $1; the winning pair splits the $3 pot -> +2/+1.
 loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
 assertWolf([2, 1, -1, -1, -1], '5p 2v3: three lose -> each pays base $1; winning pair splits the $3 pot (+2/+1)');
-// pair (outnumbered) lose -> each pays double $2; the three split the $4 pot -> +2/+1/+1.
+// pair (outnumbered) lose -> each pays the point $1 (no doubling); the three split the $2 pot -> +1/+1/+0.
 loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[5], [5], [4], [4], [4]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
-assertWolf([-2, -2, 2, 1, 1], '5p 2v3: pair lose -> each pays double $2; the three split the $4 pot');
+assertWolf([-1, -1, 1, 1, 0], '5p 2v3: pair lose -> each pays the point $1 (no doubling); the three split the $2 pot');
 // $5 point, pair wins: the three each pay the base $5; the pair split the $15 pot -> +8/+7.
 loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 5 } }));
 assertWolf([8, 7, -5, -5, -5], '5p 2v3 $5: three each -$5 (base); winning pair splits $15 -> +8/+7');
-// $5 point, pair loses: the pair each pay double $10; the three split the $20 pot -> +7/+7/+6.
+// $5 point, pair loses: the pair each pay the point $5 (no doubling); the three split the $10 pot -> +4/+3/+3.
 loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[5], [5], [4], [4], [4]]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, gameOpts: { wolfVal: 5 } }));
-assertWolf([-10, -10, 7, 7, 6], '5p 2v3 $5: pair each -$10 (double); the three split $20 -> +7/+7/+6');
+assertWolf([-5, -5, 4, 3, 3], '5p 2v3 $5: pair each -$5 (no doubling); the three split $10 -> +4/+3/+3');
 // Blind pick (x2) scales the base: three each -$2, pair split the $6 pot -> +3/+3.
 loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: scoresFor([[4], [4], [5], [5], [5]]), wolfHoles: { 0: { wolf: 0, partners: [1], blindPick: true, hammers: 0 } }, gameOpts: { wolfVal: 1 } }));
 assertWolf([3, 3, -2, -2, -2], '5p 2v3 blind pick: base x2');
@@ -590,9 +590,9 @@ assertWolf([-6, 2, 2, 2], 'lone wolf concedes at 2x: pays 2 to each of the 3 fie
 // Shuck concede: the shucker concedes and pays every opponent at the 2x shuck stake.
 loadState(freshStateLiteral({ players: _P4, gameType: 'wolf', holeCount: 1, scores: {}, wolfHoles: { 0: { wolf: 0, partners: [], shuck: 0, hammers: 0, conceded: 'wolf' } }, gameOpts: { wolfVal: 1 } }));
 assertWolf([-6, 2, 2, 2], 'shuck concede: shucker pays 2 to each of the 3 opponents');
-// 5p 2v3 concede keeps the outnumbered-team doubling rule (pair concedes -> pays 2x each).
+// 5p 2v3 concede uses the point amount with no smaller-team doubling (pair concedes -> pays $1 each).
 loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: {}, wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0, conceded: 'wolf' } }, gameOpts: { wolfVal: 1 } }));
-assertWolf([-2, -2, 2, 1, 1], '5p 2v3 pair concedes: outnumbered pair pays 2x, the three split the pot');
+assertWolf([-1, -1, 1, 1, 0], '5p 2v3 pair concedes: pair pays the point $1 (no doubling), the three split the pot');
 assertZeroSum('calcWolfMoney', 'Wolf concede zero-sum (5p 2v3)');
 // A conceded field (majority) still stakes the base $1 each while the pair splits the pot.
 loadState(freshStateLiteral({ players: _W5, gameType: 'wolf', holeCount: 1, scores: {}, wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0, conceded: 'sheep' } }, gameOpts: { wolfVal: 1 } }));
@@ -602,8 +602,8 @@ assertWolf([2, 1, -1, -1, -1], '5p 2v3 field concedes: three each pay $1, winnin
 // gameOpts.wolfTeamVal (the smaller/outnumbered team) and gameOpts.fieldVal
 // (the larger team), set from the two Home Screen inputs. The losing side pays
 // its per-player amount (x hammer/blind/birdie multipliers); the winners split
-// the pot. When the opts are absent the old default applies (smaller = 2x wolfVal,
-// larger = 1x wolfVal), so all the tests above still hold. ---
+// the pot. When the opts are absent both sides default to wolfVal (no smaller-team
+// doubling), so all the tests above still hold. ---
 console.log('Wolf: uneven-team payouts honor configurable wolfTeamVal (smaller) / fieldVal (larger) (calcWolfMoney)');
 // 5p 2v3, wolfTeamVal=3 (pair), fieldVal=2 (the three). Pair (smaller) wins:
 // the three each pay fieldVal $2 -> $6 pot, the pair split it -> +3/+3.
@@ -626,7 +626,7 @@ assertZeroSum('calcWolfMoney', 'Wolf uneven configurable concede zero-sum');
 // (5 or 7) so Wolf teams are necessarily uneven. wolfTeamsUneven() drives both the
 // Home Screen field visibility (syncWolfUnevenOpts) and the readGameOpts gate. For
 // even rosters the fields are absent from gameOpts, so calcWolfMoney falls back to the
-// classic default (smaller = 2x wolfVal, larger = 1x wolfVal). ---
+// default where both sides stake wolfVal (no smaller-team doubling). ---
 console.log('Wolf: uneven-team dollar fields are gated on odd rosters of 5+ (wolfTeamsUneven / readGameOpts)');
 [[_P4, false, '4'], [_W5, true, '5'], [_W6, false, '6'], [_W7, true, '7'], [_W8, false, '8']].forEach(([roster, expected, n]) => {
   loadState(freshStateLiteral({ players: roster, gameType: 'wolf' }));
@@ -639,7 +639,7 @@ const _goOdd = call('readGameOpts');
 assertEqual([_goOdd.wolfTeamVal, _goOdd.fieldVal], [2, 1], '5 players: readGameOpts sets wolfTeamVal/fieldVal');
 loadState(freshStateLiteral({ players: _P4, gameType: 'wolf' }));
 const _goEven = call('readGameOpts');
-assertEqual([_goEven.wolfTeamVal ?? null, _goEven.fieldVal ?? null], [null, null], '4 players: readGameOpts leaves wolfTeamVal/fieldVal unset (classic default applies)');
+assertEqual([_goEven.wolfTeamVal ?? null, _goEven.fieldVal ?? null], [null, null], '4 players: readGameOpts leaves wolfTeamVal/fieldVal unset (both sides default to wolfVal)');
 
 // Per-hole money attribution must reflect a concede. computeHoleMoney diffs money
 // with vs. without a hole's scores; since concede money is awarded independently of
