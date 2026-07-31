@@ -835,5 +835,60 @@ assertEqual(_net1.map((v) => Math.round(v)), [48, 9, -21, -36], 'payments reprod
 assertEqual(_st1.every((t) => t.amt > 0), true, 'every payment is a positive amount');
 assertEqual(call('computeSettlement', [0, 0, 0, 0]), [], 'all square -> no payments');
 
+// --- Side bets: layer on top of the main game without disturbing it ---
+console.log('Side bets: layer additively on the main game');
+const _offBets = { skins: { on: false, val: 2, carry: true }, snake: { on: false, val: 5 }, junk: { on: false, val: 2 } };
+// Wolf alone, no side bets -> the baseline every existing round must keep returning.
+const _wolfState = {
+  players: _P4, gameType: 'wolf', holeCount: 1,
+  scores: { 0: [4], 1: [5], 2: [5], 3: [5] },
+  wolfHoles: { 0: { wolf: 0, partners: [1] } },
+  gameOpts: { wolfVal: 2 }, sideBets: _offBets,
+};
+loadState(freshStateLiteral(_wolfState));
+const _wolfBase = call('calcMoney');
+assertEqual(Math.abs(_wolfBase.reduce((a, b) => a + b, 0)) < 0.005, true, 'wolf baseline is zero-sum');
+
+// Same round with a $2 skins side bet: player 0 wins the hole outright.
+loadState(freshStateLiteral(Object.assign({}, _wolfState, {
+  sideBets: { skins: { on: true, val: 2, carry: true }, snake: { on: false, val: 5 }, junk: { on: false, val: 2 } },
+})));
+const _wolfPlusSkins = call('calcMoney');
+const _skinsOnly = call('calcSkinsMoney', { skinVal: 2, carry: true });
+assertEqual(_wolfPlusSkins, _wolfBase.map((v, i) => v + _skinsOnly[i]), 'wolf + skins side bet == wolf money + skins money');
+assertEqual(Math.abs(_wolfPlusSkins.reduce((a, b) => a + b, 0)) < 0.005, true, 'combined money stays zero-sum');
+
+// A side bet the main game already settles must not be counted twice.
+loadState(freshStateLiteral({
+  players: _P4, gameType: 'skins', holeCount: 1,
+  scores: { 0: [3], 1: [4], 2: [4], 3: [4] },
+  gameOpts: { skinVal: 2, carry: true },
+  sideBets: { skins: { on: true, val: 2, carry: true }, snake: { on: false, val: 5 }, junk: { on: false, val: 2 } },
+}));
+assertEqual(call('sideBetActive', 'skins'), false, 'skins side bet is suppressed when skins is the main game');
+const _skinsMain = call('calcMoney');
+loadState(freshStateLiteral({
+  players: _P4, gameType: 'skins', holeCount: 1,
+  scores: { 0: [3], 1: [4], 2: [4], 3: [4] },
+  gameOpts: { skinVal: 2, carry: true }, sideBets: _offBets,
+}));
+assertEqual(_skinsMain, call('calcMoney'), 'main-game skins is unchanged by a duplicate skins side bet');
+
+// Junk counts only its own categories, so Snake's 3-putt (index 0) never leaks in.
+loadState(freshStateLiteral({
+  players: _P4, gameType: 'wolf', holeCount: 1,
+  scores: { 0: [4], 1: [4], 2: [4], 3: [4] },
+  wolfHoles: { 0: { wolf: 0, partners: [1] } }, gameOpts: { wolfVal: 0 },
+  bonusPoints: { 0: { 0: { 0: true, 1: true } }, 1: {}, 2: {}, 3: {} },
+  sideBets: { skins: { on: false, val: 2, carry: true }, snake: { on: false, val: 5 }, junk: { on: true, val: 2 } },
+}));
+const _junk = call('calcMoney');
+assertEqual(_junk[0], 6, 'player 0 collects only the Greenie (index 1), not the 3-putt (index 0): 3 opponents x $2');
+assertEqual(Math.abs(_junk.reduce((a, b) => a + b, 0)) < 0.005, true, 'junk side bet is zero-sum');
+
+// Rounds saved before side bets existed carry no sideBets key at all.
+loadState(freshStateLiteral(Object.assign({}, _wolfState, { sideBets: undefined })));
+assertEqual(call('calcMoney'), _wolfBase, 'a round with no sideBets key returns the legacy money');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
