@@ -825,5 +825,15 @@ const _rtN = call('computeRunningTotals');
 assertEqual(_rtN[_rtN.length - 1].totals, call('calcMoney').map((v) => +v.toFixed(2)), 'team Nassau: final running totals equal calcMoney()');
 assertEqual(JSON.parse(vm.runInContext('JSON.stringify(state.scores)', context))[0][2], 4, 'scores restored after running-total computation');
 
+// --- computeSettlement: minimal set of payments that clears every net ---
+console.log('computeSettlement: greedy min-cash-flow settlement');
+const _st1 = call('computeSettlement', [48, 9, -21, -36]);
+assertEqual(_st1.length <= 3, true, 'four players settle in at most 3 payments');
+const _net1 = [0, 0, 0, 0];
+_st1.forEach((t) => { _net1[t.from] -= t.amt; _net1[t.to] += t.amt; });
+assertEqual(_net1.map((v) => Math.round(v)), [48, 9, -21, -36], 'payments reproduce the original nets');
+assertEqual(_st1.every((t) => t.amt > 0), true, 'every payment is a positive amount');
+assertEqual(call('computeSettlement', [0, 0, 0, 0]), [], 'all square -> no payments');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
