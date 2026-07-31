@@ -1,0 +1,907 @@
+<title>The Press — 10x Redesign Mockups</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<style>
+/* ============================================================
+   THE PRESS — 10x redesign mockups
+   One markup, two committed skins (Clubhouse / Broadcast),
+   six screens. All color & type flows through tokens.
+   ============================================================ */
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+svg{display:block}
+:focus-visible{outline:2px solid var(--focus,#7fc9a0);outline-offset:2px;border-radius:6px}
+
+/* ---------- STAGE (design-studio backdrop, committed) ---------- */
+.stage{
+  min-height:100vh;
+  background:
+    radial-gradient(120% 90% at 50% -10%, #23262b 0%, #17191d 45%, #0e0f12 100%);
+  color:#e7e7ea;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  display:flex;flex-direction:column;align-items:center;
+  padding:22px 16px 60px;
+  overflow-x:hidden;
+}
+
+/* ---------- CHROME (controls that live outside the phone) ---------- */
+.chrome{width:100%;max-width:960px;display:flex;flex-direction:column;gap:18px;margin-bottom:26px}
+.chrome-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.chrome-brand{display:flex;flex-direction:column;gap:6px}
+.chrome-kicker{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:#8a8d95;font-weight:600}
+.chrome-title{font-family:Georgia,"Times New Roman",serif;font-size:26px;line-height:1.05;color:#f4f4f6;margin:0}
+.chrome-title em{font-style:italic;color:#c9a24a}
+.chrome-sub{font-size:13px;color:#9a9da4;max-width:44ch;line-height:1.5}
+
+/* skin segmented control */
+.seg{display:inline-flex;background:#0d0e11;border:1px solid #2a2c31;border-radius:999px;padding:4px;gap:2px}
+.seg button{padding:9px 16px;border-radius:999px;font-size:13px;font-weight:600;color:#9a9da4;letter-spacing:.01em;transition:color .2s,background .2s}
+.seg button .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;vertical-align:1px;background:currentColor;opacity:.55}
+.seg button[aria-pressed="true"]{color:#111}
+.seg button[data-skin="clubhouse"][aria-pressed="true"]{background:#e9ddbe}
+.seg button[data-skin="broadcast"][aria-pressed="true"]{background:#35e08a}
+
+/* screen jump chips */
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:#141519;border:1px solid #2a2c31;color:#b9bcc4;font-size:12.5px;font-weight:600;letter-spacing:.02em;transition:.18s}
+.chip:hover{border-color:#3a3d44;color:#eee}
+.chip[aria-current="true"]{background:#eceef2;color:#15161a;border-color:#eceef2}
+.chip .n{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px;opacity:.6}
+
+/* ---------- PHONE DEVICE ---------- */
+.device-wrap{display:flex;flex-direction:column;align-items:center;gap:14px}
+.device{
+  width:392px;max-width:94vw;
+  height:min(830px,86vh);
+  border-radius:46px;
+  padding:11px;
+  background:linear-gradient(160deg,#2a2c31,#141518);
+  box-shadow:0 40px 90px -30px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.04) inset,0 2px 6px rgba(255,255,255,.06) inset;
+  position:relative;
+}
+.screenframe{
+  position:relative;width:100%;height:100%;
+  border-radius:36px;overflow:hidden;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font-ui);
+  display:flex;flex-direction:column;
+  isolation:isolate;
+}
+.device-caption{font-size:12px;color:#82858d;letter-spacing:.02em}
+.device-caption b{color:#c9a24a;font-weight:600}
+
+/* dynamic-island / status bar */
+.statusbar{flex:0 0 auto;height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:13px;font-weight:600;color:var(--ink);position:relative;z-index:5;background:var(--status-bg)}
+.statusbar .time{font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.statusbar .island{position:absolute;left:50%;top:9px;transform:translateX(-50%);width:96px;height:26px;border-radius:16px;background:#0a0a0a;opacity:var(--island-op,1)}
+.statusbar .sysicons{display:flex;gap:6px;align-items:center;opacity:.9}
+.statusbar .sysicons b{width:22px;height:11px;border:1.4px solid currentColor;border-radius:3px;position:relative;opacity:.8}
+.statusbar .sysicons b::after{content:"";position:absolute;right:-3px;top:3px;width:2px;height:5px;background:currentColor;border-radius:2px}
+
+/* scroll region */
+.app{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;position:relative;z-index:1;scrollbar-width:none}
+.app::-webkit-scrollbar{display:none}
+.screen{display:none;padding:6px 16px 26px;animation:screenIn .34s ease both}
+.screen.is-active{display:block}
+@keyframes screenIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* tab bar */
+.tabbar{flex:0 0 auto;display:flex;justify-content:space-around;align-items:center;padding:9px 8px calc(9px + env(safe-area-inset-bottom));background:var(--tab-bg);border-top:1px solid var(--line);position:relative;z-index:5;backdrop-filter:blur(12px)}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 10px;color:var(--ink-mute);font-size:10px;font-weight:600;letter-spacing:.02em;transition:color .18s}
+.tab svg{width:23px;height:23px;stroke:currentColor;stroke-width:1.7;fill:none}
+.tab[aria-current="true"]{color:var(--accent-strong)}
+
+/* =========================================================
+   DESIGN TOKENS
+   ========================================================= */
+:root{
+  --font-ui:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  --font-display:Georgia,"Iowan Old Style","Times New Roman",serif;
+  --font-num:ui-monospace,"SF Mono",Menlo,"Roboto Mono",monospace;
+  --radius:16px;--radius-lg:22px;--radius-sm:11px;
+}
+
+/* -------- CLUBHOUSE (aged scorecard) -------- */
+.stage[data-skin="clubhouse"]{
+  --bg:#e7dab7;
+  --paper:#f4ecd6;
+  --surface:#f5eed9;
+  --surface-2:#efe4c4;
+  --ink:#193723;
+  --ink-2:#3c5240;
+  --ink-mute:#8a8259;
+  --line:rgba(25,55,35,.16);
+  --line-strong:rgba(25,55,35,.34);
+  --accent:#14563a;          /* forest interactive */
+  --accent-strong:#0f4d2e;
+  --accent-ink:#f4ecd6;
+  --gold:#986f13;
+  --foil:#c69a3e;
+  --up:#2a6b41;
+  --down:#b23a2c;
+  --focus:#14563a;
+  --status-bg:transparent;
+  --tab-bg:rgba(244,236,214,.82);
+  --island-op:0;
+  --shadow:0 10px 24px -14px rgba(20,40,25,.5);
+  --card-border:1px solid var(--line);
+  --grid-line:rgba(25,55,35,.10);
+}
+.stage[data-skin="clubhouse"] .screenframe{
+  background:
+    linear-gradient(0deg,rgba(20,50,30,.03),rgba(20,50,30,.03)),
+    var(--bg);
+  background-image:
+    radial-gradient(140% 100% at 50% 0%, rgba(255,252,240,.5),transparent 60%),
+    repeating-linear-gradient(0deg,transparent 0 27px,rgba(25,55,35,.05) 27px 28px);
+}
+
+/* -------- BROADCAST (odds board) -------- */
+.stage[data-skin="broadcast"]{
+  --bg:#0a100d;
+  --paper:#111a15;
+  --surface:#121b16;
+  --surface-2:#17231d;
+  --ink:#eaf4ee;
+  --ink-2:#aec3b8;
+  --ink-mute:#5f7268;
+  --line:rgba(255,255,255,.08);
+  --line-strong:rgba(255,255,255,.18);
+  --accent:#35e08a;
+  --accent-strong:#48f39b;
+  --accent-ink:#052014;
+  --gold:#f5c451;
+  --foil:#f5c451;
+  --up:#35e08a;
+  --down:#ff5b47;
+  --focus:#35e08a;
+  --status-bg:transparent;
+  --tab-bg:rgba(10,16,13,.72);
+  --island-op:1;
+  --shadow:0 16px 40px -18px rgba(0,0,0,.7);
+  --card-border:1px solid var(--line);
+  --grid-line:rgba(255,255,255,.05);
+  --font-display:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+}
+.stage[data-skin="broadcast"] .screenframe{
+  background:
+    radial-gradient(120% 60% at 100% 0%, rgba(53,224,138,.10),transparent 55%),
+    radial-gradient(100% 50% at 0% 100%, rgba(245,196,81,.06),transparent 55%),
+    var(--bg);
+}
+
+/* =========================================================
+   SHARED COMPONENTS (skinned via tokens)
+   ========================================================= */
+.h-top{display:flex;align-items:center;justify-content:space-between;padding:8px 0 14px}
+.wordmark{font-family:var(--font-display);font-weight:700;font-size:21px;letter-spacing:var(--wm-ls,0);color:var(--ink);display:flex;align-items:center;gap:9px}
+.stage[data-skin="broadcast"] .wordmark{text-transform:uppercase;letter-spacing:.02em;font-weight:800}
+.wordmark .crest{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink);font-family:var(--font-display);font-size:14px;font-weight:700;box-shadow:var(--shadow)}
+.stage[data-skin="broadcast"] .wordmark .crest{box-shadow:0 0 18px -4px var(--accent)}
+
+.eyebrow{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-mute);font-weight:700}
+.section-h{display:flex;align-items:baseline;justify-content:space-between;margin:22px 2px 11px}
+.section-h h2{font-family:var(--font-display);font-size:16px;margin:0;color:var(--ink);letter-spacing:.01em}
+.stage[data-skin="broadcast"] .section-h h2{text-transform:uppercase;font-weight:800;font-size:13.5px;letter-spacing:.06em}
+.section-h a{font-size:12px;color:var(--accent);font-weight:600}
+
+.card{background:var(--surface);border:var(--card-border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.stage[data-skin="broadcast"] .card{box-shadow:0 1px 0 rgba(255,255,255,.03) inset,var(--shadow)}
+
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+.money{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-weight:600;letter-spacing:-.01em}
+.up{color:var(--up)}.down{color:var(--down)}
+
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.03em}
+.pill.live{background:var(--down);color:#fff}
+.stage[data-skin="broadcast"] .pill.live{background:rgba(255,91,71,.16);color:var(--down);box-shadow:0 0 0 1px rgba(255,91,71,.35) inset}
+.pill.live .blink{width:7px;height:7px;border-radius:50%;background:currentColor;animation:blink 1.3s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.pill.soft{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 18px;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:15px;width:100%;letter-spacing:.01em;box-shadow:var(--shadow);transition:transform .12s}
+.btn:active{transform:scale(.98)}
+.stage[data-skin="broadcast"] .btn{box-shadow:0 0 24px -6px var(--accent)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line-strong);box-shadow:none}
+
+/* player color dots */
+.pdot{width:26px;height:26px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700;font-family:var(--font-display)}
+.pdot.lg{width:34px;height:34px;font-size:14px}
+
+/* money ticker */
+.ticker{display:flex;gap:8px;overflow-x:auto;padding:3px 0 6px;scrollbar-width:none}
+.ticker::-webkit-scrollbar{display:none}
+.tk{flex:0 0 auto;min-width:82px;background:var(--surface-2);border:1px solid var(--line);border-radius:13px;padding:9px 11px;display:flex;flex-direction:column;gap:3px}
+.tk .who{font-size:11px;color:var(--ink-2);font-weight:600;display:flex;align-items:center;gap:6px}
+.tk .who i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.tk .amt{font-size:17px}
+
+/* scorecard-style rows */
+.lb{display:flex;flex-direction:column;gap:0;border:var(--card-border);border-radius:var(--radius);overflow:hidden;background:var(--surface)}
+.lb-row{display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.lb-row:last-child{border-bottom:none}
+.lb-row .rank{font-family:var(--font-num);font-size:12px;color:var(--ink-mute);width:16px;text-align:center;font-weight:700}
+.lb-row .nm{flex:1;font-weight:600;font-size:14.5px}
+.lb-row .nm small{display:block;font-weight:500;font-size:11px;color:var(--ink-mute)}
+.lb-row .amt{font-size:16px}
+.lb-row.me{background:var(--surface-2)}
+
+/* stat grid */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--surface);border:var(--card-border);border-radius:var(--radius-sm);padding:13px 14px}
+.stat .k{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);font-weight:700}
+.stat .v{font-size:23px;margin-top:5px;font-family:var(--font-num);font-variant-numeric:tabular-nums;font-weight:600;color:var(--ink)}
+.stat .v small{font-size:12px;color:var(--ink-mute);font-weight:600}
+
+/* game cards */
+.game{background:var(--surface);border:var(--card-border);border-radius:var(--radius);padding:15px;display:flex;flex-direction:column;gap:9px;position:relative;overflow:hidden;transition:.18s}
+.game .rail{position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--gcol,var(--accent))}
+.game.sel{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent) inset,var(--shadow)}
+.game h3{margin:0;font-family:var(--font-display);font-size:16.5px;display:flex;align-items:center;gap:9px}
+.stage[data-skin="broadcast"] .game h3{font-weight:800;text-transform:uppercase;font-size:14px;letter-spacing:.03em}
+.game p{margin:0;font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.game .foot{display:flex;align-items:center;justify-content:space-between;margin-top:2px}
+.game .stake{font-family:var(--font-num);font-size:12.5px;color:var(--gold);font-weight:600}
+.game .add{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--line-strong);display:grid;place-items:center;color:var(--ink-2);font-size:18px;line-height:0;transition:.15s}
+.game.sel .add{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+
+/* score entry */
+.hole-head{display:flex;align-items:center;justify-content:space-between;background:var(--accent);color:var(--accent-ink);border-radius:var(--radius);padding:13px 16px;margin-bottom:12px}
+.stage[data-skin="broadcast"] .hole-head{background:var(--surface);color:var(--ink);border:1px solid var(--line-strong)}
+.hole-head .big{font-family:var(--font-display);font-size:26px;font-weight:700;line-height:1}
+.stage[data-skin="broadcast"] .hole-head .big{font-weight:800}
+.hole-head .meta{font-size:11.5px;opacity:.85;letter-spacing:.04em}
+.hole-head .meta b{font-family:var(--font-num)}
+.scorerow{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line)}
+.scorerow .who{flex:1;display:flex;align-items:center;gap:10px;font-weight:600;font-size:14.5px}
+.scorerow .who small{display:block;font-size:11px;color:var(--ink-mute);font-weight:500}
+.stepper{display:flex;align-items:center;gap:0;border:1px solid var(--line-strong);border-radius:12px;overflow:hidden}
+.stepper button{width:38px;height:40px;font-size:20px;color:var(--ink-2);background:var(--surface-2)}
+.stepper .val{width:44px;text-align:center;font-family:var(--font-num);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.score-tag{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:6px;margin-top:3px;display:inline-block}
+.score-tag.birdie{background:rgba(42,107,65,.16);color:var(--up)}
+.score-tag.bogey{background:rgba(178,58,44,.14);color:var(--down)}
+.score-tag.par{background:var(--surface-2);color:var(--ink-mute)}
+
+/* hole strip */
+.holestrip{display:flex;gap:5px;overflow-x:auto;padding:6px 0;scrollbar-width:none}
+.holestrip::-webkit-scrollbar{display:none}
+.hcell{flex:0 0 auto;width:30px;text-align:center;font-family:var(--font-num);font-size:11px}
+.hcell .n{color:var(--ink-mute);font-size:9.5px}
+.hcell .b{margin-top:2px;height:26px;border:1px solid var(--line);border-radius:6px;display:grid;place-items:center;font-weight:600;color:var(--ink-2)}
+.hcell.done .b{background:var(--surface-2)}
+.hcell.now .b{border-color:var(--accent);color:var(--accent);border-width:2px;font-weight:700}
+
+/* feed */
+.feed{display:flex;flex-direction:column;gap:0}
+.fitem{display:flex;gap:12px;padding:12px 2px;border-bottom:1px solid var(--line)}
+.fitem:last-child{border-bottom:none}
+.fitem .hb{flex:0 0 auto;width:40px;text-align:center}
+.fitem .hb .hn{font-family:var(--font-num);font-size:14px;font-weight:700;color:var(--ink)}
+.fitem .hb .par{font-size:9.5px;color:var(--ink-mute);letter-spacing:.05em}
+.fitem .ft{flex:1;font-size:13px;line-height:1.45;color:var(--ink-2)}
+.fitem .ft b{color:var(--ink);font-weight:600}
+.fitem .fm{font-family:var(--font-num);font-weight:600;font-size:13.5px;white-space:nowrap}
+
+/* settle transaction */
+.txn{display:flex;align-items:center;gap:12px;padding:14px;border:var(--card-border);border-radius:var(--radius);background:var(--surface);margin-bottom:10px}
+.txn .flow{flex:1;font-size:13.5px}
+.txn .flow b{font-weight:700}
+.txn .flow .arrow{color:var(--ink-mute);margin:0 6px}
+.txn .amt{font-family:var(--font-num);font-weight:700;font-size:16px;color:var(--ink)}
+.paybtns{display:flex;gap:7px;margin-top:9px}
+.pay{flex:1;padding:9px;border-radius:10px;font-size:12px;font-weight:700;text-align:center;border:1px solid var(--line-strong);color:var(--ink);letter-spacing:.02em}
+.pay.venmo{background:#3d95ce;color:#fff;border-color:transparent}
+.pay.cash{background:#00d64f;color:#053d1c;border-color:transparent}
+.pay.pp{background:#f5d24a;color:#1a2a4a;border-color:transparent}
+.stage[data-skin="broadcast"] .pay:not(.venmo):not(.cash):not(.pp){background:var(--surface-2)}
+
+/* rivalry / h2h */
+.h2h{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.h2h:last-child{border-bottom:none}
+.h2h .nm{flex:1;font-weight:600;font-size:14px}
+.h2h .rec{font-family:var(--font-num);font-size:13px;color:var(--ink-2)}
+.h2h .bar{width:74px;height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden;position:relative}
+.h2h .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--up);border-radius:4px}
+
+/* badges */
+.badges{display:flex;flex-wrap:wrap;gap:8px}
+.badge{display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--ink)}
+.badge .ico{font-size:15px}
+
+/* hero money display */
+.bigmoney{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-weight:600;letter-spacing:-.02em;line-height:.9}
+
+/* watch leaderboard broadcast */
+.blb{border:var(--card-border);border-radius:var(--radius);overflow:hidden;background:var(--surface)}
+.blb-row{display:flex;align-items:center;gap:11px;padding:13px 14px;border-bottom:1px solid var(--line);position:relative}
+.blb-row:last-child{border-bottom:none}
+.blb-row .pos{font-family:var(--font-num);font-size:15px;font-weight:700;width:20px;color:var(--gold)}
+.blb-row .nm{flex:1;font-weight:600}
+.blb-row .thru{font-size:10.5px;color:var(--ink-mute);letter-spacing:.04em}
+.blb-row .mv{font-size:11px;font-family:var(--font-num);width:34px;text-align:right}
+.blb-row .amt{font-size:17px;width:66px;text-align:right}
+
+canvas{display:block;width:100%}
+
+/* misc */
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}.mt20{margin-top:20px}
+.muted{color:var(--ink-mute)}
+.divider{height:1px;background:var(--line);margin:16px 0}
+.row{display:flex;align-items:center;gap:10px}
+.between{justify-content:space-between}
+.grow{flex:1}
+.watchbar{display:flex;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:10px 13px;font-size:12.5px}
+.watchbar .link{font-family:var(--font-num);color:var(--accent);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.footnote{width:100%;max-width:960px;margin-top:34px;color:#7c7f87;font-size:12px;line-height:1.6;border-top:1px solid #26282d;padding-top:18px}
+.footnote b{color:#adb0b7}
+
+@media (max-width:520px){
+  .chrome-title{font-size:22px}
+  .device{border-radius:40px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms !important;transition-duration:.001ms !important}
+}
+</style>
+
+<div class="stage" data-skin="clubhouse" id="stage">
+
+  <!-- ============ CHROME ============ -->
+  <div class="chrome">
+    <div class="chrome-head">
+      <div class="chrome-brand">
+        <span class="chrome-kicker">The Press · 10x redesign</span>
+        <h1 class="chrome-title">A live money broadcast <em>for your foursome</em></h1>
+        <p class="chrome-sub">Same golf-betting app, reimagined. Flip the skin to compare two directions across six screens.</p>
+      </div>
+      <div class="seg" role="group" aria-label="Design direction">
+        <button data-skin="clubhouse" aria-pressed="true"><span class="dot"></span>Clubhouse</button>
+        <button data-skin="broadcast" aria-pressed="false"><span class="dot"></span>Broadcast</button>
+      </div>
+    </div>
+    <div class="chips" id="chips">
+      <button class="chip" data-goto="home" aria-current="true"><span class="n">01</span>Home</button>
+      <button class="chip" data-goto="play"><span class="n">02</span>Pick your game</button>
+      <button class="chip" data-goto="live"><span class="n">03</span>Live scoring</button>
+      <button class="chip" data-goto="watch"><span class="n">04</span>Watch mode</button>
+      <button class="chip" data-goto="settle"><span class="n">05</span>Settle up</button>
+      <button class="chip" data-goto="you"><span class="n">06</span>Your season</button>
+    </div>
+  </div>
+
+  <!-- ============ DEVICE ============ -->
+  <div class="device-wrap">
+    <div class="device">
+      <div class="screenframe">
+        <div class="statusbar">
+          <span class="time">9:41</span>
+          <span class="island"></span>
+          <span class="sysicons">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor" aria-hidden="true"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4" y="5" width="3" height="6" rx="1"/><rect x="8" y="3" width="3" height="8" rx="1"/><rect x="12" y="1" width="3" height="10" rx="1"/></svg>
+            <b></b>
+          </span>
+        </div>
+
+        <div class="app" id="app">
+
+          <!-- ========== 01 HOME ========== -->
+          <section class="screen is-active" data-screen="home">
+            <div class="h-top">
+              <span class="wordmark"><span class="crest">P</span>The Press</span>
+              <span class="pill soft">Tue · 72°</span>
+            </div>
+
+            <!-- live round card -->
+            <div class="card" style="padding:0;overflow:hidden">
+              <div style="padding:15px 16px;display:flex;align-items:center;justify-content:space-between">
+                <div>
+                  <div class="eyebrow" style="color:var(--down)">● Round in play</div>
+                  <div style="font-family:var(--font-display);font-size:17px;margin-top:4px">CommonGround G.C.</div>
+                  <div class="muted" style="font-size:12px;margin-top:2px">Aurora, CO · Nassau · Skins · Wolf</div>
+                </div>
+                <div style="text-align:right">
+                  <div class="num muted" style="font-size:11px;letter-spacing:.1em">THRU</div>
+                  <div class="bigmoney" style="font-size:30px">11<span style="font-size:15px;color:var(--ink-mute)">/18</span></div>
+                </div>
+              </div>
+              <div style="padding:0 14px 12px">
+                <div class="ticker" data-anim-money>
+                  <div class="tk"><span class="who"><i style="background:#2a6b41"></i>You</span><span class="amt money up" data-money="34">+$34</span></div>
+                  <div class="tk"><span class="who"><i style="background:#c69a3e"></i>Big Dave</span><span class="amt money down" data-money="-18">−$18</span></div>
+                  <div class="tk"><span class="who"><i style="background:#3d6fae"></i>Tommy P</span><span class="amt money up" data-money="6">+$6</span></div>
+                  <div class="tk"><span class="who"><i style="background:#c9603f"></i>Sanjay</span><span class="amt money down" data-money="-22">−$22</span></div>
+                </div>
+              </div>
+              <div style="display:flex;gap:1px;background:var(--line)">
+                <button class="btn" data-goto="live" style="border-radius:0;background:var(--accent)">Enter scores</button>
+                <button class="btn ghost" data-goto="watch" style="border-radius:0;flex:0 0 46%;border:none;background:var(--surface-2)">Watch live</button>
+              </div>
+            </div>
+
+            <!-- season snapshot -->
+            <div class="section-h"><h2>Your season</h2><a data-goto="you">Details →</a></div>
+            <div class="stats">
+              <div class="stat"><div class="k">Net winnings</div><div class="v up">+$127</div></div>
+              <div class="stat"><div class="k">Rounds</div><div class="v">14</div></div>
+              <div class="stat"><div class="k">Win rate</div><div class="v">43<small>%</small></div></div>
+              <div class="stat"><div class="k">Handicap</div><div class="v">11.4<small> ▾</small></div></div>
+            </div>
+
+            <!-- season leaderboard -->
+            <div class="section-h"><h2>The Group · money table</h2></div>
+            <div class="lb">
+              <div class="lb-row me"><span class="rank">1</span><span class="pdot" style="background:#2a6b41">Y</span><span class="nm">You<small>14 rounds</small></span><span class="amt money up">+$127</span></div>
+              <div class="lb-row"><span class="rank">2</span><span class="pdot" style="background:#3d6fae">T</span><span class="nm">Tommy P<small>13 rounds</small></span><span class="amt money up">+$41</span></div>
+              <div class="lb-row"><span class="rank">3</span><span class="pdot" style="background:#c9603f">S</span><span class="nm">Sanjay<small>14 rounds</small></span><span class="amt money down">−$68</span></div>
+              <div class="lb-row"><span class="rank">4</span><span class="pdot" style="background:#c69a3e">D</span><span class="nm">Big Dave<small>12 rounds</small></span><span class="amt money down">−$100</span></div>
+            </div>
+
+            <!-- rivalry -->
+            <div class="section-h"><h2>Rivalry watch</h2></div>
+            <div class="card">
+              <div class="row between">
+                <div class="row"><span class="pdot lg" style="background:#2a6b41">Y</span><b>You</b></div>
+                <div style="text-align:center"><div class="bigmoney" style="font-size:19px">9<span class="muted">–</span>5</div><div class="muted" style="font-size:10px;letter-spacing:.08em">SEASON</div></div>
+                <div class="row"><b>Big Dave</b><span class="pdot lg" style="background:#c69a3e">D</span></div>
+              </div>
+              <div class="divider"></div>
+              <div class="row between" style="font-size:12.5px"><span class="muted">Lifetime take from Dave</span><b class="money up">+$212</b></div>
+            </div>
+
+            <button class="btn mt20" data-goto="play">＋ Start a new round</button>
+          </section>
+
+          <!-- ========== 02 PICK YOUR GAME ========== -->
+          <section class="screen" data-screen="play">
+            <div class="h-top">
+              <span class="wordmark"><span class="crest">P</span>Pick your game</span>
+            </div>
+            <p class="muted" style="font-size:13px;margin:0 2px 4px;line-height:1.5">Stack as many as you like — they run side-by-side and settle into one number.</p>
+
+            <div class="section-h"><h2>Selected · 3 games</h2><span class="stake num" style="color:var(--gold);font-weight:600">≈ $12 / hole max</span></div>
+
+            <div style="display:flex;flex-direction:column;gap:11px">
+              <div class="game sel" style="--gcol:#2a6b41">
+                <div class="rail"></div>
+                <div class="row between"><h3><span class="pdot" style="background:#2a6b41;width:22px;height:22px">N</span>Nassau</h3><span class="add">✓</span></div>
+                <p>Three bets in one — front 9, back 9, and total 18. Press when you're down to double the stakes.</p>
+                <div class="foot"><span class="stake">$5 · $5 · $5</span><span class="muted" style="font-size:11px">2-down auto-press</span></div>
+              </div>
+
+              <div class="game sel" style="--gcol:#c69a3e">
+                <div class="rail"></div>
+                <div class="row between"><h3><span class="pdot" style="background:#c69a3e;width:22px;height:22px">S</span>Skins</h3><span class="add">✓</span></div>
+                <p>Low score wins the hole's pot. Tie and it carries — a stacked skin can swing the whole round.</p>
+                <div class="foot"><span class="stake">$2 / hole · carryover</span><span class="pill soft" style="font-size:10px">2 carrying → H12</span></div>
+              </div>
+
+              <div class="game sel" style="--gcol:#3d6fae">
+                <div class="rail"></div>
+                <div class="row between"><h3><span class="pdot" style="background:#3d6fae;width:22px;height:22px">W</span>Wolf</h3><span class="add">✓</span></div>
+                <p>Rotating Wolf picks a partner off the tee — or goes Lone Wolf for double. Points become dollars.</p>
+                <div class="foot"><span class="stake">$2 / point</span><span class="muted" style="font-size:11px">Hammer enabled</span></div>
+              </div>
+            </div>
+
+            <div class="section-h"><h2>Add another</h2></div>
+            <div style="display:flex;flex-direction:column;gap:11px">
+              <div class="game" style="--gcol:#8a7bd8">
+                <div class="rail"></div>
+                <div class="row between"><h3>Bingo Bango Bongo</h3><span class="add">＋</span></div>
+                <p>Three points a hole: first on, closest once all on, first in. Rewards pace, not just power.</p>
+                <div class="foot"><span class="stake">$1 / point</span></div>
+              </div>
+              <div class="game" style="--gcol:#c9603f">
+                <div class="rail"></div>
+                <div class="row between"><h3>Match Play</h3><span class="add">＋</span></div>
+                <p>Head-to-head, hole by hole. Dormie, closeouts, the works.</p>
+                <div class="foot"><span class="stake">$10 / match</span></div>
+              </div>
+              <div class="game" style="--gcol:#4a9d8e">
+                <div class="rail"></div>
+                <div class="row between"><h3>Snake &amp; junk <span class="pill soft" style="font-size:9px">side pots</span></h3><span class="add">＋</span></div>
+                <p>Three-putt holds the Snake — last one holding pays. Plus Greenies, Sandies &amp; Barkies.</p>
+                <div class="foot"><span class="stake">$5 Snake · $2 junk</span></div>
+              </div>
+            </div>
+
+            <button class="btn mt20" data-goto="live">Start round · CommonGround →</button>
+          </section>
+
+          <!-- ========== 03 LIVE SCORING ========== -->
+          <section class="screen" data-screen="live">
+            <div class="h-top">
+              <span class="wordmark" style="font-size:18px"><span class="crest">P</span>Scoring</span>
+              <span class="pill live"><span class="blink"></span>LIVE · 3 watching</span>
+            </div>
+
+            <div class="hole-head">
+              <div>
+                <div class="meta">PAR <b>4</b> · <b>415</b>y · HCP <b>3</b></div>
+                <div class="big">Hole 12</div>
+              </div>
+              <button class="btn ghost" style="width:auto;padding:9px 14px;font-size:12.5px;color:inherit;border-color:currentColor">Wolf: You ▾</button>
+            </div>
+
+            <div class="ticker" data-anim-money style="margin-bottom:6px">
+              <div class="tk"><span class="who"><i style="background:#2a6b41"></i>You</span><span class="amt money up" data-money="34">+$34</span></div>
+              <div class="tk"><span class="who"><i style="background:#c69a3e"></i>Dave</span><span class="amt money down" data-money="-18">−$18</span></div>
+              <div class="tk"><span class="who"><i style="background:#3d6fae"></i>Tommy</span><span class="amt money up" data-money="6">+$6</span></div>
+              <div class="tk"><span class="who"><i style="background:#c9603f"></i>Sanjay</span><span class="amt money down" data-money="-22">−$22</span></div>
+            </div>
+
+            <div style="margin-top:4px">
+              <div class="scorerow">
+                <span class="who"><span class="pdot" style="background:#2a6b41">Y</span><span>You<small>Wolf this hole · +2 pts if solo</small></span></span>
+                <div style="text-align:center"><div class="stepper"><button>−</button><span class="val">4</span><button>＋</button></div><span class="score-tag par">Par</span></div>
+              </div>
+              <div class="scorerow">
+                <span class="who"><span class="pdot" style="background:#c69a3e">D</span><span>Big Dave<small>net 3 · stroke on 3</small></span></span>
+                <div style="text-align:center"><div class="stepper"><button>−</button><span class="val">3</span><button>＋</button></div><span class="score-tag birdie">Birdie net</span></div>
+              </div>
+              <div class="scorerow">
+                <span class="who"><span class="pdot" style="background:#3d6fae">T</span><span>Tommy P</span></span>
+                <div style="text-align:center"><div class="stepper"><button>−</button><span class="val">5</span><button>＋</button></div><span class="score-tag bogey">Bogey</span></div>
+              </div>
+              <div class="scorerow" style="border-bottom:none">
+                <span class="who"><span class="pdot" style="background:#c9603f">S</span><span>Sanjay</span></span>
+                <div style="text-align:center"><div class="stepper"><button>−</button><span class="val">4</span><button>＋</button></div><span class="score-tag par">Par</span></div>
+              </div>
+            </div>
+
+            <!-- result preview -->
+            <div class="card mt16" style="border-color:var(--accent);border-style:dashed">
+              <div class="eyebrow" style="color:var(--accent)">If you confirm this hole</div>
+              <div class="mt8" style="display:flex;flex-direction:column;gap:7px;font-size:13px">
+                <div class="row between"><span>🐺 Wolf partnered Dave — win the hole</span><b class="money up">+$4 ea</b></div>
+                <div class="row between"><span>⛳ Skin (2 carrying) to Dave, net 3</span><b class="money up">Dave +$6</b></div>
+                <div class="row between"><span>🎯 Nassau back-9 flips your way</span><b class="money up">+$5</b></div>
+              </div>
+            </div>
+
+            <button class="btn mt16">Confirm hole 12 →</button>
+
+            <div class="section-h"><h2>Card</h2><span class="muted num" style="font-size:12px">You · 47 (+3) thru 11</span></div>
+            <div class="holestrip">
+              <div class="hcell done"><span class="n">1</span><div class="b">4</div></div>
+              <div class="hcell done"><span class="n">2</span><div class="b">5</div></div>
+              <div class="hcell done"><span class="n">3</span><div class="b">3</div></div>
+              <div class="hcell done"><span class="n">4</span><div class="b">4</div></div>
+              <div class="hcell done"><span class="n">5</span><div class="b">4</div></div>
+              <div class="hcell done"><span class="n">6</span><div class="b">5</div></div>
+              <div class="hcell done"><span class="n">7</span><div class="b">3</div></div>
+              <div class="hcell done"><span class="n">8</span><div class="b">4</div></div>
+              <div class="hcell done"><span class="n">9</span><div class="b">5</div></div>
+              <div class="hcell done"><span class="n">10</span><div class="b">4</div></div>
+              <div class="hcell done"><span class="n">11</span><div class="b">6</div></div>
+              <div class="hcell now"><span class="n">12</span><div class="b">–</div></div>
+              <div class="hcell"><span class="n">13</span><div class="b"></div></div>
+              <div class="hcell"><span class="n">14</span><div class="b"></div></div>
+              <div class="hcell"><span class="n">15</span><div class="b"></div></div>
+              <div class="hcell"><span class="n">16</span><div class="b"></div></div>
+              <div class="hcell"><span class="n">17</span><div class="b"></div></div>
+              <div class="hcell"><span class="n">18</span><div class="b"></div></div>
+            </div>
+          </section>
+
+          <!-- ========== 04 WATCH MODE ========== -->
+          <section class="screen" data-screen="watch">
+            <div class="h-top">
+              <span class="wordmark" style="font-size:18px"><span class="crest">P</span>Watch</span>
+              <span class="pill live"><span class="blink"></span>LIVE</span>
+            </div>
+
+            <div class="card" style="padding:14px 16px">
+              <div class="row between">
+                <div>
+                  <div style="font-family:var(--font-display);font-size:16px">CommonGround G.C.</div>
+                  <div class="muted" style="font-size:11.5px;margin-top:2px">Nassau · Skins · Wolf · $2–$5</div>
+                </div>
+                <div style="text-align:right"><div class="num muted" style="font-size:11px">THRU</div><div class="bigmoney" style="font-size:26px">11<span style="font-size:13px;color:var(--ink-mute)">/18</span></div></div>
+              </div>
+            </div>
+
+            <div class="section-h"><h2>Money board</h2><span class="muted" style="font-size:11px">▲ since H8</span></div>
+            <div class="blb">
+              <div class="blb-row"><span class="pos">1</span><span class="pdot" style="background:#2a6b41">Y</span><span class="nm">You<span class="thru" style="display:block">even par net</span></span><span class="mv up">▲2</span><span class="amt money up">+$34</span></div>
+              <div class="blb-row"><span class="pos">2</span><span class="pdot" style="background:#3d6fae">T</span><span class="nm">Tommy P<span class="thru" style="display:block">+3 net</span></span><span class="mv up">▲1</span><span class="amt money up">+$6</span></div>
+              <div class="blb-row"><span class="pos">3</span><span class="pdot" style="background:#c69a3e">D</span><span class="nm">Big Dave<span class="thru" style="display:block">holds the Snake 🐍</span></span><span class="mv down">▾1</span><span class="amt money down">−$18</span></div>
+              <div class="blb-row"><span class="pos">4</span><span class="pdot" style="background:#c9603f">S</span><span class="nm">Sanjay<span class="thru" style="display:block">2 skins bought back</span></span><span class="mv down">▾2</span><span class="amt money down">−$22</span></div>
+            </div>
+
+            <div class="section-h"><h2>Money flow</h2><span class="muted" style="font-size:11px">holes 1–11</span></div>
+            <div class="card" style="padding:14px 10px 8px">
+              <canvas id="flowChart" height="150" aria-label="Cumulative money per player over 11 holes"></canvas>
+              <div class="row" style="gap:14px;flex-wrap:wrap;padding:8px 6px 2px;font-size:11px">
+                <span class="row" style="gap:6px"><i style="width:12px;height:3px;background:#2a6b41;border-radius:2px"></i>You</span>
+                <span class="row" style="gap:6px"><i style="width:12px;height:3px;background:#c69a3e;border-radius:2px"></i>Dave</span>
+                <span class="row" style="gap:6px"><i style="width:12px;height:3px;background:#3d6fae;border-radius:2px"></i>Tommy</span>
+                <span class="row" style="gap:6px"><i style="width:12px;height:3px;background:#c9603f;border-radius:2px"></i>Sanjay</span>
+              </div>
+            </div>
+
+            <div class="section-h"><h2>Play by play</h2></div>
+            <div class="feed">
+              <div class="fitem"><div class="hb"><div class="hn">11</div><div class="par">PAR 5</div></div><div class="ft"><b>Tommy</b> pours in a 12-footer — <b>wins the skin</b>, clears 2 carryovers.</div><div class="fm up">+$6</div></div>
+              <div class="fitem"><div class="hb"><div class="hn">10</div><div class="par">PAR 4</div></div><div class="ft">Skin <b>carries</b> — nobody wins it outright. Pot builds to $6.</div><div class="fm muted">—</div></div>
+              <div class="fitem"><div class="hb"><div class="hn">9</div><div class="par">PAR 3</div></div><div class="ft">🐺 <b>Dave</b> goes <b>Lone Wolf</b>, misses the green — pack cashes double.</div><div class="fm down">−$12</div></div>
+              <div class="fitem"><div class="hb"><div class="hn">8</div><div class="par">PAR 4</div></div><div class="ft"><b>You</b> stuff a wedge to 3 ft. Birdie takes the skin &amp; the Nassau press.</div><div class="fm up">+$9</div></div>
+              <div class="fitem"><div class="hb"><div class="hn">7</div><div class="par">PAR 4</div></div><div class="ft"><b>Sanjay</b> presses the front 9 — down 2 and swinging.</div><div class="fm muted">press</div></div>
+            </div>
+
+            <div class="watchbar mt16">
+              <span class="muted">🔗</span><span class="link">thepress.golf/w/CG-4K9X</span><button class="pill soft" style="border:none">Copy</button>
+            </div>
+          </section>
+
+          <!-- ========== 05 SETTLE UP ========== -->
+          <section class="screen" data-screen="settle">
+            <div class="h-top">
+              <span class="wordmark" style="font-size:18px"><span class="crest">P</span>Settle up</span>
+              <span class="pill soft">Final · 18 holes</span>
+            </div>
+
+            <div class="card" style="text-align:center;padding:22px 16px">
+              <div class="eyebrow">Your take · CommonGround</div>
+              <div class="bigmoney up mt8" style="font-size:52px">+$48</div>
+              <div class="muted" style="font-size:12.5px;margin-top:6px">Best round of the season · 3 skins, front &amp; back Nassau</div>
+            </div>
+
+            <div class="section-h"><h2>Final table</h2></div>
+            <div class="lb">
+              <div class="lb-row me"><span class="rank">1</span><span class="pdot" style="background:#2a6b41">Y</span><span class="nm">You</span><span class="amt money up">+$48</span></div>
+              <div class="lb-row"><span class="rank">2</span><span class="pdot" style="background:#3d6fae">T</span><span class="nm">Tommy P</span><span class="amt money up">+$9</span></div>
+              <div class="lb-row"><span class="rank">3</span><span class="pdot" style="background:#c69a3e">D</span><span class="nm">Big Dave</span><span class="amt money down">−$21</span></div>
+              <div class="lb-row"><span class="rank">4</span><span class="pdot" style="background:#c9603f">S</span><span class="nm">Sanjay</span><span class="amt money down">−$36</span></div>
+            </div>
+
+            <div class="section-h"><h2>Who pays who</h2><span class="pill soft" style="font-size:10px">3 payments, minimized</span></div>
+
+            <div class="txn">
+              <span class="pdot" style="background:#c9603f">S</span>
+              <span class="flow"><b>Sanjay</b><span class="arrow">→</span><b>You</b></span>
+              <span class="amt">$36</span>
+            </div>
+            <div class="paybtns" style="margin-top:-4px;margin-bottom:14px"><span class="pay venmo">Venmo</span><span class="pay cash">Cash App</span><span class="pay pp">PayPal</span></div>
+
+            <div class="txn">
+              <span class="pdot" style="background:#c69a3e">D</span>
+              <span class="flow"><b>Big Dave</b><span class="arrow">→</span><b>You</b></span>
+              <span class="amt">$12</span>
+            </div>
+            <div class="paybtns" style="margin-top:-4px;margin-bottom:14px"><span class="pay venmo">Venmo</span><span class="pay cash">Cash App</span><span class="pay pp">PayPal</span></div>
+
+            <div class="txn">
+              <span class="pdot" style="background:#c69a3e">D</span>
+              <span class="flow"><b>Big Dave</b><span class="arrow">→</span><b>Tommy</b></span>
+              <span class="amt">$9</span>
+            </div>
+
+            <div class="divider"></div>
+            <button class="btn">Send my scorecard</button>
+            <button class="btn ghost mt12">Save round to season</button>
+          </section>
+
+          <!-- ========== 06 YOUR SEASON ========== -->
+          <section class="screen" data-screen="you">
+            <div class="h-top">
+              <span class="wordmark" style="font-size:18px"><span class="crest">P</span>Profile</span>
+              <span class="pill soft">2026 season</span>
+            </div>
+
+            <div class="card" style="display:flex;align-items:center;gap:14px">
+              <span class="pdot" style="background:#2a6b41;width:52px;height:52px;font-size:22px">Y</span>
+              <div class="grow">
+                <div style="font-family:var(--font-display);font-size:20px">You</div>
+                <div class="muted" style="font-size:12px">Handicap <b class="num" style="color:var(--ink)">11.4</b> · trending down</div>
+              </div>
+              <canvas id="hcpSpark" width="88" height="42" style="width:88px;height:42px" aria-label="Handicap trend"></canvas>
+            </div>
+
+            <div class="stats mt16">
+              <div class="stat"><div class="k">Season net</div><div class="v up">+$127</div></div>
+              <div class="stat"><div class="k">Scoring avg</div><div class="v">84.2</div></div>
+              <div class="stat"><div class="k">Rounds</div><div class="v">14</div></div>
+              <div class="stat"><div class="k">Best pot</div><div class="v up">+$64</div></div>
+            </div>
+
+            <div class="section-h"><h2>Head to head</h2></div>
+            <div class="card">
+              <div class="h2h"><span class="pdot" style="background:#c69a3e">D</span><span class="nm">Big Dave</span><span class="bar"><i style="width:64%"></i></span><span class="rec">9–5 · <b class="up">+$212</b></span></div>
+              <div class="h2h"><span class="pdot" style="background:#3d6fae">T</span><span class="nm">Tommy P</span><span class="bar"><i style="width:54%"></i></span><span class="rec">7–6 · <b class="up">+$38</b></span></div>
+              <div class="h2h"><span class="pdot" style="background:#c9603f">S</span><span class="nm">Sanjay</span><span class="bar"><i style="width:71%"></i></span><span class="rec">10–4 · <b class="up">+$154</b></span></div>
+            </div>
+
+            <div class="section-h"><h2>Trophy case</h2></div>
+            <div class="badges">
+              <span class="badge"><span class="ico">🏖️</span>Sandie ×7</span>
+              <span class="badge"><span class="ico">🐺</span>Lone Wolf howl</span>
+              <span class="badge"><span class="ico">🎯</span>Greenie king</span>
+              <span class="badge"><span class="ico">🐍</span>Snake-free ×5</span>
+              <span class="badge"><span class="ico">🔥</span>4-round heater</span>
+            </div>
+
+            <div class="section-h"><h2>Best game</h2></div>
+            <div class="card row between">
+              <div><div style="font-family:var(--font-display);font-size:16px">Skins</div><div class="muted" style="font-size:12px;margin-top:2px">You cash 61% of the skins you're in</div></div>
+              <div class="bigmoney up" style="font-size:24px">+$83</div>
+            </div>
+
+            <button class="btn mt20" data-goto="home">Back to clubhouse</button>
+          </section>
+
+        </div><!-- /app -->
+
+        <!-- ========== TAB BAR ========== -->
+        <nav class="tabbar" id="tabbar">
+          <button class="tab" data-goto="home" aria-current="true">
+            <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Home</button>
+          <button class="tab" data-goto="play">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>Games</button>
+          <button class="tab" data-goto="live">
+            <svg viewBox="0 0 24 24"><path d="M4 20V6M4 6l13-3v9L4 12"/></svg>Score</button>
+          <button class="tab" data-goto="settle">
+            <svg viewBox="0 0 24 24"><path d="M12 2v20M17 6H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>Settle</button>
+          <button class="tab" data-goto="you">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>You</button>
+        </nav>
+
+      </div><!-- /screenframe -->
+    </div><!-- /device -->
+    <div class="device-caption">Showing <b id="capScreen">Home</b> · <b id="capSkin">Clubhouse</b> skin — tap chips or the tab bar to move around</div>
+  </div>
+
+  <div class="footnote">
+    <b>The Press — 10x concept.</b> A design exploration, not the shipped app. Two committed skins: <b>Clubhouse</b> keeps the vintage country-club scorecard soul; <b>Broadcast</b> reimagines it as a live odds board. New in this vision: a running money ticker, broadcast-grade watch mode, stacked-game explainers, one-tap Settle-Up with payment links, and a season layer (leaderboards, rivalries, handicap trend). Data shown is illustrative.
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var stage=document.getElementById('stage');
+  var screens=document.querySelectorAll('.screen');
+  var chips=document.querySelectorAll('.chip');
+  var tabs=document.querySelectorAll('.tab');
+  var app=document.getElementById('app');
+  var capScreen=document.getElementById('capScreen');
+  var capSkin=document.getElementById('capSkin');
+  var labels={home:'Home',play:'Pick your game',live:'Live scoring',watch:'Watch mode',settle:'Settle up',you:'Your season'};
+
+  function setScreen(name){
+    screens.forEach(function(s){s.classList.toggle('is-active',s.dataset.screen===name);});
+    chips.forEach(function(c){c.setAttribute('aria-current',c.dataset.goto===name?'true':'false');});
+    tabs.forEach(function(t){t.setAttribute('aria-current',t.dataset.goto===name?'true':'false');});
+    capScreen.textContent=labels[name]||name;
+    app.scrollTop=0;
+    animateMoney();
+    if(name==='watch') drawFlow();
+    if(name==='you') drawSpark();
+  }
+  function setSkin(skin){
+    stage.setAttribute('data-skin',skin);
+    document.querySelectorAll('.seg button').forEach(function(b){
+      b.setAttribute('aria-pressed',b.dataset.skin===skin?'true':'false');
+    });
+    capSkin.textContent=skin==='broadcast'?'Broadcast':'Clubhouse';
+    // redraw charts for the active screen with new theme colors
+    requestAnimationFrame(function(){
+      if(document.querySelector('.screen[data-screen="watch"]').classList.contains('is-active')) drawFlow();
+      if(document.querySelector('.screen[data-screen="you"]').classList.contains('is-active')) drawSpark();
+    });
+  }
+
+  document.querySelectorAll('[data-goto]').forEach(function(el){
+    el.addEventListener('click',function(){setScreen(el.dataset.goto);});
+  });
+  document.querySelectorAll('.seg button').forEach(function(b){
+    b.addEventListener('click',function(){setSkin(b.dataset.skin);});
+  });
+
+  // count-up money animation
+  var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  function animateMoney(){
+    if(reduce) return;
+    var active=document.querySelector('.screen.is-active');
+    if(!active) return;
+    active.querySelectorAll('[data-anim-money] [data-money]').forEach(function(el){
+      var target=parseInt(el.dataset.money,10);
+      var from=0,start=null,dur=650;
+      function step(ts){
+        if(!start)start=ts;
+        var p=Math.min((ts-start)/dur,1);
+        var ease=1-Math.pow(1-p,3);
+        var v=Math.round(from+(target-from)*ease);
+        var sign=v>0?'+':(v<0?'−':'');
+        el.textContent=sign+'$'+Math.abs(v);
+        if(p<1)requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  function cssVar(n){return getComputedStyle(stage).getPropertyValue(n).trim();}
+  function prep(cv){
+    var dpr=window.devicePixelRatio||1;
+    var w=cv.clientWidth||cv.parentNode.clientWidth;
+    var h=cv.height;
+    cv.width=w*dpr;cv.style.width=w+'px';
+    var ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    return {ctx:ctx,w:w,h:h};
+  }
+
+  // cumulative money over 11 holes for the four players
+  var flow={
+    You:[0,-2,-4,2,6,4,10,16,20,27,34],
+    Dave:[6,10,14,10,12,6,2,-4,-10,-16,-18],
+    Tommy:[-2,-4,0,4,-2,2,6,2,8,2,6],
+    Sanjay:[-4,-4,-10,-8,-14,-12,-18,-14,-18,-13,-22]
+  };
+  var flowCols={You:'#2a6b41',Dave:'#c69a3e',Tommy:'#3d6fae',Sanjay:'#c9603f'};
+  function drawFlow(){
+    var cv=document.getElementById('flowChart');if(!cv)return;
+    var p=prep(cv),ctx=p.ctx,w=p.w,h=p.h;
+    var padL=6,padR=6,padT=10,padB=14;
+    var all=[];Object.keys(flow).forEach(function(k){all=all.concat(flow[k]);});
+    var max=Math.max.apply(null,all),min=Math.min.apply(null,all);
+    var n=flow.You.length;
+    function X(i){return padL+(w-padL-padR)*(i/(n-1));}
+    function Y(v){return padT+(h-padT-padB)*(1-(v-min)/(max-min||1));}
+    // zero line
+    ctx.strokeStyle=cssVar('--grid-line')||'rgba(0,0,0,.1)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(padL,Y(0));ctx.lineTo(w-padR,Y(0));ctx.stroke();
+    Object.keys(flow).forEach(function(k){
+      var d=flow[k];
+      ctx.beginPath();
+      d.forEach(function(v,i){i?ctx.lineTo(X(i),Y(v)):ctx.moveTo(X(i),Y(v));});
+      ctx.strokeStyle=flowCols[k];
+      ctx.lineWidth=k==='You'?2.8:1.9;
+      ctx.globalAlpha=k==='You'?1:.85;
+      ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke();ctx.globalAlpha=1;
+      // endpoint dot + halo on the leader
+      var lx=X(n-1),ly=Y(d[n-1]);
+      if(k==='You'){ctx.beginPath();ctx.arc(lx,ly,6,0,7);ctx.fillStyle=flowCols[k];ctx.globalAlpha=.18;ctx.fill();ctx.globalAlpha=1;}
+      ctx.beginPath();ctx.arc(lx,ly,k==='You'?3.6:2.6,0,7);ctx.fillStyle=flowCols[k];ctx.fill();
+    });
+  }
+
+  // handicap trend sparkline (improving)
+  var hcp=[14.2,14.0,13.6,13.7,13.1,12.6,12.8,12.2,11.9,11.4];
+  function drawSpark(){
+    var cv=document.getElementById('hcpSpark');if(!cv)return;
+    var p=prep(cv),ctx=p.ctx,w=p.w,h=p.h;
+    var max=Math.max.apply(null,hcp),min=Math.min.apply(null,hcp),n=hcp.length;
+    function X(i){return 3+(w-6)*(i/(n-1));}
+    function Y(v){return 5+(h-10)*(1-(v-min)/(max-min||1));}
+    var acc=cssVar('--accent')||'#2a6b41';
+    // area
+    ctx.beginPath();ctx.moveTo(X(0),h);
+    hcp.forEach(function(v,i){ctx.lineTo(X(i),Y(v));});
+    ctx.lineTo(X(n-1),h);ctx.closePath();
+    ctx.fillStyle=acc;ctx.globalAlpha=.14;ctx.fill();ctx.globalAlpha=1;
+    // line
+    ctx.beginPath();hcp.forEach(function(v,i){i?ctx.lineTo(X(i),Y(v)):ctx.moveTo(X(i),Y(v));});
+    ctx.strokeStyle=acc;ctx.lineWidth=2;ctx.lineJoin='round';ctx.stroke();
+    var lx=X(n-1),ly=Y(hcp[n-1]);
+    ctx.beginPath();ctx.arc(lx,ly,3,0,7);ctx.fillStyle=acc;ctx.fill();
+  }
+
+  // live clock in status bar
+  (function(){var t=document.querySelector('.statusbar .time');function tick(){var d=new Date();var hh=d.getHours(),mm=d.getMinutes();t.textContent=hh+':'+(mm<10?'0':'')+mm;}tick();setInterval(tick,10000);})();
+
+  // init
+  animateMoney();
+  window.addEventListener('resize',function(){
+    var a=document.querySelector('.screen.is-active');
+    if(a&&a.dataset.screen==='watch')drawFlow();
+    if(a&&a.dataset.screen==='you')drawSpark();
+  });
+})();
+</script>
