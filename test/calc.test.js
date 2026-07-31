@@ -890,5 +890,35 @@ assertEqual(Math.abs(_junk.reduce((a, b) => a + b, 0)) < 0.005, true, 'junk side
 loadState(freshStateLiteral(Object.assign({}, _wolfState, { sideBets: undefined })));
 assertEqual(call('calcMoney'), _wolfBase, 'a round with no sideBets key returns the legacy money');
 
+// --- computeHandicapIndex: best-N-of-20 differentials x0.96 ---
+console.log('computeHandicapIndex: derives an index from finished rounds');
+function hcpRound(name, over, holes, when) {
+  const pars = Array(holes).fill(4);
+  const scores = {}; scores[0] = {};
+  // spread `over` strokes across the holes so gross - par === over
+  for (let h = 0; h < holes; h++) scores[0][h] = 4 + (h < over ? 1 : 0);
+  return { finished: true, finishedDate: when, date: when, pars, scores, players: [{ name }] };
+}
+assertEqual(call('computeHandicapIndex', 'Nobody', []).index, null, 'no rounds -> null index');
+
+// Five 18-hole rounds at +10 over par: every differential is 10, so index = 10 * 0.96.
+const _hcpRounds = [1, 2, 3, 4, 5].map((d) => hcpRound('Pat', 10, 18, `2026-0${d}-01T12:00:00Z`));
+const _h5 = call('computeHandicapIndex', 'Pat', _hcpRounds);
+assertEqual(_h5.index, 9.6, 'five rounds at +10 -> index 9.6');
+assertEqual(_h5.rounds, 5, 'counts the rounds that had scores');
+assertEqual(_h5.series.length, 5, 'series has one entry per round, for the trend sparkline');
+
+// A single blow-up round must not drag the index up: best-of takes the good ones.
+const _hcpMixed = _hcpRounds.concat([hcpRound('Pat', 30, 18, '2026-06-01T12:00:00Z')]);
+const _h6 = call('computeHandicapIndex', 'Pat', _hcpMixed);
+assertEqual(_h6.index <= 9.6, true, 'one blow-up round does not raise the index above the good ones');
+
+// A 9-hole round is normalized to 18 before it becomes a differential.
+const _h9 = call('computeHandicapIndex', 'Pat', [hcpRound('Pat', 5, 9, '2026-01-01T12:00:00Z')]);
+assertEqual(_h9.index, 9.6, 'a 9-hole round at +5 scales to an 18-hole differential of 10');
+
+// Rounds the player did not play in are ignored entirely.
+assertEqual(call('computeHandicapIndex', 'Pat', [hcpRound('Sam', 10, 18, '2026-01-01T12:00:00Z')]).index, null, 'other players\' rounds are ignored');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
