@@ -803,5 +803,27 @@ assertEqual(call('isBonusAwarded', 0, 0, 1), false, 'category 1 no longer awarde
 call('removeBonusCategory', 0, 0, 1);
 assertEqual(call('getBonusCount', 0, 0), 1, 'removing an unawarded category is a no-op');
 
+// --- computeRunningTotals: cumulative per-player money after each completed hole ---
+console.log('computeRunningTotals: cumulative money per hole (feeds the money-flow chart)');
+loadState(freshStateLiteral({
+  players: _P4,
+  gameType: 'skins',
+  holeCount: 3,
+  scores: { 0: [3, 4, 4], 1: [4, 4, 3], 2: [4, 4, 4], 3: [4, 4, 4] },
+  gameOpts: { skinVal: 1, skinsCarry: true },
+}));
+const _rt = call('computeRunningTotals');
+assertEqual(_rt.map((r) => r.h), [0, 1, 2], 'one row per completed hole, in order');
+assertEqual(_rt[_rt.length - 1].totals, call('calcMoney'), 'last row totals equal calcMoney() net');
+const _sum = _rt[_rt.length - 1].totals.reduce((a, b) => a + b, 0);
+assertEqual(Math.abs(_sum) < 0.005, true, 'running totals stay zero-sum');
+
+// Segment-settled games (team Nassau) must still end exactly at calcMoney():
+// running totals are exact prefixes, not summed per-hole diffs.
+loadState(freshStateLiteral({ players: _P4, gameType: 'nassau', holeCount: 3, scores: scoresFor([[4, 5, 4], [5, 5, 4], [5, 4, 5], [5, 5, 5]]), gameOpts: { front: 5, back: 0, overall: 3, press: false, nassauTeams: true, nassauTeamRoster: [[0, 1], [2, 3]] } }));
+const _rtN = call('computeRunningTotals');
+assertEqual(_rtN[_rtN.length - 1].totals, call('calcMoney').map((v) => +v.toFixed(2)), 'team Nassau: final running totals equal calcMoney()');
+assertEqual(JSON.parse(vm.runInContext('JSON.stringify(state.scores)', context))[0][2], 4, 'scores restored after running-total computation');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
