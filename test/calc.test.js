@@ -906,7 +906,7 @@ const _hcpRounds = [1, 2, 3, 4, 5].map((d) => hcpRound('Pat', 10, 18, `2026-0${d
 const _h5 = call('computeHandicapIndex', 'Pat', _hcpRounds);
 assertEqual(_h5.index, 9.6, 'five rounds at +10 -> index 9.6');
 assertEqual(_h5.rounds, 5, 'counts the rounds that had scores');
-assertEqual(_h5.series.length, 5, 'series has one entry per round, for the trend sparkline');
+assertEqual(_h5.series.length, 3, 'series starts once 3 rounds exist (5 rounds -> 3 points) for the trend sparkline');
 
 // A single blow-up round must not drag the index up: best-of takes the good ones.
 const _hcpMixed = _hcpRounds.concat([hcpRound('Pat', 30, 18, '2026-06-01T12:00:00Z')]);
@@ -914,8 +914,12 @@ const _h6 = call('computeHandicapIndex', 'Pat', _hcpMixed);
 assertEqual(_h6.index <= 9.6, true, 'one blow-up round does not raise the index above the good ones');
 
 // A 9-hole round is normalized to 18 before it becomes a differential.
-const _h9 = call('computeHandicapIndex', 'Pat', [hcpRound('Pat', 5, 9, '2026-01-01T12:00:00Z')]);
+const _h9 = call('computeHandicapIndex', 'Pat', [1, 2, 3].map((d) => hcpRound('Pat', 5, 9, `2026-0${d}-01T12:00:00Z`)));
 assertEqual(_h9.index, 9.6, 'a 9-hole round at +5 scales to an 18-hole differential of 10');
+
+// One round is not a handicap - an index needs a minimum of 3.
+assertEqual(call('computeHandicapIndex', 'Pat', [hcpRound('Pat', 10, 18, '2026-01-01T12:00:00Z')]).index, null, 'a single round does not produce an index');
+assertEqual(call('computeHandicapIndex', 'Pat', _hcpRounds.slice(0, 2)).index, null, 'two rounds do not produce an index');
 
 // Rounds the player did not play in are ignored entirely.
 assertEqual(call('computeHandicapIndex', 'Pat', [hcpRound('Sam', 10, 18, '2026-01-01T12:00:00Z')]).index, null, 'other players\' rounds are ignored');
