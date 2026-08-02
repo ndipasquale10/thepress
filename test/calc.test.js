@@ -924,5 +924,26 @@ assertEqual(call('computeHandicapIndex', 'Pat', _hcpRounds.slice(0, 2)).index, n
 // Rounds the player did not play in are ignored entirely.
 assertEqual(call('computeHandicapIndex', 'Pat', [hcpRound('Sam', 10, 18, '2026-01-01T12:00:00Z')]).index, null, 'other players\' rounds are ignored');
 
+// --- Player colour: one identity, re-stepped per skin ---
+console.log('playerColor: stable identity across skins, legacy hex migrates to a slot');
+const _pal = JSON.parse(vm.runInContext('JSON.stringify(PLAYER_PALETTES)', context));
+assertEqual(_pal.clubhouse.length, 8, 'clubhouse palette has 8 slots');
+assertEqual(_pal.broadcast.length, 8, 'broadcast palette has 8 slots');
+assertEqual(new Set(_pal.clubhouse).size, 8, 'clubhouse slots are all distinct');
+assertEqual(new Set(_pal.broadcast).size, 8, 'broadcast slots are all distinct');
+
+// A player carries a slot, so each skin renders its own step of the same identity.
+assertEqual(call('playerColor', { colorIdx: 2 }, 'clubhouse'), _pal.clubhouse[2], 'slot 2 resolves to the clubhouse step');
+assertEqual(call('playerColor', { colorIdx: 2 }, 'broadcast'), _pal.broadcast[2], 'slot 2 resolves to the broadcast step');
+
+// Rounds saved before this change stored only a hex.
+assertEqual(call('nearestColorIdx', _pal.clubhouse[5]), 5, 'an exact clubhouse hex maps back to its own slot');
+assertEqual(call('nearestColorIdx', _pal.broadcast[5]), 5, 'the broadcast step of a slot maps to the same slot');
+const _legacy = { color: '#3f9a6e' };
+const _legacyIdx = call('colorIdxOf', _legacy);
+assertEqual(_legacyIdx >= 0 && _legacyIdx < 8, true, 'a legacy hex lands on a real slot');
+assertEqual(call('colorIdxOf', _legacy), _legacyIdx, 'the migrated slot is stable on re-read');
+assertEqual(call('playerColor', {}, 'clubhouse'), _pal.clubhouse[0], 'a player with no colour falls back to slot 0, not an off-palette grey');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
