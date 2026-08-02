@@ -13,5 +13,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Run money-math regression tests
-        run: node test/calc.test.js
+      - name: Run money-math and colour-system regression tests
+        run: npm test
