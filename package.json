@@ -4,6 +4,6 @@
   "description": "The Press \u2014 golf betting tracker PWA. Score. Bet. Settle up.",
   "private": true,
   "scripts": {
-    "test": "node test/calc.test.js && python3 test/colour-audit.py"
+    "test": "node test/calc.test.js && python3 test/ui-audit.py"
   }
 }
