@@ -1,0 +1,8 @@
+{
+  "appId": "com.greenside.app",
+  "appName": "Greenside",
+  "webDir": "www",
+  "server": { "androidScheme": "https", "iosScheme": "https" },
+  "ios": { "contentInset": "always" },
+  "backgroundColor": "#0f4d2e"
+}
