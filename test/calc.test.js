@@ -945,5 +945,46 @@ assertEqual(_legacyIdx >= 0 && _legacyIdx < 8, true, 'a legacy hex lands on a re
 assertEqual(call('colorIdxOf', _legacy), _legacyIdx, 'the migrated slot is stable on re-read');
 assertEqual(call('playerColor', {}, 'clubhouse'), _pal.clubhouse[0], 'a player with no colour falls back to slot 0, not an off-palette grey');
 
+
+// --- Back-compat: rounds written by the pre-side-bets build ---
+// A round saved by the previous production build has no `sideBets` key at all.
+// loadRound() fills it via Object.assign(defaultSideBets(), saved.sideBets||{}),
+// so a legacy round must settle to exactly the same money as one with every
+// side bet explicitly off. If this ever diverges, upgrading the app silently
+// changes what people owe each other.
+console.log('Back-compat: a round saved before side bets existed still settles identically');
+
+const _legacyRound = {
+  players: _P4, gameType: 'skins', holeCount: 3,
+  scores: { 0: [3, 4, 4], 1: [4, 4, 3], 2: [4, 4, 4], 3: [4, 4, 4] },
+  gameOpts: { skinVal: 2, skinsCarry: true },
+};
+
+// As the old build wrote it: the key is simply absent.
+loadState(freshStateLiteral(_legacyRound));
+const _legacyMoney = call('calcMoney');
+assertEqual(_legacyMoney.length, 4, 'a round with no sideBets key still returns money for every player');
+assertEqual(Math.abs(_legacyMoney.reduce((a, b) => a + b, 0)) < 0.005, true, 'legacy round stays zero-sum');
+
+// The same round after migration, with every side bet explicitly off.
+loadState(freshStateLiteral(Object.assign({}, _legacyRound, {
+  sideBets: { skins: { on: false, val: 2, carry: true }, snake: { on: false, val: 5 }, junk: { on: false, val: 2 } },
+})));
+assertEqual(call('calcMoney'), _legacyMoney, 'migrated round settles to the same money as the legacy one');
+
+// defaultSideBets() is what loadRound() merges onto, so it must be all-off.
+const _defaults = call('defaultSideBets');
+assertEqual(Object.keys(_defaults).sort(), ['junk', 'skins', 'snake'], 'defaultSideBets covers every side bet');
+assertEqual(Object.values(_defaults).every((b) => b.on === false), true, 'every side bet defaults to off, so upgrading never adds a bet nobody agreed to');
+
+// A partially-populated sideBets object (a round saved mid-rollout) keeps its
+// own values and picks up defaults for the rest.
+loadState(freshStateLiteral(Object.assign({}, _legacyRound, {
+  sideBets: Object.assign(call('defaultSideBets'), { skins: { on: true, val: 5, carry: false } }),
+})));
+const _partial = call('calcMoney');
+assertEqual(_partial.length, 4, 'a partially-populated sideBets object still settles');
+assertEqual(Math.abs(_partial.reduce((a, b) => a + b, 0)) < 0.005, true, 'partially-populated round stays zero-sum');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
