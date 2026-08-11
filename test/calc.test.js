@@ -986,5 +986,22 @@ const _partial = call('calcMoney');
 assertEqual(_partial.length, 4, 'a partially-populated sideBets object still settles');
 assertEqual(Math.abs(_partial.reduce((a, b) => a + b, 0)) < 0.005, true, 'partially-populated round stays zero-sum');
 
+
+// --- wolfTeamsUneven with no roster: the regression this shipped with once ---
+// The 4/5/6/7/8 cases are covered above. What was missing is the degenerate one:
+// game setup used to come BEFORE the roster, so this predicate always saw an
+// empty players array, returned false, and the uneven-team stake fields never
+// appeared -- for any roster size. The money math was right; the inputs were
+// unreachable. Any screen rendering roster-dependent options must come after
+// the roster is entered.
+console.log('wolfTeamsUneven: an empty roster is never uneven (options must not render before players)');
+
+const _unevenAt = (n) => {
+  loadState(freshStateLiteral({ players: Array.from({ length: n }, (_, i) => ({ name: 'P' + i, hdcp: 0 })), gameType: 'wolf' }));
+  return call('wolfTeamsUneven');
+};
+assertEqual(_unevenAt(0), false, 'empty roster is not uneven -- so these fields cannot be configured before players exist');
+assertEqual(_unevenAt(3), false, '3 players is wolf-vs-two, not an uneven team split');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
