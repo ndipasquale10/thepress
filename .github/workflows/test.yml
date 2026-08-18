@@ -32,27 +32,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Cache the browser download so only the first run after a Playwright
-      # bump pays for it.
-      - name: Resolve Playwright version
-        id: pw
-        run: echo "version=$(node -p "require('./node_modules/playwright/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Playwright browsers
-        id: pw-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
-
+      # Deliberately not cached. Caching the browser skips the ~66s download,
+      # but a cache hit still needs the OS libraries Chromium links against,
+      # and installing those alone costs ~100s -- so the cached path measured
+      # slower than the uncached one (3m18s vs 2m37s). `--with-deps` does both
+      # in one step and is the faster, simpler thing to run every time.
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-        if: steps.pw-cache.outputs.cache-hit != 'true'
-
-      # A cache hit still needs the OS-level libraries Chromium links against.
-      - name: Install Chromium system dependencies
-        run: npx playwright install-deps chromium
-        if: steps.pw-cache.outputs.cache-hit == 'true'
 
       - name: Walk the app
         run: npm run test:flows
