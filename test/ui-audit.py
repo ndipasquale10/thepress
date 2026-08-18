@@ -130,6 +130,43 @@ if display_rules > 6:
         "The serif is for section headings and the wordmark, not body levels."
     )
 
+# --- Flow wiring ----------------------------------------------------------
+# Several game options are built from state.players: Wolf's uneven-team stakes,
+# the Vegas team pickers, the Nassau roster, the Stableford quota. They shipped
+# unreachable once because game setup ran BEFORE the roster was entered, so the
+# roster was always empty when they rendered.
+#
+# This only catches a regression of that exact wiring -- test/flows.mjs is what
+# actually walks the app and would catch a new variant. But it is free, so it
+# runs here too. Deliberately not a document-order check: the roster markup
+# already preceded the game options while the bug was live.
+FLOW = [
+    (
+        r'nav-tab" onclick="showScreen\(.setup.\)" data-screen="games"',
+        "the Games tab opens the roster, not the game picker",
+    ),
+    (
+        r'getElementById\("start-btn"\)\.addEventListener\("click",continueToGame\)',
+        "the roster screen continues to game setup (not straight into the round)",
+    ),
+    (
+        r'onclick="startRound\(\)"',
+        "the game screen is what starts the round",
+    ),
+    (
+        r'games:\{id:"games-screen".*?updateGameOptions\(\)',
+        "entering the game screen rebuilds options from the current roster",
+    ),
+]
+for pattern, why in FLOW:
+    found = bool(re.search(pattern, src, re.S))
+    report.append(f"{why[:32]:<34}: {'ok' if found else 'MISSING':>4}")
+    if not found:
+        failures.append(
+            f"flow wiring: {why}. Roster-dependent game options render empty if "
+            "game setup precedes the roster. See test/flows.mjs."
+        )
+
 # --- Legacy skin layer ----------------------------------------------------
 dark = css.count("body.dark")
 report.append(f"{'body.dark selectors':<34}: {dark:>4}")
