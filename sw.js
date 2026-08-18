@@ -1,4 +1,4 @@
-const CACHE_NAME = "thepress-shell-v4";
+const CACHE_NAME = "thepress-shell-v6";
 const STATIC_ASSETS = ["./manifest.json", "./logo.png", "./logo-192.png", "./logo-64.png"];
 
 self.addEventListener("install", (event) => {

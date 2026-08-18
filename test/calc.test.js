@@ -803,5 +803,205 @@ assertEqual(call('isBonusAwarded', 0, 0, 1), false, 'category 1 no longer awarde
 call('removeBonusCategory', 0, 0, 1);
 assertEqual(call('getBonusCount', 0, 0), 1, 'removing an unawarded category is a no-op');
 
+// --- computeRunningTotals: cumulative per-player money after each completed hole ---
+console.log('computeRunningTotals: cumulative money per hole (feeds the money-flow chart)');
+loadState(freshStateLiteral({
+  players: _P4,
+  gameType: 'skins',
+  holeCount: 3,
+  scores: { 0: [3, 4, 4], 1: [4, 4, 3], 2: [4, 4, 4], 3: [4, 4, 4] },
+  gameOpts: { skinVal: 1, skinsCarry: true },
+}));
+const _rt = call('computeRunningTotals');
+assertEqual(_rt.map((r) => r.h), [0, 1, 2], 'one row per completed hole, in order');
+assertEqual(_rt[_rt.length - 1].totals, call('calcMoney'), 'last row totals equal calcMoney() net');
+const _sum = _rt[_rt.length - 1].totals.reduce((a, b) => a + b, 0);
+assertEqual(Math.abs(_sum) < 0.005, true, 'running totals stay zero-sum');
+
+// Segment-settled games (team Nassau) must still end exactly at calcMoney():
+// running totals are exact prefixes, not summed per-hole diffs.
+loadState(freshStateLiteral({ players: _P4, gameType: 'nassau', holeCount: 3, scores: scoresFor([[4, 5, 4], [5, 5, 4], [5, 4, 5], [5, 5, 5]]), gameOpts: { front: 5, back: 0, overall: 3, press: false, nassauTeams: true, nassauTeamRoster: [[0, 1], [2, 3]] } }));
+const _rtN = call('computeRunningTotals');
+assertEqual(_rtN[_rtN.length - 1].totals, call('calcMoney').map((v) => +v.toFixed(2)), 'team Nassau: final running totals equal calcMoney()');
+assertEqual(JSON.parse(vm.runInContext('JSON.stringify(state.scores)', context))[0][2], 4, 'scores restored after running-total computation');
+
+// --- computeSettlement: minimal set of payments that clears every net ---
+console.log('computeSettlement: greedy min-cash-flow settlement');
+const _st1 = call('computeSettlement', [48, 9, -21, -36]);
+assertEqual(_st1.length <= 3, true, 'four players settle in at most 3 payments');
+const _net1 = [0, 0, 0, 0];
+_st1.forEach((t) => { _net1[t.from] -= t.amt; _net1[t.to] += t.amt; });
+assertEqual(_net1.map((v) => Math.round(v)), [48, 9, -21, -36], 'payments reproduce the original nets');
+assertEqual(_st1.every((t) => t.amt > 0), true, 'every payment is a positive amount');
+assertEqual(call('computeSettlement', [0, 0, 0, 0]), [], 'all square -> no payments');
+
+// --- Side bets: layer on top of the main game without disturbing it ---
+console.log('Side bets: layer additively on the main game');
+const _offBets = { skins: { on: false, val: 2, carry: true }, snake: { on: false, val: 5 }, junk: { on: false, val: 2 } };
+// Wolf alone, no side bets -> the baseline every existing round must keep returning.
+const _wolfState = {
+  players: _P4, gameType: 'wolf', holeCount: 1,
+  scores: { 0: [4], 1: [5], 2: [5], 3: [5] },
+  wolfHoles: { 0: { wolf: 0, partners: [1] } },
+  gameOpts: { wolfVal: 2 }, sideBets: _offBets,
+};
+loadState(freshStateLiteral(_wolfState));
+const _wolfBase = call('calcMoney');
+assertEqual(Math.abs(_wolfBase.reduce((a, b) => a + b, 0)) < 0.005, true, 'wolf baseline is zero-sum');
+
+// Same round with a $2 skins side bet: player 0 wins the hole outright.
+loadState(freshStateLiteral(Object.assign({}, _wolfState, {
+  sideBets: { skins: { on: true, val: 2, carry: true }, snake: { on: false, val: 5 }, junk: { on: false, val: 2 } },
+})));
+const _wolfPlusSkins = call('calcMoney');
+const _skinsOnly = call('calcSkinsMoney', { skinVal: 2, carry: true });
+assertEqual(_wolfPlusSkins, _wolfBase.map((v, i) => v + _skinsOnly[i]), 'wolf + skins side bet == wolf money + skins money');
+assertEqual(Math.abs(_wolfPlusSkins.reduce((a, b) => a + b, 0)) < 0.005, true, 'combined money stays zero-sum');
+
+// A side bet the main game already settles must not be counted twice.
+loadState(freshStateLiteral({
+  players: _P4, gameType: 'skins', holeCount: 1,
+  scores: { 0: [3], 1: [4], 2: [4], 3: [4] },
+  gameOpts: { skinVal: 2, carry: true },
+  sideBets: { skins: { on: true, val: 2, carry: true }, snake: { on: false, val: 5 }, junk: { on: false, val: 2 } },
+}));
+assertEqual(call('sideBetActive', 'skins'), false, 'skins side bet is suppressed when skins is the main game');
+const _skinsMain = call('calcMoney');
+loadState(freshStateLiteral({
+  players: _P4, gameType: 'skins', holeCount: 1,
+  scores: { 0: [3], 1: [4], 2: [4], 3: [4] },
+  gameOpts: { skinVal: 2, carry: true }, sideBets: _offBets,
+}));
+assertEqual(_skinsMain, call('calcMoney'), 'main-game skins is unchanged by a duplicate skins side bet');
+
+// Junk counts only its own categories, so Snake's 3-putt (index 0) never leaks in.
+loadState(freshStateLiteral({
+  players: _P4, gameType: 'wolf', holeCount: 1,
+  scores: { 0: [4], 1: [4], 2: [4], 3: [4] },
+  wolfHoles: { 0: { wolf: 0, partners: [1] } }, gameOpts: { wolfVal: 0 },
+  bonusPoints: { 0: { 0: { 0: true, 1: true } }, 1: {}, 2: {}, 3: {} },
+  sideBets: { skins: { on: false, val: 2, carry: true }, snake: { on: false, val: 5 }, junk: { on: true, val: 2 } },
+}));
+const _junk = call('calcMoney');
+assertEqual(_junk[0], 6, 'player 0 collects only the Greenie (index 1), not the 3-putt (index 0): 3 opponents x $2');
+assertEqual(Math.abs(_junk.reduce((a, b) => a + b, 0)) < 0.005, true, 'junk side bet is zero-sum');
+
+// Rounds saved before side bets existed carry no sideBets key at all.
+loadState(freshStateLiteral(Object.assign({}, _wolfState, { sideBets: undefined })));
+assertEqual(call('calcMoney'), _wolfBase, 'a round with no sideBets key returns the legacy money');
+
+// --- computeHandicapIndex: best-N-of-20 differentials x0.96 ---
+console.log('computeHandicapIndex: derives an index from finished rounds');
+function hcpRound(name, over, holes, when) {
+  const pars = Array(holes).fill(4);
+  const scores = {}; scores[0] = {};
+  // spread `over` strokes across the holes so gross - par === over
+  for (let h = 0; h < holes; h++) scores[0][h] = 4 + (h < over ? 1 : 0);
+  return { finished: true, finishedDate: when, date: when, pars, scores, players: [{ name }] };
+}
+assertEqual(call('computeHandicapIndex', 'Nobody', []).index, null, 'no rounds -> null index');
+
+// Five 18-hole rounds at +10 over par: every differential is 10, so index = 10 * 0.96.
+const _hcpRounds = [1, 2, 3, 4, 5].map((d) => hcpRound('Pat', 10, 18, `2026-0${d}-01T12:00:00Z`));
+const _h5 = call('computeHandicapIndex', 'Pat', _hcpRounds);
+assertEqual(_h5.index, 9.6, 'five rounds at +10 -> index 9.6');
+assertEqual(_h5.rounds, 5, 'counts the rounds that had scores');
+assertEqual(_h5.series.length, 3, 'series starts once 3 rounds exist (5 rounds -> 3 points) for the trend sparkline');
+
+// A single blow-up round must not drag the index up: best-of takes the good ones.
+const _hcpMixed = _hcpRounds.concat([hcpRound('Pat', 30, 18, '2026-06-01T12:00:00Z')]);
+const _h6 = call('computeHandicapIndex', 'Pat', _hcpMixed);
+assertEqual(_h6.index <= 9.6, true, 'one blow-up round does not raise the index above the good ones');
+
+// A 9-hole round is normalized to 18 before it becomes a differential.
+const _h9 = call('computeHandicapIndex', 'Pat', [1, 2, 3].map((d) => hcpRound('Pat', 5, 9, `2026-0${d}-01T12:00:00Z`)));
+assertEqual(_h9.index, 9.6, 'a 9-hole round at +5 scales to an 18-hole differential of 10');
+
+// One round is not a handicap - an index needs a minimum of 3.
+assertEqual(call('computeHandicapIndex', 'Pat', [hcpRound('Pat', 10, 18, '2026-01-01T12:00:00Z')]).index, null, 'a single round does not produce an index');
+assertEqual(call('computeHandicapIndex', 'Pat', _hcpRounds.slice(0, 2)).index, null, 'two rounds do not produce an index');
+
+// Rounds the player did not play in are ignored entirely.
+assertEqual(call('computeHandicapIndex', 'Pat', [hcpRound('Sam', 10, 18, '2026-01-01T12:00:00Z')]).index, null, 'other players\' rounds are ignored');
+
+// --- Player colour: one identity, re-stepped per skin ---
+console.log('playerColor: stable identity across skins, legacy hex migrates to a slot');
+const _pal = JSON.parse(vm.runInContext('JSON.stringify(PLAYER_PALETTES)', context));
+assertEqual(_pal.clubhouse.length, 8, 'clubhouse palette has 8 slots');
+assertEqual(_pal.broadcast.length, 8, 'broadcast palette has 8 slots');
+assertEqual(new Set(_pal.clubhouse).size, 8, 'clubhouse slots are all distinct');
+assertEqual(new Set(_pal.broadcast).size, 8, 'broadcast slots are all distinct');
+
+// A player carries a slot, so each skin renders its own step of the same identity.
+assertEqual(call('playerColor', { colorIdx: 2 }, 'clubhouse'), _pal.clubhouse[2], 'slot 2 resolves to the clubhouse step');
+assertEqual(call('playerColor', { colorIdx: 2 }, 'broadcast'), _pal.broadcast[2], 'slot 2 resolves to the broadcast step');
+
+// Rounds saved before this change stored only a hex.
+assertEqual(call('nearestColorIdx', _pal.clubhouse[5]), 5, 'an exact clubhouse hex maps back to its own slot');
+assertEqual(call('nearestColorIdx', _pal.broadcast[5]), 5, 'the broadcast step of a slot maps to the same slot');
+const _legacy = { color: '#3f9a6e' };
+const _legacyIdx = call('colorIdxOf', _legacy);
+assertEqual(_legacyIdx >= 0 && _legacyIdx < 8, true, 'a legacy hex lands on a real slot');
+assertEqual(call('colorIdxOf', _legacy), _legacyIdx, 'the migrated slot is stable on re-read');
+assertEqual(call('playerColor', {}, 'clubhouse'), _pal.clubhouse[0], 'a player with no colour falls back to slot 0, not an off-palette grey');
+
+
+// --- Back-compat: rounds written by the pre-side-bets build ---
+// A round saved by the previous production build has no `sideBets` key at all.
+// loadRound() fills it via Object.assign(defaultSideBets(), saved.sideBets||{}),
+// so a legacy round must settle to exactly the same money as one with every
+// side bet explicitly off. If this ever diverges, upgrading the app silently
+// changes what people owe each other.
+console.log('Back-compat: a round saved before side bets existed still settles identically');
+
+const _legacyRound = {
+  players: _P4, gameType: 'skins', holeCount: 3,
+  scores: { 0: [3, 4, 4], 1: [4, 4, 3], 2: [4, 4, 4], 3: [4, 4, 4] },
+  gameOpts: { skinVal: 2, skinsCarry: true },
+};
+
+// As the old build wrote it: the key is simply absent.
+loadState(freshStateLiteral(_legacyRound));
+const _legacyMoney = call('calcMoney');
+assertEqual(_legacyMoney.length, 4, 'a round with no sideBets key still returns money for every player');
+assertEqual(Math.abs(_legacyMoney.reduce((a, b) => a + b, 0)) < 0.005, true, 'legacy round stays zero-sum');
+
+// The same round after migration, with every side bet explicitly off.
+loadState(freshStateLiteral(Object.assign({}, _legacyRound, {
+  sideBets: { skins: { on: false, val: 2, carry: true }, snake: { on: false, val: 5 }, junk: { on: false, val: 2 } },
+})));
+assertEqual(call('calcMoney'), _legacyMoney, 'migrated round settles to the same money as the legacy one');
+
+// defaultSideBets() is what loadRound() merges onto, so it must be all-off.
+const _defaults = call('defaultSideBets');
+assertEqual(Object.keys(_defaults).sort(), ['junk', 'skins', 'snake'], 'defaultSideBets covers every side bet');
+assertEqual(Object.values(_defaults).every((b) => b.on === false), true, 'every side bet defaults to off, so upgrading never adds a bet nobody agreed to');
+
+// A partially-populated sideBets object (a round saved mid-rollout) keeps its
+// own values and picks up defaults for the rest.
+loadState(freshStateLiteral(Object.assign({}, _legacyRound, {
+  sideBets: Object.assign(call('defaultSideBets'), { skins: { on: true, val: 5, carry: false } }),
+})));
+const _partial = call('calcMoney');
+assertEqual(_partial.length, 4, 'a partially-populated sideBets object still settles');
+assertEqual(Math.abs(_partial.reduce((a, b) => a + b, 0)) < 0.005, true, 'partially-populated round stays zero-sum');
+
+
+// --- wolfTeamsUneven with no roster: the regression this shipped with once ---
+// The 4/5/6/7/8 cases are covered above. What was missing is the degenerate one:
+// game setup used to come BEFORE the roster, so this predicate always saw an
+// empty players array, returned false, and the uneven-team stake fields never
+// appeared -- for any roster size. The money math was right; the inputs were
+// unreachable. Any screen rendering roster-dependent options must come after
+// the roster is entered.
+console.log('wolfTeamsUneven: an empty roster is never uneven (options must not render before players)');
+
+const _unevenAt = (n) => {
+  loadState(freshStateLiteral({ players: Array.from({ length: n }, (_, i) => ({ name: 'P' + i, hdcp: 0 })), gameType: 'wolf' }));
+  return call('wolfTeamsUneven');
+};
+assertEqual(_unevenAt(0), false, 'empty roster is not uneven -- so these fields cannot be configured before players exist');
+assertEqual(_unevenAt(3), false, '3 players is wolf-vs-two, not an uneven team split');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
