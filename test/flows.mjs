@@ -506,6 +506,65 @@ section("An open modal holds the page still behind it");
   await ctx.close();
 }
 
+// --------------------------------------------------------------------------
+section("The Wolf pick checkmark is a badge, not a blob");
+// --------------------------------------------------------------------------
+// The chips carry a hit-area expander on one pseudo-element and the selected
+// checkmark on the other. They shared ::after once, and the expander's
+// min-width/min-height and centring leaked into the badge: an 18px corner tick
+// became a 44px circle floating over the chip and the heading above it. The
+// static audit catches that exact selector clash; this catches any other
+// property that starts leaking, and proves the tap target survived the move.
+{
+  const { ctx, p, errors } = await page();
+  await enterRoster(p, 4);
+  await p.evaluate(() => selectGameType("wolf"));
+  await p.waitForTimeout(300);
+  await p.evaluate(() => startRound());
+  await p.waitForTimeout(600);
+  await p.evaluate(() =>
+    document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden"))
+  );
+  await p.waitForTimeout(200);
+
+  const chips = await p.evaluate(() => document.querySelectorAll(".wolf-pick").length);
+  ok(chips > 0, "the wolf pick chips are on the scoring screen", `found ${chips}`);
+
+  const tap = await p.evaluate(() =>
+    [...document.querySelectorAll(".wolf-pick")].map((el) => {
+      const cs = getComputedStyle(el, "::before");
+      return Math.round(Math.min(parseFloat(cs.width), parseFloat(cs.height)));
+    })
+  );
+  ok(tap.length > 0 && tap.every((v) => v >= 44), "every chip keeps a 44px hit area", `got ${tap}`);
+
+  for (const i of [0, 1, 2]) {
+    await p.evaluate((k) => document.querySelectorAll(".wolf-pick")[k].click(), i);
+    await p.waitForTimeout(200);
+    const badges = await p.evaluate(() =>
+      [...document.querySelectorAll(".wolf-pick")]
+        .filter((e) => e.classList.contains("selected"))
+        .map((e) => {
+          const c = getComputedStyle(e, "::after");
+          return { w: parseFloat(c.width), h: parseFloat(c.height), t: c.transform };
+        })
+    );
+    ok(badges.length === 1, `pick ${i}: exactly one chip shows a checkmark`, `got ${badges.length}`);
+    ok(
+      badges.every((b) => b.w <= 20 && b.h <= 20),
+      `pick ${i}: the checkmark stays badge-sized`,
+      JSON.stringify(badges)
+    );
+    ok(
+      badges.every((b) => b.t === "none"),
+      `pick ${i}: the checkmark is not dragged off its corner`,
+      JSON.stringify(badges.map((b) => b.t))
+    );
+  }
+  ok(errors.length === 0, "wolf pick badge: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
