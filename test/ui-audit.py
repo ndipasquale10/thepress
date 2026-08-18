@@ -16,10 +16,19 @@ SRC = Path(__file__).resolve().parent.parent / "index.html"
 src = SRC.read_text()
 lines = src.split("\n")
 
-# CSS lives on lines 8..15 (1-indexed); JS app code is everything after the
-# vendored html2canvas blob, which must never be reformatted.
-css = "\n".join(lines[7:15])
-js = "\n".join(lines[15:])
+# Slice at the real <style> boundaries. This used to be hardcoded to lines
+# 8..15, which silently left the last ~4.5KB of the stylesheet -- including the
+# touch-target rules -- being audited as if it were JS, so none of the geometry
+# budgets applied to it.
+_open = next(i for i, l in enumerate(lines) if "<style>" in l)
+_close = next(i for i, l in enumerate(lines) if "</style>" in l)
+css = "\n".join(lines[_open : _close + 1])
+js = "\n".join(lines[_close + 1 :])
+
+# Comments are not declarations: left in, a comment's text lands in whatever
+# selector capture follows it, which silently breaks selector matching. (The
+# base64 font payloads cannot contain "/*" -- "*" is not in the alphabet.)
+css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
 
 # The :root blocks are the token layer -- the one place raw values belong.
 roots = re.findall(r':root(?:\[data-theme="[a-z]+"\])?\{[^}]*\}', css)
@@ -166,6 +175,50 @@ for pattern, why in FLOW:
             f"flow wiring: {why}. Roster-dependent game options render empty if "
             "game setup precedes the roster. See test/flows.mjs."
         )
+
+# --- Pseudo-element collisions --------------------------------------------
+# The hit-area expander paints an invisible box over each listed element via a
+# pseudo-element. If an element ALSO uses that same pseudo-element for a badge,
+# the two rules fight over one box: the expander's min-width/min-height and
+# centring leak into the badge, because the badge rule never thinks to reset
+# them. That is what turned the Wolf checkmark into a 44px blob over the chip.
+tap_rules = re.findall(r"([^{}]*)\{[^{}]*min-width:var\(--tap\)[^{}]*\}", css)
+collisions = []
+checked = 0
+checked_none = []
+for sel_list in tap_rules:
+    for sel in sel_list.split(","):
+        sel = sel.strip()
+        # Handles every form in the list -- .class, #id, and compound
+        # selectors like `.game-opt label:has(input)` -- so the check is not
+        # silently partial.
+        m = re.match(r"(.+)::(after|before)$", sel)
+        if not m:
+            checked_none.append(sel)
+            continue
+        base, pseudo = m.group(1), m.group(2)
+        # Any other rule that styles the same subject on the same pseudo-element.
+        other = [
+            s
+            for s, b in re.findall(r"([^{}]+)\{([^{}]*)\}", css)
+            if re.search(re.escape(base) + r"[^,]*::" + pseudo + r"\b", s)
+            and "min-width:var(--tap)" not in b
+        ]
+        checked += 1
+        if other:
+            collisions.append(f"{sel} is both a hit-area expander and {other[0].strip()[:60]}")
+
+report.append(f"{'tap/badge pseudo collisions':<34}: {len(collisions):>4}  (of {checked} expanders)")
+if checked_none:
+    failures.append(
+        f"tap-target selectors not understood, so unchecked: {checked_none}. "
+        "Widen the pattern rather than leaving them silently skipped."
+    )
+for c in collisions:
+    failures.append(
+        f"pseudo-element collision: {c}. Move the expander to the other "
+        "pseudo-element -- min-width/min-height and centring leak otherwise."
+    )
 
 # --- Legacy skin layer ----------------------------------------------------
 dark = css.count("body.dark")
