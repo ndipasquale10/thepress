@@ -399,6 +399,113 @@ section("Resuming and watching a live round");
   await ctx.close();
 }
 
+// --------------------------------------------------------------------------
+section("A screen change starts at the top of that screen");
+// --------------------------------------------------------------------------
+// Scroll position used to carry across screens, so tapping a tab from halfway
+// down one screen dropped you into the middle of the next. Where it happened to
+// look right, that was only the browser clamping to a shorter page.
+{
+  const { ctx, p, errors } = await page();
+  const toBottom = () =>
+    p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const scrollY = () => p.evaluate(() => Math.round(window.scrollY));
+
+  for (const tab of ["games", "settle", "you", "home"]) {
+    await toBottom(p);
+    await p.waitForTimeout(150);
+    await p.evaluate((t) => document.querySelector(`.nav-tab[data-screen="${t}"]`).click(), tab);
+    await p.waitForTimeout(350);
+    ok((await scrollY()) === 0, `the ${tab} tab opens at the top`, `scrollY was ${await scrollY()}`);
+  }
+
+  // Same for the in-page routes, which are separate code paths.
+  await p.evaluate(() => enterScreen("home"));
+  await toBottom(p);
+  await p.waitForTimeout(150);
+  await p.evaluate(() =>
+    [...document.querySelectorAll("#home-screen .btn")]
+      .find((b) => /Start a New Round/.test(b.textContent))
+      ?.click()
+  );
+  await p.waitForTimeout(350);
+  ok((await scrollY()) === 0, "starting a new round opens at the top");
+
+  await toBottom(p);
+  await p.waitForTimeout(150);
+  await p.evaluate(() => document.getElementById("start-btn").click());
+  await p.waitForTimeout(350);
+  ok((await scrollY()) === 0, "continuing to game setup opens at the top");
+
+  // ...but a deliberate scroll must still work.
+  await p.evaluate(() => {
+    const c = document.querySelector('#resume-card [onclick*="loadRound"]');
+    if (c) c.click();
+  });
+  await p.waitForTimeout(600);
+  const dots = await p.evaluate(() => document.querySelectorAll(".hole-dot").length);
+  if (dots > 11) {
+    await p.evaluate(() => document.querySelectorAll(".hole-dot")[11].click());
+    await p.waitForTimeout(800);
+    const top = await p.evaluate(() => {
+      const el = document.getElementById("hole-info");
+      return el ? Math.round(el.getBoundingClientRect().top) : null;
+    });
+    ok(Math.abs(top) < 160, "tapping a hole still scrolls its header into view", `header at ${top}px`);
+  }
+  ok(errors.length === 0, "screen scrolling: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
+// --------------------------------------------------------------------------
+section("An open modal holds the page still behind it");
+// --------------------------------------------------------------------------
+// Without a scroll lock a thumb on the backdrop scrolls the page underneath, so
+// closing the modal leaves you somewhere else entirely. Measured on where the
+// content actually sits, not window.scrollY -- the lock pins the body, which
+// legitimately reports scrollY 0 while the page has not moved.
+{
+  const { ctx, p, errors } = await page();
+  await p.evaluate(() => enterScreen("season"));
+  await p.waitForTimeout(400);
+  await p.evaluate(() => window.scrollTo(0, 600));
+  await p.waitForTimeout(200);
+
+  const markY = () =>
+    p.evaluate(() => {
+      const el = document.querySelectorAll("#history-list .round-card")[2];
+      return el ? Math.round(el.getBoundingClientRect().top) : null;
+    });
+
+  const before = await markY();
+  await p.evaluate(() => document.querySelector("#history-list .round-card")?.click());
+  await p.waitForTimeout(600);
+  const during = await markY();
+  ok(Math.abs(during - before) < 3, "opening a modal does not jump the page", `moved ${during - before}px`);
+
+  await p.evaluate(() => {
+    window.scrollBy(0, 400);
+    document.documentElement.scrollTop += 400;
+    document.body.scrollTop += 400;
+  });
+  await p.waitForTimeout(300);
+  const after = await markY();
+  ok(after === during, "the page cannot be scrolled behind an open modal", `moved ${after - during}px`);
+
+  await p.evaluate(() => {
+    const m = document.querySelector(".modal:not(.hidden)");
+    if (m) closeModal(m.id);
+  });
+  await p.waitForTimeout(500);
+  ok(Math.abs((await markY()) - before) < 3, "closing a modal restores your place exactly");
+  ok(
+    (await p.evaluate(() => getComputedStyle(document.body).position)) !== "fixed",
+    "the lock releases the body when the modal closes"
+  );
+  ok(errors.length === 0, "modal scroll lock: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
