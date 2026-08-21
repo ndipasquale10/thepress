@@ -1,5 +1,13 @@
-const CACHE_NAME = "thepress-shell-v6";
-const STATIC_ASSETS = ["./manifest.json", "./logo.png", "./logo-192.png", "./logo-64.png"];
+const CACHE_NAME = "thepress-shell-v7";
+const STATIC_ASSETS = [
+  "./manifest.json",
+  "./logo.png",
+  "./logo-192.png",
+  "./logo-64.png",
+  // Image export lives in its own file so it stays out of the app shell. It is
+  // precached so "Save Image" still works with no signal on a course.
+  "./html2canvas.min.js",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));

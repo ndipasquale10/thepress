@@ -22,6 +22,7 @@ Usage:
 """
 import argparse
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -99,6 +100,14 @@ def main():
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html)
+
+    # Image export loads ./html2canvas.min.js relative to the page, so the
+    # preview needs its own copy next to it or "Save Image" 404s here while
+    # working in production.
+    lib = ROOT / "html2canvas.min.js"
+    if lib.exists() and not args.fragment:
+        shutil.copyfile(lib, out.parent / lib.name)
+
     mode = "fragment" if args.fragment else "standalone"
     print(f"{out} — {mode}, {len(html):,} bytes, {removed} Firebase tags removed")
 
