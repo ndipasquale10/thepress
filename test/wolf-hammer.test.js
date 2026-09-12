@@ -321,5 +321,152 @@ console.log('\nA full 18-hole round with rotating wolves, mixed picks and hammer
   console.log(`    (final settle: ${JSON.stringify(money)})`);
 })();
 
+// ==========================================================================
+// Every roster size and the fixed-pairs (team wolf) mode
+// ==========================================================================
+// Generic builders so the same shapes can be driven at any roster size.
+const roster = (n, hdcps) =>
+  Array.from({ length: n }, (_, i) => ({ name: String.fromCharCode(65 + i), hdcp: hdcps ? hdcps[i] : 0 }));
+const holeScores = (arr) => { const s = {}; arr.forEach((v, p) => { s[p] = { 0: v }; }); return s; };
+function runWolf({ players, holeCount = 1, scores, wolfHoles, opts = {}, pairings = [], handicapMode = 'none', strokeIdx }) {
+  loadState(freshStateLiteral({
+    players, holeCount, pars: Array(18).fill(4),
+    handicapMode, hdcps: strokeIdx || Array.from({ length: 18 }, (_, i) => i + 1),
+    scores, wolfHoles, pairings,
+    gameOpts: Object.assign({ wolfVal: 1 }, opts),
+  }));
+  return call('calcWolfMoney');
+}
+
+// --------------------------------------------------------------------------
+console.log('\n=== Roster sweep: 4–8 players, every pick shape, settles zero-sum ===');
+// --------------------------------------------------------------------------
+// Two score patterns per size: one where the wolf/first index wins outright
+// (a birdie), one where it loses to the field. Full scores on the hole, so any
+// valid settle must be exactly zero-sum. Hammers stacked 0..3 on top.
+for (const n of [4, 5, 6, 7, 8]) {
+  const win = Array.from({ length: n }, (_, i) => (i === 0 ? 3 : 5)); // wolf birdies, field bogeys
+  const lose = Array.from({ length: n }, (_, i) => (i === 0 ? 6 : (i === 1 ? 3 : 5))); // wolf blows up, B birdies
+  const maxPartners = n < 6 ? 1 : 2;
+  const shapes = [
+    { label: 'lone', wh: { wolf: 0, partners: [] } },
+    { label: 'partner', wh: { wolf: 0, partners: [1] } },
+    { label: 'blind (3×)', wh: { wolf: 0, partners: [], blind: true } },
+    { label: 'blindPick (2×)', wh: { wolf: 0, partners: [1], blindPick: true } },
+    { label: 'shuck', wh: { wolf: 0, partners: [], shuck: 0 } },
+    { label: 'concede→field', wh: { wolf: 0, partners: [1], conceded: 'field' } },
+    { label: 'concede→wolf', wh: { wolf: 0, partners: [1], conceded: 'wolf' } },
+  ];
+  if (maxPartners === 2) shapes.push({ label: '2 partners', wh: { wolf: 0, partners: [1, 2] } });
+  let sizeOk = true;
+  for (const shp of shapes) {
+    for (const sc of [win, lose]) {
+      for (const ham of [0, 1, 2, 3]) {
+        const money = runWolf({
+          players: roster(n), scores: holeScores(sc),
+          wolfHoles: { 0: Object.assign({}, shp.wh, { hammers: ham }) },
+          opts: wolfTeamsUnevenSize(n) ? { wolfVal: 1, wolfTeamVal: 3, fieldVal: 1, lone2x: true } : { wolfVal: 1, lone2x: true },
+        });
+        const s = money.reduce((a, b) => a + b, 0);
+        if (Math.abs(s) > 1e-9 || money.length !== n) {
+          sizeOk = false;
+          console.log(`  FAIL - ${n}p ${shp.label} ${sc === win ? 'win' : 'lose'} ${ham}h → ${JSON.stringify(money)} (sum ${s})`);
+        }
+      }
+    }
+  }
+  if (sizeOk) { pass++; console.log(`  ok - ${n} players: all pick shapes × win/lose × 0–3 hammers settle zero-sum`); }
+  else fail++;
+}
+function wolfTeamsUnevenSize(n) { return n >= 5 && n % 2 === 1; }
+
+// --------------------------------------------------------------------------
+console.log('\n=== 4 players: exact multipliers ===');
+// --------------------------------------------------------------------------
+const r4 = () => roster(4);
+assertEqual(runWolf({ players: r4(), scores: holeScores([4, 5, 5, 5]), wolfHoles: { 0: { wolf: 0, partners: [], hammers: 1 } } }),
+  [6, -2, -2, -2], 'lone par win, 1 hammer: +$2 from each of 3');
+assertEqual(runWolf({ players: r4(), scores: holeScores([4, 4, 5, 5]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 1 } } }),
+  [2, 2, -2, -2], '2v2 wolf win, 1 hammer: $4 pot splits evenly');
+assertEqual(runWolf({ players: r4(), scores: holeScores([3, 5, 5, 5]), wolfHoles: { 0: { wolf: 0, partners: [], shuck: 0, hammers: 1 } } }),
+  [24, -8, -8, -8], 'shuck birdie (2×) × 1 hammer on a 2× base = 8× from each of 3');
+
+// --------------------------------------------------------------------------
+console.log('\n=== 7 players (odd/uneven): exact stakes and pot splits ===');
+// --------------------------------------------------------------------------
+assertEqual(runWolf({ players: roster(7), scores: holeScores([4, 4, 5, 5, 5, 5, 5]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } } }),
+  [3, 2, -1, -1, -1, -1, -1], '2v5 wolf-team win, even stakes: $5 pot → $3/$2');
+assertEqual(runWolf({ players: roster(7), scores: holeScores([4, 4, 4, 5, 5, 5, 5]), wolfHoles: { 0: { wolf: 0, partners: [1, 2], hammers: 0 } } }),
+  [2, 1, 1, -1, -1, -1, -1], '3v4 wolf-team win, even stakes: $4 pot → $2/$1/$1');
+assertEqual(runWolf({ players: roster(7), scores: holeScores([5, 5, 4, 5, 5, 5, 5]), wolfHoles: { 0: { wolf: 0, partners: [1], hammers: 0 } }, opts: { wolfVal: 1, wolfTeamVal: 3, fieldVal: 1 } }),
+  [-3, -3, 2, 1, 1, 1, 1], '2v5 field win, uneven: losing wolf pair pays wolfTeamVal $3 → $6 pot across 5');
+
+// --------------------------------------------------------------------------
+console.log('\n=== Fixed-pairs (team wolf): 6 players, teams [A,B] [C,D] [E,F] ===');
+// --------------------------------------------------------------------------
+const P6 = [[0, 1], [2, 3], [4, 5]];
+const fp6 = (wh, sc, opts = {}) => runWolf({ players: roster(6), pairings: P6, scores: holeScores(sc), wolfHoles: { 0: wh }, opts: Object.assign({ wolfVal: 1 }, opts) });
+// A pick that hasn't chosen allies yet pays nothing.
+assertEqual(fp6({ fixedPairs: true, wolfTeam: 0, allyTeams: undefined, hammers: 0 }, [4, 4, 5, 5, 5, 5]),
+  [0, 0, 0, 0, 0, 0], 'no ally choice yet → hole pays nothing');
+assertEqual(fp6({ fixedPairs: true, wolfTeam: 0, allyTeams: [], hammers: 0 }, [4, 4, 5, 5, 5, 5]),
+  [4, 4, -2, -2, -2, -2], 'lone pair (team A&B) beats both other teams: each wins $1 from each of 4 opponents');
+assertEqual(fp6({ fixedPairs: true, wolfTeam: 0, allyTeams: [], hammers: 1 }, [4, 4, 5, 5, 5, 5]),
+  [8, 8, -4, -4, -4, -4], 'lone pair, 1 hammer: doubles');
+assertEqual(fp6({ fixedPairs: true, wolfTeam: 0, allyTeams: [], hammers: 0 }, [4, 4, 5, 5, 5, 5], { lone2x: true }),
+  [8, 8, -4, -4, -4, -4], 'lone pair with lone2x (2×)');
+assertEqual(fp6({ fixedPairs: true, wolfTeam: 0, allyTeams: [], hammers: 0 }, [3, 4, 5, 5, 5, 5]),
+  [8, 8, -4, -4, -4, -4], 'lone pair, wolf birdie (2×)');
+assertEqual(fp6({ fixedPairs: true, wolfTeam: 0, allyTeams: [], hammers: 0 }, [2, 4, 5, 5, 5, 5]),
+  [12, 12, -6, -6, -6, -6], 'lone pair, wolf eagle (3×)');
+assertEqual(fp6({ fixedPairs: true, wolfTeam: 0, allyTeams: [1], hammers: 0 }, [4, 4, 4, 4, 5, 5]),
+  [2, 2, 2, 2, -4, -4], 'allied (A&B + C&D) beats team E&F: 4 winners each +$2, 2 losers each -$4');
+assertEqual(fp6({ fixedPairs: true, wolfTeam: 0, allyTeams: [], hammers: 1, conceded: 'field' }, [4, 4, 5, 5, 5, 5]),
+  [8, 8, -4, -4, -4, -4], 'field concedes the lone pair at 2× (hammer), no score factor');
+// Losing side (field wins the hole against the lone pair).
+assertEqual(fp6({ fixedPairs: true, wolfTeam: 0, allyTeams: [], hammers: 0 }, [5, 5, 4, 4, 4, 4]),
+  [-4, -4, 2, 2, 2, 2], 'lone pair loses: pays $1 to each opponent');
+for (const ham of [0, 1, 2]) {
+  assertZeroSum(fp6({ fixedPairs: true, wolfTeam: 1, allyTeams: [2], hammers: ham }, [5, 5, 4, 4, 6, 6]),
+    `fixed-pairs 6p allied, ${ham} hammers`);
+}
+
+// --------------------------------------------------------------------------
+console.log('\n=== Fixed-pairs (team wolf): 8 players, four pairs ===');
+// --------------------------------------------------------------------------
+const P8 = [[0, 1], [2, 3], [4, 5], [6, 7]];
+const fp8 = (wh, sc, opts = {}) => runWolf({ players: roster(8), pairings: P8, scores: holeScores(sc), wolfHoles: { 0: wh }, opts: Object.assign({ wolfVal: 1 }, opts) });
+assertEqual(fp8({ fixedPairs: true, wolfTeam: 0, allyTeams: [], hammers: 0 }, [4, 4, 5, 5, 5, 5, 5, 5]),
+  [6, 6, -2, -2, -2, -2, -2, -2], 'lone pair vs three teams (6 opponents): each winner +$6, each loser -$2');
+assertEqual(fp8({ fixedPairs: true, wolfTeam: 0, allyTeams: [1], hammers: 1 }, [4, 4, 4, 4, 5, 5, 5, 5]),
+  [8, 8, 8, 8, -8, -8, -8, -8], 'allied (2 teams) vs 2 teams, 1 hammer: 4v4 pairwise at 2×');
+for (const ham of [0, 1, 2]) {
+  for (const allies of [[], [1], [1, 2]]) {
+    assertZeroSum(fp8({ fixedPairs: true, wolfTeam: 0, allyTeams: allies, hammers: ham }, [3, 5, 4, 6, 5, 4, 6, 5]),
+      `fixed-pairs 8p allies=${JSON.stringify(allies)}, ${ham} hammers`);
+  }
+}
+
+// --------------------------------------------------------------------------
+console.log('\n=== Full 18-hole team-wolf round (6 players, fixed pairs) stays zero-sum ===');
+// --------------------------------------------------------------------------
+(() => {
+  const players = roster(6);
+  const scores = {}, wolfHoles = {};
+  for (let h = 0; h < 18; h++) {
+    const wt = h % 3;
+    const allies = h % 3 === 0 ? [] : [(wt + 1) % 3]; // alternate lone pair / allied
+    wolfHoles[h] = { fixedPairs: true, wolfTeam: wt, allyTeams: allies, hammers: h % 3 };
+    for (let p = 0; p < 6; p++) { scores[p] = scores[p] || {}; scores[p][h] = 3 + ((h + p) % 4); }
+  }
+  loadState(freshStateLiteral({
+    players, holeCount: 18, pars: Array(18).fill(4), pairings: P6,
+    scores, wolfHoles, gameOpts: { wolfVal: 2, lone2x: true },
+  }));
+  const money = call('calcWolfMoney');
+  assertZeroSum(money, '18-hole fixed-pairs team-wolf round');
+  console.log(`    (final settle: ${JSON.stringify(money)})`);
+})();
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
