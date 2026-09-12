@@ -4,7 +4,7 @@
   "description": "The Press — golf betting tracker PWA. Score. Bet. Settle up.",
   "private": true,
   "scripts": {
-    "test": "node scripts/build-courses.js --check && node test/calc.test.js && python3 test/ui-audit.py",
+    "test": "node scripts/build-courses.js --check && node test/calc.test.js && node test/wolf-hammer.test.js && python3 test/ui-audit.py",
     "test:flows": "python3 scripts/build-preview.py && node test/flows.mjs",
     "build:courses": "node scripts/build-courses.js"
   },
