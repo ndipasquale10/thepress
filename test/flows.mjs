@@ -878,6 +878,360 @@ section("The card reads the roster back before the stakes are set");
   await ctx.close();
 }
 
+
+// --------------------------------------------------------------------------
+section("The scoring screen reports your round, and shows the stroke");
+// --------------------------------------------------------------------------
+// Driven through the DOM and pre-existing globals only: a test that calls the
+// helper it is testing cannot tell you the old behaviour was wrong.
+{
+  const { ctx, p, errors } = await page();
+  await enterRoster(p, 4);
+  await p.waitForTimeout(200);
+  // Nassau lists every player in the hole-result overlay, which is where the
+  // gross/net labelling shows.
+  await p.evaluate(() => { selectGameType("nassau"); startRound(); });
+  await p.waitForTimeout(300);
+
+  // The strip is "how did I do here", so it has to read the phone owner's
+  // card. It was hardcoded to state.scores[0]: give player 3 a birdie and
+  // player 1 a double, and the strip used to report the double.
+  const dots = await p.evaluate(() => {
+    localStorage.setItem("primaryPlayer", state.players[2].name);
+    state.players.forEach((_, i) => { state.scores[i][0] = state.pars[0] + (i === 2 ? -1 : 2); });
+    state.currentHole = 8; // the current hole is drawn active, so park it away
+    renderHoleDots();
+    return document.querySelector(".hole-dot").className;
+  });
+  ok(/dot-under/.test(dots), "the strip reports the phone owner's hole, not player 1's", dots);
+
+  const orphan = await p.evaluate(() => {
+    state.players.forEach((_, i) => { state.scores[i][1] = i === 0 ? null : state.pars[1]; });
+    renderHoleDots();
+    return document.querySelectorAll(".hole-dot")[1].className;
+  });
+  ok(/dot-par/.test(orphan), "a hole only player 1 skipped is not reported as unplayed", orphan);
+
+  // Gross number, net label: a 4 and a stroke-adjusted 5 both printed
+  // "(Birdie)", on the screen that announces the money. Hole 4 is stroke
+  // index 1, so anyone getting shots is getting one here.
+  const seen = await p.evaluate(async () => {
+    const ph = getPlayingHandicaps();
+    const strokes = state.players.map((_, i) => getStrokesOnHole(ph[i], 3));
+    state.players.forEach((_, i) => { state.scores[i][3] = state.pars[3]; });
+    state.currentHole = 3;
+    await confirmHoleScores(3);
+    await new Promise((r) => setTimeout(r, 300));
+    return { strokes, rows: [...document.querySelectorAll(".hr-score")].map((e) => e.textContent.trim()) };
+  });
+  const stroking = seen.strokes.filter((n) => n > 0).length;
+  ok(seen.rows.length === 4, "the overlay lists the whole group", seen.rows.join(" | "));
+  ok(stroking > 0 && stroking < 4, "the roster has both stroking and scratch players", seen.strokes.join(","));
+
+  const arrows = seen.rows.filter((t) => /→/.test(t));
+  ok(arrows.length === stroking, "every player getting a shot shows gross and net", seen.rows.join(" | "));
+  ok(
+    arrows.every((t) => /^(\d+) → (\d+) \(/.test(t) && RegExp.$1 !== RegExp.$2),
+    "written as gross, then the net it settles on, then the label",
+    arrows.join(" | ")
+  );
+  ok(
+    seen.rows.filter((t) => !/→/.test(t)).length === 4 - stroking,
+    "players without a shot keep the single number",
+    seen.rows.join(" | ")
+  );
+
+  ok(errors.length === 0, "scoring screen: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
+// --------------------------------------------------------------------------
+section("Building a roster from the player database");
+// --------------------------------------------------------------------------
+// Adding four regulars used to leave a roster of eight -- four names plus the
+// four "Player N" placeholders the app seeds -- and nothing stopped two of
+// them wearing the same avatar colour, which is the only thing telling players
+// apart in the ribbon, the scorecard and the settlement rows.
+{
+  const { ctx, p, errors } = await page();
+  const NAMES10 = ["Ann", "Bo", "Cy", "Di", "Ed", "Fi", "Gus", "Hal", "Ivy", "Jo"];
+  // The fixed auth banner and tab bar overlay the roster card, so a real
+  // pointer click lands on them. Drive the same elements through the DOM --
+  // still no calls into the helpers under test.
+  const tap = (sel) =>
+    p.evaluate((q) => { const el = document.querySelector(q); if (!el) return false; el.click(); return true; }, sel);
+  const type = (sel, v) =>
+    p.evaluate(
+      ({ q, val }) => {
+        const el = document.querySelector(q);
+        if (!el) return false;
+        el.value = val;
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        return true;
+      },
+      { q: sel, val: v }
+    );
+  const reset = () =>
+    p.evaluate((ns) => {
+      localStorage.setItem(
+        "golfProfiles",
+        JSON.stringify(ns.map((name, i) => ({ name, hdcp: i, colorIdx: 0 })))
+      );
+      enterScreen("setup");
+      state.players = [];
+      addPlayer(); addPlayer(); addPlayer(); addPlayer();
+      renderPlayers();
+    }, NAMES10);
+
+  await reset();
+
+  // Click the chips the way a user does. Every seeded profile carries
+  // colorIdx 0, so keeping it would paint the whole roster one colour.
+  for (let i = 0; i < 4; i++) {
+    await tap(".saved-profile-btn");
+    await p.waitForTimeout(60);
+  }
+  const filled = await p.evaluate(() => ({
+    names: state.players.map((x) => x.name),
+    colours: state.players.map((x) => colorIdxOf(x)),
+  }));
+  ok(filled.names.length === 4, "four taps fill the four blank slots, not append to them", filled.names.join(","));
+  ok(!filled.names.some((n) => /^Player \d+$/.test(n)), "no placeholder survives", filled.names.join(","));
+  ok(new Set(filled.colours).size === 4, "no two players share an avatar colour", filled.colours.join(","));
+
+  const mixed = await p.evaluate(() => {
+    addPlayer();
+    return state.players.map((x) => colorIdxOf(x));
+  });
+  ok(new Set(mixed).size === mixed.length, "a hand-added player takes a free colour", mixed.join(","));
+
+  // A long database must not push the roster itself off the screen.
+  await reset();
+  const capped = await p.evaluate(() => ({
+    chips: document.querySelectorAll(".saved-profile-btn").length,
+    more: !!document.querySelector(".pdb-more"),
+    search: !!document.querySelector(".pdb-search"),
+  }));
+  ok(capped.chips <= 8, "a long database shows a capped list", `${capped.chips} chips`);
+  ok(capped.more, "with a way to see the rest");
+  ok(capped.search, "a long database offers a search box");
+
+  if (capped.search) {
+    await type(".pdb-search", "iv");
+    await p.waitForTimeout(120);
+    const hits = await p.evaluate(() =>
+      [...document.querySelectorAll(".saved-profile-btn")].map((b) => b.textContent)
+    );
+    ok(hits.length === 1 && /Ivy/.test(hits[0]), "search narrows the database", hits.join(","));
+    await type(".pdb-search", "");
+    await p.waitForTimeout(120);
+  }
+
+  // One row, one tap -- this used to be two sequential modal prompts.
+  await tap(".manage-profiles-btn");
+  await p.waitForTimeout(120);
+  const hasRow = await p.evaluate(() => !!document.querySelector(".mp-new-name"));
+  ok(hasRow, "Manage offers an inline row for a new player");
+  if (hasRow) {
+    await type(".mp-new-name", "Wendell");
+    await type(".mp-new-hdcp", "+2");
+    await tap(".mp-new-go");
+    await p.waitForTimeout(200);
+    const added = await p.evaluate(() => ({
+      saved: getSavedProfiles().find((x) => x.name === "Wendell"),
+      roster: state.players.map((x) => x.name),
+    }));
+    ok(!!added.saved, "the inline row saves a new player to the database");
+    ok(added.saved && added.saved.hdcp === -2, "a plus handicap is stored as a plus handicap", String(added.saved && added.saved.hdcp));
+    ok(added.roster.includes("Wendell"), "and puts them in the round you are setting up", added.roster.join(","));
+  }
+
+
+  // The likeliest roster by a mile is the same names as last Saturday, so it
+  // should be one tap rather than four searches.
+  await reset();
+  const offer = await p.evaluate(() => {
+    const b = document.querySelector(".pdb-group");
+    return b ? b.textContent.replace(/\s+/g, " ").trim() : null;
+  });
+  ok(!!offer, "a previous round is offered as a one-tap group", String(offer));
+  if (offer) {
+    await tap(".pdb-group");
+    await p.waitForTimeout(200);
+    const grouped = await p.evaluate(() => ({
+      names: state.players.map((x) => x.name),
+      colours: state.players.map((x) => colorIdxOf(x)),
+    }));
+    ok(grouped.names.length >= 2, "tapping it builds the roster", grouped.names.join(","));
+    ok(
+      !grouped.names.some((n) => /^Player \d+$/.test(n)) || grouped.names.length === 4,
+      "and fills the blank slots rather than appending past them",
+      grouped.names.join(",")
+    );
+    ok(
+      new Set(grouped.colours).size === grouped.colours.length,
+      "the group arrives in distinct colours",
+      grouped.colours.join(",")
+    );
+    ok(
+      offer.split(",").length >= 2 && grouped.names.some((n) => offer.includes(n)),
+      "the names it promised are the names it added",
+      `${offer} -> ${grouped.names.join(",")}`
+    );
+  }
+
+  ok(errors.length === 0, "player database: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
+// --------------------------------------------------------------------------
+section("The database cannot reopen the locked roster");
+// --------------------------------------------------------------------------
+// Scores and bets are keyed by player index, which is why addPlayer and
+// removePlayer refuse once a round is under way. The saved-profile chips were
+// not guarded, so tapping one mid-round pushed a player onto the roster and
+// desynced every index behind it.
+{
+  const { ctx, p, errors } = await page();
+  await p.evaluate(() => {
+    localStorage.setItem("golfProfiles", JSON.stringify([{ name: "Latecomer", hdcp: 5 }]));
+  });
+  await enterRoster(p, 4);
+  await p.waitForTimeout(200);
+  await p.evaluate(() => { selectGameType("skins"); startRound(); });
+  await p.waitForTimeout(300);
+  const after = await p.evaluate(() => {
+    const before = state.players.length;
+    addProfileByIndex(0);
+    return { before, after: state.players.length, started: state.started };
+  });
+  ok(after.started, "the round is under way");
+  ok(after.after === after.before, "a profile chip refuses to grow a locked roster", `${after.before} -> ${after.after}`);
+  ok(errors.length === 0, "locked roster: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
+// --------------------------------------------------------------------------
+section("Saying who you are");
+// --------------------------------------------------------------------------
+// Every "your" surface -- the season card, your take, your nemesis, the
+// handicap index, the hole strip -- reads one name, and nothing ever wrote
+// it: it was guessed from round history with no way to correct it. Driven
+// through the DOM and pre-existing globals only.
+{
+  const { ctx, p, errors } = await page();
+  const clear = () => p.evaluate(() => { try { localStorage.removeItem("primaryPlayer"); } catch (e) {} });
+
+  // A roster of blank slots is not a question anyone can answer.
+  await clear();
+  await p.evaluate(() => {
+    enterScreen("setup");
+    state.players = [];
+    addPlayer(); addPlayer();
+    renderPlayers();
+  });
+  await p.waitForTimeout(150);
+  ok(
+    !(await p.evaluate(() => !!document.querySelector(".whoami"))),
+    "placeholder slots raise no question"
+  );
+
+  await enterRoster(p, 4);
+  await p.evaluate(() => enterScreen("setup"));
+  await p.waitForTimeout(200);
+  const asked = await p.evaluate(() => ({
+    shown: !!document.querySelector(".whoami"),
+    names: [...document.querySelectorAll(".whoami-pick")].map((b) => b.dataset.name),
+  }));
+  ok(asked.shown, "a real roster is asked which one is you");
+  ok(asked.names.length === 4, "every player in the round is offered", asked.names.join(","));
+
+  // Guarded so the rest of the section still runs (and still reports) when the
+  // prompt is missing entirely, rather than taking the suite down with it.
+  const picked = await p.evaluate(() => {
+    const btns = [...document.querySelectorAll(".whoami-pick")];
+    if (!btns.length) return null;
+    const want = btns[2].dataset.name;
+    btns[2].click();
+    return {
+      want,
+      stored: localStorage.getItem("primaryPlayer"),
+      resolved: getPrimaryPlayerName(),
+      stillAsking: !!document.querySelector(".whoami"),
+    };
+  });
+  ok(!!picked, "there is something to pick");
+  if (picked) {
+    ok(picked.stored === picked.want, "picking writes it down", `${picked.stored} vs ${picked.want}`);
+    ok(picked.resolved === picked.want, "and it is what the app reads back", picked.resolved);
+    ok(!picked.stillAsking, "and the question retires once answered");
+  }
+
+  // The point of all this: it has to move the numbers.
+  const downstream = await p.evaluate(async () => {
+    const read = async (who) => {
+      localStorage.setItem("primaryPlayer", who);
+      showScreen("home");
+      await new Promise((r) => setTimeout(r, 250));
+      const el = document.querySelector(".ss-v");
+      return el ? el.textContent.trim() : null;
+    };
+    const names = state.players.map((x) => x.name);
+    return { a: await read(names[0]), b: await read(names[1]), names };
+  });
+  ok(
+    downstream.a && downstream.b && downstream.a !== downstream.b,
+    "the season card follows whoever you say you are",
+    `${downstream.names[0]}=${downstream.a} ${downstream.names[1]}=${downstream.b}`
+  );
+
+  // Settings is where you go to change it later.
+  const settings = await p.evaluate(() => {
+    showSettings();
+    const sel = document.getElementById("settings-me");
+    return {
+      exists: !!sel,
+      value: sel && sel.value,
+      options: sel ? [...sel.options].map((o) => o.value) : [],
+    };
+  });
+  ok(settings.exists, "Settings offers a way to change it");
+  if (settings.exists) {
+    ok(
+      settings.value === downstream.names[1],
+      "it opens on whoever you currently are",
+      `${settings.value} vs ${downstream.names[1]}`
+    );
+    ok(
+      !settings.options.some((n) => /^Player \d+$/.test(n)),
+      "blank roster slots are not offered as people you could be",
+      settings.options.join(",")
+    );
+  }
+
+  // The You screen used to render "Set your player" as text with no handler --
+  // an instruction that could not be followed.
+  const youSet = await p.evaluate(() => {
+    closeModal("settings-modal");
+    showScreen("you");
+    const b = document.querySelector(".you-whoami");
+    return { tag: b && b.tagName, text: b && b.textContent };
+  });
+  ok(youSet.tag === "BUTTON", "the You screen identity line is a button", String(youSet.tag));
+  ok(/change/i.test(youSet.text || ""), "which offers to change it", String(youSet.text));
+
+  await clear();
+  const youUnset = await p.evaluate(() => {
+    showScreen("you");
+    const b = document.querySelector(".you-whoami");
+    return b && b.textContent;
+  });
+  ok(/set who you are/i.test(youUnset || ""), "and says so plainly when nobody has said", String(youUnset));
+
+  ok(errors.length === 0, "who you are: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
