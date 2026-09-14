@@ -282,3 +282,8 @@ viewport currently gets 540px of app and two cream margins. Two cheap options:
 | 12 | Wide Watch layout (§4a) | M | New surface from existing code |
 | 13 | Landscape scoring (§1e) | M | Cart use |
 | 14 | Print scorecard (§4b) | S | Clubhouse |
+
+---
+
+A second pass, on interaction and flow rather than layout, is in
+[`design-ideas-2.md`](./design-ideas-2.md).
