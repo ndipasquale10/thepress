@@ -229,6 +229,43 @@ if dark:
         ':root[data-theme="broadcast"].'
     )
 
+# --- Structural integrity -------------------------------------------------
+# Everything above is a text scan, which is blind to whether a rule still
+# parses. A rule inserted between two selectors of an existing list voids that
+# whole list, and every declaration it carried silently stops applying -- that
+# is how the 44px tap-target expanders were switched off while this audit
+# still reported a clean sheet. These two checks read the stylesheet as
+# structure, so a rule that can no longer apply fails the build.
+_body = re.sub(r"</?style[^>]*>", "", css)
+# Quoted payloads (data URIs, content:"...") may hold braces and semicolons.
+_scan = re.sub(r'"(?:[^"\\]|\\.)*"', '""', _body)
+_scan = re.sub(r"'(?:[^'\\]|\\.)*'", "''", _scan)
+# Statement at-rules end at a semicolon and carry no block of their own.
+_scan = re.sub(r"@(?:import|charset|namespace)[^;{}]*;", "", _scan)
+
+_open_n, _close_n = _scan.count("{"), _scan.count("}")
+report.append(f"{'css brace balance':<34}: {_open_n:>4} open / {_close_n} close")
+if _open_n != _close_n:
+    failures.append(
+        f"css braces unbalanced: {_open_n} open vs {_close_n} close. A rule is "
+        "cut in half, so the stylesheet no longer parses as written."
+    )
+
+_malformed = []
+for _m in re.finditer(r"([^{}]*)\{", _scan):
+    _sel = _m.group(1).strip()
+    if not _sel:
+        _malformed.append("(empty selector)")
+    elif ("@" in _sel and not _sel.startswith("@")) or ";" in _sel:
+        _malformed.append(" ".join(_sel.split())[:70])
+report.append(f"{'malformed selectors':<34}: {len(_malformed):>4}")
+for _s in _malformed:
+    failures.append(
+        f"malformed selector {_s!r}: an at-rule or declaration landed inside a "
+        "selector list, which voids the entire rule. Add new rules between "
+        "complete rules, never between two selectors."
+    )
+
 print("\n".join(report))
 
 if failures:
