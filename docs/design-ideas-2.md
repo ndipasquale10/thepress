@@ -156,7 +156,7 @@ app should say when it's guessing.
 
 ## D. Live rounds fight the second phone
 
-### D1. A live update yanks you to someone else's hole
+### D1. A live update yanks you to someone else's hole  ✅ *shipped*
 
 ```js
 liveUnsubscribe = db.collection("liveRounds").doc(e).onSnapshot(e=>{
@@ -209,7 +209,7 @@ box, "point your phone at mine" beats every alternative. QR generation is
 
 ---
 
-## E. The hole-result overlay reports things that aren't true
+## E. The hole-result overlay reports things that aren't true  ✅ *E1 shipped*
 
 Driven on hole 8 with Big Dave at 4 and Tommy P at 5 (Tommy gets a stroke),
 the overlay renders:
@@ -298,7 +298,7 @@ Give it a scrim, `role="dialog"`, an Escape handler, and focus on par.
 
 ---
 
-## G. The hole navigator narrates player 0's round
+## G. The hole navigator narrates player 0's round  ✅ *shipped*
 
 ```js
 if (!a && null != state.scores[0]?.[t]) {
@@ -389,9 +389,9 @@ Ranked by (value to the user) ÷ (effort), not by severity:
 
 | # | Change | Effort | Why first |
 |---|---|---|---|
-| 1 | Don't replicate `currentHole` (§D1) | XS | One line; removes a baffling bug |
-| 2 | Hole dots key off hole state, not `scores[0]` (§G) | XS | One line; the rail becomes true |
-| 3 | Fix `5 (Birdie)` → `5 → 4 (Birdie)` (§E1) | XS | One line; stops an argument |
+| ~~1~~ | ~~Don't replicate `currentHole` (§D1)~~ | — | **Shipped** |
+| ~~2~~ | ~~Hole dots key off the phone owner, not `scores[0]` (§G)~~ | — | **Shipped** |
+| ~~3~~ | ~~Fix `5 (Birdie)` → `5 → 4 (Birdie)` (§E1)~~ | — | **Shipped** |
 | 4 | Escape + scrim + focus-on-par for the picker (§F4) | S | Basic modal hygiene |
 | 5 | Name who's about to get a par on confirm (§F3) | S | Matches `finishRound`'s care |
 | 6 | "You're playing as" in Settings (§C) | S | Unlocks every personalised surface |
@@ -402,3 +402,26 @@ Ranked by (value to the user) ÷ (effort), not by severity:
 | 11 | Handle prompt at point of payment (§A2) | S | Makes §A actually usable |
 | 12 | Presence / soft lock on live rounds (§D2) | L | Turns a data race into a social one |
 | 13 | Glare skin (§H2) | S | Tokens only; big real-world payoff |
+
+---
+
+## Shipped since this was written
+
+- **§D1** — `currentHole` is no longer replicated to joined editors; spectators
+  still follow the host.
+- **§E1** — the hole-result overlay writes `5 → 4 (Birdie)` when a stroke
+  applies, so a gross 4 and a stroke-adjusted 5 no longer read identically.
+- **§G** — the hole strip reads the phone owner's card, resolved through
+  `primaryPlayer`, instead of `state.scores[0]`.
+
+Also shipped, from outside this list: the player database was reworked —
+ranked by who you actually play with, searchable and capped, a one-tap "add
+last group", an inline new-player row in place of two modal prompts, roster
+slots filled rather than appended, no two players sharing an avatar colour,
+and the saved-profile chips brought under the same roster lock as
+`addPlayer`/`removePlayer` (they were an unguarded path into the index
+desync those guards exist to prevent).
+
+§C remains the open prerequisite for §G: `primaryPlayer` is still never
+written in production code, so the hole strip falls back to player 1 until
+someone sets it. "You're playing as" in Settings is the missing piece.
