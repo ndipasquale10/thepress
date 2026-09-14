@@ -148,6 +148,19 @@ h1,h2,.brand-seal span,.welcome-title,.games-title,.es-title,.hole-big{font-synt
 :root[data-theme="broadcast"] .pdb-group:hover{border-color:var(--accent);}
 :root[data-theme="broadcast"] .spb-n{background:var(--rule-dark);color:var(--muted-2);}
 :root[data-theme="broadcast"] .mp-new{border-color:var(--rule-dark);}
+/* "Which one is you?" — the one-time roster prompt, and the identity line on the You screen. */
+.whoami{margin-bottom:var(--sp-6);padding:var(--sp-6);border:var(--bw-strong) solid var(--accent);border-radius:var(--radius);background:var(--press-surface);}
+.whoami-k{font-size:var(--fs-2xs);font-weight:700;text-transform:uppercase;letter-spacing:var(--ls-label);color:var(--accent);margin-bottom:var(--sp-4);}
+.whoami-row{display:flex;flex-wrap:wrap;gap:var(--sp-3);}
+.whoami-pick{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-6);border:var(--bw-strong) solid var(--rule-strong);border-radius:var(--radius-pill);background:var(--card);color:var(--ink);font-family:inherit;font-size:var(--fs-sm);font-weight:700;cursor:pointer;transition:all var(--dur) var(--ease);}
+.whoami-pick:hover{background:var(--accent);color:var(--btn-ink);border-color:var(--accent);}
+.whoami-why{margin-top:var(--sp-4);font-size:var(--fs-2xs);color:var(--muted);}
+.you-whoami{display:block;margin-top:var(--sp-3);padding:0;border:none;background:none;color:var(--accent);font-family:inherit;font-size:var(--fs-2xs);font-weight:700;letter-spacing:var(--ls-label);text-transform:uppercase;text-align:left;cursor:pointer;}
+.you-whoami:hover{text-decoration:underline;}
+:root[data-theme="broadcast"] .whoami{background:var(--card);border-color:var(--accent);}
+:root[data-theme="broadcast"] .whoami-k{color:var(--gold-t);}
+:root[data-theme="broadcast"] .whoami-pick{background:var(--bg-deep);border-color:var(--rule-dark);color:var(--ink-hi);}
+:root[data-theme="broadcast"] .whoami-pick:hover{background:var(--accent);color:var(--btn-ink);}
 </style></head><body>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -695,7 +708,23 @@ function rankProfiles(list){
    button. The roster is the basis of every bet already placed, so it is
    locked for the duration rather than remapped. */
 function rosterLocked(){return!!state.started&&(showToast("The roster is locked once the round starts \u2014 every score and bet is tied to it.",{type:"info"}),!0)}
-function removePlayer(e){if(rosterLocked())return;state.players.length<=1?showToast("At least 1 player required",{type:"info"}):(state.players.splice(e,1),renderPlayers())}let _pEdit=new Set();let _manageOpen=!1;let _pdbQuery="",_pdbExpanded=!1;const PDB_VISIBLE=8,PDB_SEARCH_MIN=8;
+function removePlayer(e){if(rosterLocked())return;state.players.length<=1?showToast("At least 1 player required",{type:"info"}):(state.players.splice(e,1),renderPlayers())}let _pEdit=new Set();let _manageOpen=!1;/* Shown above the roster only while nobody has said who they are, and gone for
+   good once they do. Settings can change it later; this is the one moment the
+   question answers itself, because the names are right there being typed. */
+function whoAmIPromptHTML(){
+  if(!primaryPlayerIsGuess())return"";
+  const named=(state.players||[]).filter(p=>p&&String(p.name||"").trim()&&!isPlaceholderPlayer(p));
+  if(named.length<2)return"";
+  return'<div class="whoami"><div class="whoami-k">Which one is you?</div>'
+    +'<div class="whoami-row">'+named.map(p=>
+      '<button type="button" class="whoami-pick" onclick="pickMe(this.dataset.name)" data-name="'+esc(p.name)+'">'
+      +avatarHTML(p,16)+esc(p.name)+'</button>').join("")
+    +'</div><div class="whoami-why">Sets whose money the season screens are about.</div></div>'
+}
+function pickMe(name){
+  setPrimaryPlayer(name)&&showToast("You’re playing as "+name+". Change it in Settings.",{type:"success"})
+}
+let _pdbQuery="",_pdbExpanded=!1;const PDB_VISIBLE=8,PDB_SEARCH_MIN=8;
 function expandProfileList(){_pdbExpanded=!0,renderPlayers()}
 /* Opening a player's edit drawer is pure CSS (.player-card.editing .player-edit),
    so toggle the one card's class. A full renderPlayers() here would rebuild every
@@ -725,7 +754,7 @@ if(shown.length){
   s+="</div>";
   hits.length>shown.length&&(s+='<button type="button" class="pdb-more" onclick="expandProfileList()">Show all '+hits.length+' →</button>')
 }else s+='<div class="pdb-empty hint">'+(_q?"No saved player matches that.":t.length?"Everyone saved is already in the roster.":"No saved players yet — tap Manage to add your regulars.")+"</div>";
-s+='<div id="manage-profiles" class="manage-profiles'+(_manageOpen?'':' hidden')+'">',t.forEach(function(e,t){s+='<div class="manage-profile-row">',s+=avatarHTML(e,10),s+='<input type="text" class="mp-name" value="'+esc(e.name)+'" data-idx="'+t+'">',s+='<input type="text" inputmode="decimal" class="mp-hdcp" value="'+fmtHdcp(e.hdcp)+'" maxlength="5" data-idx="'+t+'" aria-label="Handicap index — type + for a plus handicap">',s+='<button type="button" class="mp-color" data-idx="'+t+'" data-color="'+esc(playerColor(e))+'" style="background:'+esc(playerColor(e))+'" onclick="openColorPicker(\'profile\','+t+')" aria-label="Change color"></button>',s+='<button class="mp-del" onclick="deleteProfile('+t+')" aria-label="Delete saved player">\u2715</button>',s+="</div>"}),s+='<div class="mp-new"><input type="text" class="mp-new-name" placeholder="Add a player…" aria-label="New player name" maxlength="24" autocomplete="off">'+'<input type="text" inputmode="decimal" class="mp-new-hdcp" placeholder="Hdcp" aria-label="New player handicap index — type + for a plus handicap" maxlength="5">'+'<button type="button" class="btn secondary mp-new-go" onclick="addNewProfile()">Add</button></div>',s+='<div class="manage-profile-actions">',s+='<button class="btn secondary" onclick="saveEditedProfiles()" style="flex:1">Save Changes</button>',s+="</div></div></div>",state.players.forEach((t,a)=>{s+=`<div class="player-card${_pEdit.has(a)?" editing":""}" data-pidx="${a}"><div class="roster-line"><button type="button" class="roster-mono" onclick="openColorPicker('roster',${a})" aria-label="Change player color">${avatarHTML(t,26)}</button><input type="text" value="${esc(t.name)}" placeholder="Player name" aria-label="Player name" data-idx="${a}" class="pname"><span class="roster-hdcp">Hdcp <b>${t.hdcp<0?"+"+Math.abs(t.hdcp):t.hdcp}</b></span><button class="roster-edit" onclick="togglePlayerEdit(${a})" aria-label="Edit player">✎</button><button class="remove-btn" onclick="removePlayer(${a})" aria-label="Remove player">✕</button></div><div class="player-edit"><label>Handicap Index</label><div class="hdcp-input-wrap"><button onclick="adjHdcp(${a},-1)">−</button><input type="text" inputmode="decimal" class="hdcp" value="${fmtHdcp(t.hdcp)}" maxlength="5" data-idx="${a}" aria-label="Handicap index — type + for a plus handicap"><button onclick="adjHdcp(${a},1)">+</button></div><label class="pvenmo-label">Venmo</label><input type="text" class="pvenmo" value="${esc(t.venmo||"")}" data-idx="${a}" placeholder="@handle" aria-label="Venmo username" autocapitalize="off" autocorrect="off" spellcheck="false"><label class="pvenmo-label">Cash App</label><input type="text" class="pvenmo pcashapp" value="${esc(t.cashapp||"")}" data-idx="${a}" placeholder="$cashtag" aria-label="Cash App cashtag" autocapitalize="off" autocorrect="off" spellcheck="false"><label class="pvenmo-label">PayPal</label><input type="text" class="pvenmo ppaypal" value="${esc(t.paypal||"")}" data-idx="${a}" placeholder="paypal.me name" aria-label="PayPal.me name" autocapitalize="off" autocorrect="off" spellcheck="false"></div></div>`}),e.innerHTML=s,e.querySelectorAll(".pname").forEach(e=>e.addEventListener("input",e=>{state.players[+e.target.dataset.idx].name=e.target.value})),e.querySelectorAll(".pvenmo:not(.pcashapp):not(.ppaypal)").forEach(e=>e.addEventListener("input",e=>{state.players[+e.target.dataset.idx].venmo=e.target.value.trim()})),e.querySelectorAll(".pcashapp").forEach(e=>e.addEventListener("input",e=>{state.players[+e.target.dataset.idx].cashapp=e.target.value.trim()})),e.querySelectorAll(".ppaypal").forEach(e=>e.addEventListener("input",e=>{state.players[+e.target.dataset.idx].paypal=e.target.value.trim()})),e.querySelectorAll(".hdcp").forEach(e=>e.addEventListener("change",e=>{const p=state.players[+e.target.dataset.idx];p.hdcp=parseHdcp(e.target.value),p._hdcpTouched=!0}));const _sb=e.querySelector(".pdb-search");_sb&&_sb.addEventListener("input",ev=>{_pdbQuery=ev.target.value,_pdbExpanded=!1,renderPlayers()});const _nn=e.querySelector(".mp-new-name"),_nh=e.querySelector(".mp-new-hdcp");[_nn,_nh].forEach(el=>el&&el.addEventListener("keydown",ev=>{"Enter"===ev.key&&(ev.preventDefault(),addNewProfile())}));restoreRosterFocus(e,_f);syncWolfUnevenOpts()}
+s+='<div id="manage-profiles" class="manage-profiles'+(_manageOpen?'':' hidden')+'">',t.forEach(function(e,t){s+='<div class="manage-profile-row">',s+=avatarHTML(e,10),s+='<input type="text" class="mp-name" value="'+esc(e.name)+'" data-idx="'+t+'">',s+='<input type="text" inputmode="decimal" class="mp-hdcp" value="'+fmtHdcp(e.hdcp)+'" maxlength="5" data-idx="'+t+'" aria-label="Handicap index — type + for a plus handicap">',s+='<button type="button" class="mp-color" data-idx="'+t+'" data-color="'+esc(playerColor(e))+'" style="background:'+esc(playerColor(e))+'" onclick="openColorPicker(\'profile\','+t+')" aria-label="Change color"></button>',s+='<button class="mp-del" onclick="deleteProfile('+t+')" aria-label="Delete saved player">\u2715</button>',s+="</div>"}),s+='<div class="mp-new"><input type="text" class="mp-new-name" placeholder="Add a player…" aria-label="New player name" maxlength="24" autocomplete="off">'+'<input type="text" inputmode="decimal" class="mp-new-hdcp" placeholder="Hdcp" aria-label="New player handicap index — type + for a plus handicap" maxlength="5">'+'<button type="button" class="btn secondary mp-new-go" onclick="addNewProfile()">Add</button></div>',s+='<div class="manage-profile-actions">',s+='<button class="btn secondary" onclick="saveEditedProfiles()" style="flex:1">Save Changes</button>',s+="</div></div></div>",s+=whoAmIPromptHTML(),state.players.forEach((t,a)=>{s+=`<div class="player-card${_pEdit.has(a)?" editing":""}" data-pidx="${a}"><div class="roster-line"><button type="button" class="roster-mono" onclick="openColorPicker('roster',${a})" aria-label="Change player color">${avatarHTML(t,26)}</button><input type="text" value="${esc(t.name)}" placeholder="Player name" aria-label="Player name" data-idx="${a}" class="pname"><span class="roster-hdcp">Hdcp <b>${t.hdcp<0?"+"+Math.abs(t.hdcp):t.hdcp}</b></span><button class="roster-edit" onclick="togglePlayerEdit(${a})" aria-label="Edit player">✎</button><button class="remove-btn" onclick="removePlayer(${a})" aria-label="Remove player">✕</button></div><div class="player-edit"><label>Handicap Index</label><div class="hdcp-input-wrap"><button onclick="adjHdcp(${a},-1)">−</button><input type="text" inputmode="decimal" class="hdcp" value="${fmtHdcp(t.hdcp)}" maxlength="5" data-idx="${a}" aria-label="Handicap index — type + for a plus handicap"><button onclick="adjHdcp(${a},1)">+</button></div><label class="pvenmo-label">Venmo</label><input type="text" class="pvenmo" value="${esc(t.venmo||"")}" data-idx="${a}" placeholder="@handle" aria-label="Venmo username" autocapitalize="off" autocorrect="off" spellcheck="false"><label class="pvenmo-label">Cash App</label><input type="text" class="pvenmo pcashapp" value="${esc(t.cashapp||"")}" data-idx="${a}" placeholder="$cashtag" aria-label="Cash App cashtag" autocapitalize="off" autocorrect="off" spellcheck="false"><label class="pvenmo-label">PayPal</label><input type="text" class="pvenmo ppaypal" value="${esc(t.paypal||"")}" data-idx="${a}" placeholder="paypal.me name" aria-label="PayPal.me name" autocapitalize="off" autocorrect="off" spellcheck="false"></div></div>`}),e.innerHTML=s,e.querySelectorAll(".pname").forEach(e=>e.addEventListener("input",e=>{state.players[+e.target.dataset.idx].name=e.target.value})),e.querySelectorAll(".pvenmo:not(.pcashapp):not(.ppaypal)").forEach(e=>e.addEventListener("input",e=>{state.players[+e.target.dataset.idx].venmo=e.target.value.trim()})),e.querySelectorAll(".pcashapp").forEach(e=>e.addEventListener("input",e=>{state.players[+e.target.dataset.idx].cashapp=e.target.value.trim()})),e.querySelectorAll(".ppaypal").forEach(e=>e.addEventListener("input",e=>{state.players[+e.target.dataset.idx].paypal=e.target.value.trim()})),e.querySelectorAll(".hdcp").forEach(e=>e.addEventListener("change",e=>{const p=state.players[+e.target.dataset.idx];p.hdcp=parseHdcp(e.target.value),p._hdcpTouched=!0}));const _sb=e.querySelector(".pdb-search");_sb&&_sb.addEventListener("input",ev=>{_pdbQuery=ev.target.value,_pdbExpanded=!1,renderPlayers()});const _nn=e.querySelector(".mp-new-name"),_nh=e.querySelector(".mp-new-hdcp");[_nn,_nh].forEach(el=>el&&el.addEventListener("keydown",ev=>{"Enter"===ev.key&&(ev.preventDefault(),addNewProfile())}));restoreRosterFocus(e,_f);syncWolfUnevenOpts()}
 /* Rebuilding the roster replaces every input node, so a render triggered while
    someone is mid-entry would otherwise blur the field they are typing in --
    on a phone that closes the keyboard and loses their place. Remember which
@@ -1326,6 +1355,51 @@ function showScreen(name){
   if("scoring"===name&&!state.started)return void enterScreen(getAllRounds().some(r=>!r.finished&&r.started)?"home":"games");
   enterScreen(name)
 }
+/* Every "your" surface in the app -- the season card, your take, your nemesis,
+   the handicap index, the trophy case, the hole strip -- hangs off this one
+   name, and nothing ever wrote it: getPrimaryPlayerName() guessed from round
+   history and the app never said so or let you correct it. Score for the group
+   on your phone with somebody else typed in first and the whole app quietly
+   narrates their season as yours. */
+function setPrimaryPlayer(name){
+  const n=String(name||"").trim();
+  if(!n)return!1;
+  if(!safeSetItem("primaryPlayer",n))return!1;
+  haptic();
+  /* Repaint whatever is reading the name. The setup screen's enter() is a
+     deliberate no-op -- it would trample a half-typed roster -- so the roster
+     is refreshed by hand here, which is also what retires the prompt. */
+  try{SCREENS[_currentScreen]&&SCREENS[_currentScreen].enter&&SCREENS[_currentScreen].enter()}catch(e){}
+  try{document.getElementById("setup-screen").classList.contains("hidden")||renderPlayers()}catch(e){}
+  try{state.started&&!document.getElementById("scoring-screen").classList.contains("hidden")&&renderHole()}catch(e){}
+  return!0
+}
+function primaryPlayerOptionsHTML(){
+  const me=getPrimaryPlayerName(),names=knownPlayerNames();
+  return names.length
+    ?names.map(n=>'<option value="'+esc(n)+'"'+(n===me?" selected":"")+">"+esc(n)+"</option>").join("")
+    :'<option value="">Nobody entered yet</option>'
+}
+function primaryPlayerIsGuess(){
+  try{return!localStorage.getItem("primaryPlayer")}catch(e){return!0}
+}
+/* Everyone this phone has ever entered: the saved database, every roster in
+   the history, and whoever is in the round being set up. A name stored from an
+   older build stays in the list even if it matches nothing, so picking it again
+   is always possible. */
+function knownPlayerNames(){
+  const seen=new Map(),add=n=>{
+    const t=String(n||"").trim();
+    t&&!seen.has(t.toLowerCase())&&seen.set(t.toLowerCase(),t)
+  };
+  /* "Player 3" is a blank roster slot, not somebody you could be. */
+  (state.players||[]).forEach(p=>isPlaceholderPlayer(p)||add(p&&p.name));
+  getSavedProfiles().forEach(p=>add(p&&p.name));
+  getAllRounds().forEach(r=>(r&&r.players||[]).forEach(p=>add(p&&p.name)));
+  let stored=null;try{stored=localStorage.getItem("primaryPlayer")}catch(e){}
+  add(stored);
+  return[...seen.values()].sort((a,b)=>a.localeCompare(b))
+}
 function getPrimaryPlayerName(){
   let stored=null;try{stored=localStorage.getItem("primaryPlayer")}catch(e){}
   if(stored)return stored;
@@ -1592,9 +1666,11 @@ function renderYou(){
   const hcp=me?computeHandicapIndex(me):{index:null,series:[],rounds:0},
         trend=hcp.series.length>1?hcp.series[hcp.series.length-1]-hcp.series[0]:0;
   let h='<div class="card you-card">'+avatarHTML({name:me||"?",color:playerColor(mine||{})},52)
-    +'<div class="you-id"><div class="you-name">'+esc(me||"Set your player")+'</div><div class="hint">'
+    +'<div class="you-id"><div class="you-name">'+esc(me||"No player set")+'</div><div class="hint">'
     +(null!=hcp.index?'Handicap <b class="num">'+hcp.index.toFixed(1)+"</b>"+(trend<-.05?" · trending down":trend>.05?" · trending up":""):mine?mine.rounds+" rounds this season":"No rounds yet")
-    +'</div></div>'+(hcp.series.length>1?'<canvas id="hcp-spark" width="88" height="42" class="hcp-spark" aria-label="Handicap trend"></canvas>':"")+'</div>';
+    +'</div><button type="button" class="you-whoami" onclick="showSettings()">'
+      +(primaryPlayerIsGuess()?'Not you? Set who you are':'Playing as '+esc(me||"\u2014")+' \u00b7 change')
+    +'</button></div>'+(hcp.series.length>1?'<canvas id="hcp-spark" width="88" height="42" class="hcp-spark" aria-label="Handicap trend"></canvas>':"")+'</div>';
   if(mine){
     const winPct=mine.rounds?Math.round(100*mine.wins/mine.rounds):0;
     h+='<div class="stat-grid">'
@@ -1780,7 +1856,10 @@ function seedDemoData(){
 }
 function loadDemoSeason(){const n=seedDemoData();closeModal("settings-modal"),updateNavCounts(),enterScreen("home"),showToast("Loaded a demo season — "+n+" rounds.")}
 function clearDemoData(){if(!window.__PRESS_DEMO__)return;["golfRounds","golfProfiles","primaryPlayer"].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}}),closeModal("settings-modal"),updateNavCounts(),enterScreen("home"),showToast("Demo data cleared.")}
-function showSettings(){const e=document.getElementById("settings-content"),t=document.body.classList.contains("dark");e.innerHTML=`\n    <div class="settings-label">Round Defaults</div><div class="settings-section">\n      <div class="settings-row" onclick="toggleDarkMode()" role="button" tabindex="0"><span>Broadcast Skin <small style="display:block;font-size:0.72rem;color:var(--muted);font-weight:500">Odds-board look. Off = Clubhouse scorecard.</small></span><span class="ui-switch" aria-hidden="true"><span class="ui-switch-knob"></span></span></div>\n      <div class="settings-row"><span>Default Game</span><select id="settings-game" onchange="saveDefaultGame(this.value)">${["none","wolf","nassau","skins","match","stableford","bingo","dots","vegas","snake","sixes","banker"].map(e=>'<option value="'+e+'"'+(localStorage.getItem("defaultGame")===e||!localStorage.getItem("defaultGame")&&"wolf"===e?" selected":"")+">"+(GAME_NAMES[e]||e)+"</option>").join("")}</select></div>\n      <div class="settings-row"><span>Default Holes</span><div class="hole-toggle settings-holes-toggle" role="group" aria-label="Default holes"><button class="hole-toggle-btn ${"18"===localStorage.getItem("defaultHoles")?"":"active"}" onclick="saveDefaultHoles('9');this.classList.add('active');this.nextElementSibling.classList.remove('active')">9</button><button class="hole-toggle-btn ${"18"===localStorage.getItem("defaultHoles")?"active":""}" onclick="saveDefaultHoles('18');this.classList.add('active');this.previousElementSibling.classList.remove('active')">18</button></div></div>\n    </div>\n    <div class="settings-label">Legal</div><div class="settings-section">\n      <div class="settings-row" onclick="showLegal('privacy')" role="button" tabindex="0"><span>Privacy Policy</span><span>→</span></div>\n      <div class="settings-row" onclick="showLegal('terms')" role="button" tabindex="0"><span>Terms of Service</span><span>→</span></div>\n    </div>\n    <div class="settings-label">Help &amp; Data</div><div class="settings-section">\n      <div class="settings-row" onclick="showGuide()" role="button" tabindex="0"><span>How to Play &amp; Features</span><span>→</span></div>\n      <div class="settings-row" onclick="showOnboarding()" role="button" tabindex="0"><span>Quick Tour</span><span>→</span></div>\n      <div class="settings-row" onclick="exportAllData()" role="button" tabindex="0"><span>Export Data</span><span>→</span></div>\n      <div class="settings-row" onclick="document.getElementById('import-file-input').click()" role="button" tabindex="0"><span>Import Data</span><span>→</span></div><input type="file" id="import-file-input" accept="application/json" class="hidden" onchange="handleImportFile(event)">\n    </div>\n    ${window.__PRESS_DEMO__?`<div class="settings-label">Demo</div><div class="settings-section">
+function showSettings(){const e=document.getElementById("settings-content"),t=document.body.classList.contains("dark");e.innerHTML=`\n    <div class="settings-label">You</div><div class="settings-section">
+      <div class="settings-row"><span>You’re playing as<small style="display:block;font-size:0.72rem;color:var(--muted);font-weight:500">${primaryPlayerIsGuess()?"Guessed from your round history — pick yourself so every “your” total is really yours.":"Every “your” total in the app is read off this name."}</small></span><select id="settings-me" aria-label="Which player are you" onchange="setPrimaryPlayer(this.value)">${primaryPlayerOptionsHTML()}</select></div>
+    </div>
+    <div class="settings-label">Round Defaults</div><div class="settings-section">\n      <div class="settings-row" onclick="toggleDarkMode()" role="button" tabindex="0"><span>Broadcast Skin <small style="display:block;font-size:0.72rem;color:var(--muted);font-weight:500">Odds-board look. Off = Clubhouse scorecard.</small></span><span class="ui-switch" aria-hidden="true"><span class="ui-switch-knob"></span></span></div>\n      <div class="settings-row"><span>Default Game</span><select id="settings-game" onchange="saveDefaultGame(this.value)">${["none","wolf","nassau","skins","match","stableford","bingo","dots","vegas","snake","sixes","banker"].map(e=>'<option value="'+e+'"'+(localStorage.getItem("defaultGame")===e||!localStorage.getItem("defaultGame")&&"wolf"===e?" selected":"")+">"+(GAME_NAMES[e]||e)+"</option>").join("")}</select></div>\n      <div class="settings-row"><span>Default Holes</span><div class="hole-toggle settings-holes-toggle" role="group" aria-label="Default holes"><button class="hole-toggle-btn ${"18"===localStorage.getItem("defaultHoles")?"":"active"}" onclick="saveDefaultHoles('9');this.classList.add('active');this.nextElementSibling.classList.remove('active')">9</button><button class="hole-toggle-btn ${"18"===localStorage.getItem("defaultHoles")?"active":""}" onclick="saveDefaultHoles('18');this.classList.add('active');this.previousElementSibling.classList.remove('active')">18</button></div></div>\n    </div>\n    <div class="settings-label">Legal</div><div class="settings-section">\n      <div class="settings-row" onclick="showLegal('privacy')" role="button" tabindex="0"><span>Privacy Policy</span><span>→</span></div>\n      <div class="settings-row" onclick="showLegal('terms')" role="button" tabindex="0"><span>Terms of Service</span><span>→</span></div>\n    </div>\n    <div class="settings-label">Help &amp; Data</div><div class="settings-section">\n      <div class="settings-row" onclick="showGuide()" role="button" tabindex="0"><span>How to Play &amp; Features</span><span>→</span></div>\n      <div class="settings-row" onclick="showOnboarding()" role="button" tabindex="0"><span>Quick Tour</span><span>→</span></div>\n      <div class="settings-row" onclick="exportAllData()" role="button" tabindex="0"><span>Export Data</span><span>→</span></div>\n      <div class="settings-row" onclick="document.getElementById('import-file-input').click()" role="button" tabindex="0"><span>Import Data</span><span>→</span></div><input type="file" id="import-file-input" accept="application/json" class="hidden" onchange="handleImportFile(event)">\n    </div>\n    ${window.__PRESS_DEMO__?`<div class="settings-label">Demo</div><div class="settings-section">
       <div class="settings-row" onclick="loadDemoSeason()" role="button" tabindex="0"><span>Load demo season</span><span>→</span></div>
       <div class="settings-row" onclick="clearDemoData()" role="button" tabindex="0"><span>Clear demo data</span><span>→</span></div>
     </div>`:""}

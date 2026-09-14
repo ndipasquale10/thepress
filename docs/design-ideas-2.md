@@ -121,7 +121,7 @@ have prevented.
 
 ---
 
-## C. The app guesses who you are, and never asks
+## C. The app guesses who you are, and never asks  ✅ *shipped*
 
 `getPrimaryPlayerName()` returns, in order: `localStorage.primaryPlayer` →
 the name appearing in the most finished rounds → `state.players[0].name`.
@@ -394,7 +394,7 @@ Ranked by (value to the user) ÷ (effort), not by severity:
 | ~~3~~ | ~~Fix `5 (Birdie)` → `5 → 4 (Birdie)` (§E1)~~ | — | **Shipped** |
 | 4 | Escape + scrim + focus-on-par for the picker (§F4) | S | Basic modal hygiene |
 | 5 | Name who's about to get a par on confirm (§F3) | S | Matches `finishRound`'s care |
-| 6 | "You're playing as" in Settings (§C) | S | Unlocks every personalised surface |
+| ~~6~~ | ~~"You're playing as" in Settings (§C)~~ | — | **Shipped** |
 | 7 | Mark-as-paid + outstanding total (§A) | M | **The product's headline promise** |
 | 8 | Split money vs. score colour tokens (§B) | M | Fixes three collisions at the root |
 | 9 | Go Live sheet with big code + QR (§D3) | M | The most shareable moment in the app |
@@ -407,6 +407,13 @@ Ranked by (value to the user) ÷ (effort), not by severity:
 
 ## Shipped since this was written
 
+- **§C** — `primaryPlayer` is written now, from three places: a one-time
+  "Which one is you?" prompt above the roster while nobody has said, a
+  "You're playing as" row in Settings to change it later, and the You
+  screen's identity line, which is a button rather than an instruction it
+  could not carry out. The history heuristic stays as the fallback, and the
+  UI says when it is guessing. This was the open prerequisite for §G: the
+  hole strip now has a name to resolve.
 - **§D1** — `currentHole` is no longer replicated to joined editors; spectators
   still follow the host.
 - **§E1** — the hole-result overlay writes `5 → 4 (Birdie)` when a stroke
@@ -422,6 +429,3 @@ and the saved-profile chips brought under the same roster lock as
 `addPlayer`/`removePlayer` (they were an unguarded path into the index
 desync those guards exist to prevent).
 
-§C remains the open prerequisite for §G: `primaryPlayer` is still never
-written in production code, so the hole strip falls back to player 1 until
-someone sets it. "You're playing as" in Settings is the missing piece.

@@ -1111,6 +1111,127 @@ section("The database cannot reopen the locked roster");
   await ctx.close();
 }
 
+// --------------------------------------------------------------------------
+section("Saying who you are");
+// --------------------------------------------------------------------------
+// Every "your" surface -- the season card, your take, your nemesis, the
+// handicap index, the hole strip -- reads one name, and nothing ever wrote
+// it: it was guessed from round history with no way to correct it. Driven
+// through the DOM and pre-existing globals only.
+{
+  const { ctx, p, errors } = await page();
+  const clear = () => p.evaluate(() => { try { localStorage.removeItem("primaryPlayer"); } catch (e) {} });
+
+  // A roster of blank slots is not a question anyone can answer.
+  await clear();
+  await p.evaluate(() => {
+    enterScreen("setup");
+    state.players = [];
+    addPlayer(); addPlayer();
+    renderPlayers();
+  });
+  await p.waitForTimeout(150);
+  ok(
+    !(await p.evaluate(() => !!document.querySelector(".whoami"))),
+    "placeholder slots raise no question"
+  );
+
+  await enterRoster(p, 4);
+  await p.evaluate(() => enterScreen("setup"));
+  await p.waitForTimeout(200);
+  const asked = await p.evaluate(() => ({
+    shown: !!document.querySelector(".whoami"),
+    names: [...document.querySelectorAll(".whoami-pick")].map((b) => b.dataset.name),
+  }));
+  ok(asked.shown, "a real roster is asked which one is you");
+  ok(asked.names.length === 4, "every player in the round is offered", asked.names.join(","));
+
+  // Guarded so the rest of the section still runs (and still reports) when the
+  // prompt is missing entirely, rather than taking the suite down with it.
+  const picked = await p.evaluate(() => {
+    const btns = [...document.querySelectorAll(".whoami-pick")];
+    if (!btns.length) return null;
+    const want = btns[2].dataset.name;
+    btns[2].click();
+    return {
+      want,
+      stored: localStorage.getItem("primaryPlayer"),
+      resolved: getPrimaryPlayerName(),
+      stillAsking: !!document.querySelector(".whoami"),
+    };
+  });
+  ok(!!picked, "there is something to pick");
+  if (picked) {
+    ok(picked.stored === picked.want, "picking writes it down", `${picked.stored} vs ${picked.want}`);
+    ok(picked.resolved === picked.want, "and it is what the app reads back", picked.resolved);
+    ok(!picked.stillAsking, "and the question retires once answered");
+  }
+
+  // The point of all this: it has to move the numbers.
+  const downstream = await p.evaluate(async () => {
+    const read = async (who) => {
+      localStorage.setItem("primaryPlayer", who);
+      showScreen("home");
+      await new Promise((r) => setTimeout(r, 250));
+      const el = document.querySelector(".ss-v");
+      return el ? el.textContent.trim() : null;
+    };
+    const names = state.players.map((x) => x.name);
+    return { a: await read(names[0]), b: await read(names[1]), names };
+  });
+  ok(
+    downstream.a && downstream.b && downstream.a !== downstream.b,
+    "the season card follows whoever you say you are",
+    `${downstream.names[0]}=${downstream.a} ${downstream.names[1]}=${downstream.b}`
+  );
+
+  // Settings is where you go to change it later.
+  const settings = await p.evaluate(() => {
+    showSettings();
+    const sel = document.getElementById("settings-me");
+    return {
+      exists: !!sel,
+      value: sel && sel.value,
+      options: sel ? [...sel.options].map((o) => o.value) : [],
+    };
+  });
+  ok(settings.exists, "Settings offers a way to change it");
+  if (settings.exists) {
+    ok(
+      settings.value === downstream.names[1],
+      "it opens on whoever you currently are",
+      `${settings.value} vs ${downstream.names[1]}`
+    );
+    ok(
+      !settings.options.some((n) => /^Player \d+$/.test(n)),
+      "blank roster slots are not offered as people you could be",
+      settings.options.join(",")
+    );
+  }
+
+  // The You screen used to render "Set your player" as text with no handler --
+  // an instruction that could not be followed.
+  const youSet = await p.evaluate(() => {
+    closeModal("settings-modal");
+    showScreen("you");
+    const b = document.querySelector(".you-whoami");
+    return { tag: b && b.tagName, text: b && b.textContent };
+  });
+  ok(youSet.tag === "BUTTON", "the You screen identity line is a button", String(youSet.tag));
+  ok(/change/i.test(youSet.text || ""), "which offers to change it", String(youSet.text));
+
+  await clear();
+  const youUnset = await p.evaluate(() => {
+    showScreen("you");
+    const b = document.querySelector(".you-whoami");
+    return b && b.textContent;
+  });
+  ok(/set who you are/i.test(youUnset || ""), "and says so plainly when nobody has said", String(youUnset));
+
+  ok(errors.length === 0, "who you are: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
