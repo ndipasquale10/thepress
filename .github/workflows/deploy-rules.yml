@@ -1,0 +1,60 @@
+name: Deploy Firestore rules
+
+# The rules that protect production are the rules in this repository, reviewed
+# in a pull request like any other code. Editing them in the Firebase console
+# is how the two drift apart, and drift is invisible until someone reads data
+# they should not have.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "firestore.rules"
+      - "firestore.indexes.json"
+      - "firebase.json"
+      - ".github/workflows/deploy-rules.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Never deploy rules that have not passed their own tests, even though the
+      # Tests workflow also runs them: this job can be dispatched by hand.
+      - name: Test the security rules
+        run: npm run test:rules
+
+      - name: Check for deploy credentials
+        id: creds
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -n "$SA" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::FIREBASE_SERVICE_ACCOUNT is not set - rules were tested but not deployed."
+          fi
+
+      - name: Deploy rules
+        if: steps.creds.outputs.present == 'true'
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+          FIREBASE_PROJECT: ${{ vars.FIREBASE_PROJECT || 'greenside-c86cf' }}
+        run: |
+          printf '%s' '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "$GOOGLE_APPLICATION_CREDENTIALS"
+          npx firebase deploy --only firestore:rules --project "$FIREBASE_PROJECT" --non-interactive
+          rm -f "$GOOGLE_APPLICATION_CREDENTIALS"

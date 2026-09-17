@@ -42,3 +42,29 @@ jobs:
 
       - name: Walk the app
         run: npm run test:flows
+
+  # Security gate: runs firestore.rules through the real rules engine in the
+  # emulator. The money tests protect what the app computes; this protects who
+  # is allowed to read it. A round holds names, scores and who owes whom, so
+  # "can a stranger fetch this" belongs in CI and not in a console setting
+  # nobody reviews.
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+
+      # The Firestore emulator is a Java process.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test the security rules
+        run: npm run test:rules
