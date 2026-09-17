@@ -11,14 +11,22 @@ outside a real deployment:
 This strips the former and seeds a fixed demo season for the latter, so both
 `test/flows.mjs` and a published preview drive a populated app.
 
+There is a second mode. `--live` keeps Firebase instead of stripping it, swaps
+the CDN tags for the copies in node_modules, and points the SDK at the local
+emulators -- so `test/live-round.test.mjs` can drive two real browsers through a
+shared round against the real auth, the real database and the real security
+rules. Nothing else exercises that code at all.
+
 Usage:
-    python3 scripts/build-preview.py [-o OUT] [--fragment]
+    python3 scripts/build-preview.py [-o OUT] [--fragment | --live]
 
     -o/--out    where to write (default: build/preview.html)
     --fragment  emit head+body content only, without the <!doctype>/<html>
                 skeleton. Artifact publishing supplies its own wrapper; tests
                 must NOT use this, or the page renders in quirks mode while
                 real users get standards mode.
+    --live      keep Firebase, served locally and aimed at the emulators. No
+                demo seed: a live-round test starts from an empty app.
 """
 import argparse
 import re
@@ -52,30 +60,63 @@ AUTO_SEED = """<script>
 </script>"""
 
 
-def build(fragment=False):
+# Ports come from window.__EMU__, which the test sets before any page script
+# runs, so the emulator ports stay owned by the test rather than duplicated here.
+EMULATOR_WIRING = """<script>
+(function(){
+  var e = window.__EMU__ || {};
+  try { if (typeof db !== "undefined" && db) db.useEmulator(e.host || "127.0.0.1", e.firestorePort || 8080); } catch (err) { console.error("firestore emulator", err); }
+  try { if (typeof auth !== "undefined" && auth) auth.useEmulator("http://" + (e.host || "127.0.0.1") + ":" + (e.authPort || 9099), { disableWarnings: true }); } catch (err) { console.error("auth emulator", err); }
+})();
+</script>"""
+
+FIREBASE_BUNDLES = [
+    "firebase-app-compat.js",
+    "firebase-auth-compat.js",
+    "firebase-firestore-compat.js",
+]
+
+
+def build(fragment=False, live=False):
     src = (ROOT / "index.html").read_text()
 
     head = src[src.index("<head>") + len("<head>") : src.index("</head>")]
     body_start = src.index("<body>", src.index("</head>")) + len("<body>")
     body = src[body_start : src.rindex("</body>")]
 
+    tags = re.findall(
+        r'<script src="https://www\.gstatic\.com/firebasejs/[^"]*/(firebase-[a-z]+-compat\.js)"></script>',
+        head + body,
+    )
     removed = 0
-    for tag in re.findall(
-        r'<script src="https://www\.gstatic\.com/firebasejs/[^"]*"></script>', head + body
-    ):
-        head = head.replace(tag, "")
-        body = body.replace(tag, "")
+    for name in tags:
+        tag = re.search(
+            r'<script src="https://www\.gstatic\.com/firebasejs/[^"]*/' + re.escape(name) + r'"></script>',
+            head + body,
+        ).group(0)
+        # In live mode the same bundle is served from next to the page, so the
+        # browser runs the real SDK with no network.
+        replacement = f'<script src="./{name}"></script>' if live else ""
+        head = head.replace(tag, replacement)
+        body = body.replace(tag, replacement)
         removed += 1
     if removed != 3:
         print(
-            f"warning: removed {removed} Firebase tags, expected 3 — "
+            f"warning: rewrote {removed} Firebase tags, expected 3 — "
             "check whether index.html changed its CDN imports",
             file=sys.stderr,
         )
 
-    head = head.replace("<title>The Press</title>", "<title>The Press — Preview</title>")
-    head = ENABLE_DEMO + head
-    body = body + AUTO_SEED
+    if live:
+        # Immediately after initializeApp, before the app's own script uses
+        # either handle.
+        init_end = body.index("</script>", body.index("firebase.initializeApp(")) + len("</script>")
+        body = body[:init_end] + EMULATOR_WIRING + body[init_end:]
+        head = head.replace("<title>The Press</title>", "<title>The Press — Live</title>")
+    else:
+        head = head.replace("<title>The Press</title>", "<title>The Press — Preview</title>")
+        head = ENABLE_DEMO + head
+        body = body + AUTO_SEED
 
     if fragment:
         return head + "\n" + body, removed
@@ -94,9 +135,13 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("-o", "--out", default=str(ROOT / "build" / "preview.html"))
     ap.add_argument("--fragment", action="store_true")
+    ap.add_argument("--live", action="store_true")
     args = ap.parse_args()
 
-    html, removed = build(fragment=args.fragment)
+    if args.fragment and args.live:
+        ap.error("--fragment and --live are different builds; pick one")
+
+    html, removed = build(fragment=args.fragment, live=args.live)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html)
@@ -108,9 +153,24 @@ def main():
     if lib.exists() and not args.fragment:
         shutil.copyfile(lib, out.parent / lib.name)
 
-    mode = "fragment" if args.fragment else "standalone"
-    print(f"{out} — {mode}, {len(html):,} bytes, {removed} Firebase tags removed")
+    if args.live:
+        # The SDK has to sit next to the page for "./firebase-*-compat.js".
+        vendor = ROOT / "node_modules" / "firebase"
+        missing = [b for b in FIREBASE_BUNDLES if not (vendor / b).exists()]
+        if missing:
+            print(
+                f"error: {', '.join(missing)} not in node_modules/firebase — run: npm install",
+                file=sys.stderr,
+            )
+            return 1
+        for b in FIREBASE_BUNDLES:
+            shutil.copyfile(vendor / b, out.parent / b)
+
+    mode = "live" if args.live else "fragment" if args.fragment else "standalone"
+    verb = "rewritten" if args.live else "removed"
+    print(f"{out} — {mode}, {len(html):,} bytes, {removed} Firebase tags {verb}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main() or 0)

@@ -27,6 +27,7 @@ The money math is the product, so it has the most tests.
 | `npm test` | Money math, Wolf/Hammer settlement, the course-data build check, and a static design-system audit. A few seconds, no dependencies. |
 | `npm run test:flows` | Drives a real browser (Playwright) through complete rounds — the only check that sees bugs in the seam between two screens. |
 | `npm run test:rules` | Runs `firestore.rules` through the real rules engine in the Firestore emulator. Requires Java. |
+| `npm run test:live` | Two real browsers sharing one round against the Firestore and Auth emulators and the real security rules — publishing, joining by code, scores and Breakouts crossing the wire, the watch link, and account deletion. Requires Java. |
 
 All three run in CI on every push.
 
@@ -53,6 +54,11 @@ See [`data/README.md`](data/README.md) for the schema and validation rules.
 
 Local storage is the source of truth. Everything in Firestore is a mirror of
 what is already on the device, which is why a signed-out player loses nothing.
+
+`scripts/build-preview.py` produces the two builds the browser tests drive:
+the default strips Firebase out entirely for `flows.mjs`, and `--live` keeps it,
+serves the SDK from `node_modules`, and points it at the emulators for
+`live-round.test.mjs`.
 
 ## Backend and security model
 
