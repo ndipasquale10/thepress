@@ -70,7 +70,7 @@ its code and the collection can never be listed by anyone but its own owner, so
 there is no query that returns rounds you were not invited to.
 
 `firestore.rules` is the deployed policy, not a copy of it: it is tested in CI
-(`test/rules.test.mjs`, 25 cases against the real rules engine) and deployed
+(`test/rules.test.mjs`, 26 cases against the real rules engine) and deployed
 from `.github/workflows/deploy-rules.yml` on every push to `main` that touches
 it. Editing rules in the Firebase console is how the repository and production
 drift apart — don't.

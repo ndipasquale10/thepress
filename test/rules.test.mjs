@@ -311,3 +311,50 @@ test("every field the app writes to a live round is allowed by the rules", () =>
     }
   }
 });
+
+// The other direction, and the one that costs money. A joiner overwrites its
+// local state from every snapshot, so a field the snapshot handler reads but no
+// write path ever sends is not merely missing -- it is actively cleared on the
+// joiner's device on every update. wolfBreakouts was exactly this: the host
+// claimed a Breakout, the joiner's copy reset to {}, getWolfForHole fell back to
+// the rotation, and the two devices played different holes for different money.
+test("every field a joiner reads from a live round is one the app writes", () => {
+  const app = readFileSync("index.html", "utf8");
+
+  const readersOf = (fnName, receiver) => {
+    const start = app.indexOf("function " + fnName + "(");
+    assert.ok(start > -1, `could not find ${fnName}`);
+    const body = app.slice(start, start + 2000);
+    return new Set(
+      [...body.matchAll(new RegExp("state\\.([a-zA-Z]+)\\s*=\\s*" + receiver + "\\.([a-zA-Z]+)", "g"))]
+        .map((m) => m[2])
+    );
+  };
+
+  const written = new Set();
+  const collect = (from) => {
+    const open = app.indexOf("{", from);
+    let depth = 0, end = open;
+    for (let i = open; i < app.length; i++) {
+      const c = app[i];
+      if (c === "{" || c === "[") depth++;
+      else if (c === "}" || c === "]") { depth--; if (!depth) { end = i; break; } }
+    }
+    for (const m of app.slice(open + 1, end).matchAll(/(?:^|,)\s*([a-zA-Z]+)\s*:/g)) written.add(m[1]);
+  };
+  collect(app.indexOf("return {", app.indexOf("function liveRoundPayload(")));
+  for (const m of app.matchAll(/liveRounds"\)\.doc\([^)]*\)\.update\(/g)) collect(m.index + m[0].length - 1);
+
+  // State the app derives locally rather than taking from the document.
+  const local = new Set(["updatedAt"]);
+
+  for (const [fn, receiver] of [["subscribeLiveUpdates", "t"], ["applyLiveDoc", "o"]]) {
+    for (const field of readersOf(fn, receiver)) {
+      if (local.has(field)) continue;
+      assert.ok(
+        written.has(field),
+        `${fn} reads "${field}" from the live round, but no write path ever sends it`
+      );
+    }
+  }
+});
