@@ -1,0 +1,24 @@
+Copyright (c) 2026 The Press. All rights reserved.
+
+This software and its source code are proprietary and confidential.
+
+No permission is granted to any person to use, copy, modify, merge, publish,
+distribute, sublicense, or sell copies of this software or any portion of it,
+in source or binary form, without the prior written permission of the copyright
+holder.
+
+Viewing this repository does not grant any license to its contents. The absence
+of a permissive open-source license is deliberate: publishing the source for
+review, deployment, or discussion is not a grant of rights to reuse it.
+
+The golf course data in data/courses.json consists of factual measurements
+(ratings, slopes, yardages, pars, and stroke indexes) compiled from published
+scorecards. Factual data is not itself subject to this copyright; the
+compilation, its structure, and the software that reads it are.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

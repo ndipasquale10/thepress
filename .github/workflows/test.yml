@@ -42,3 +42,56 @@ jobs:
 
       - name: Walk the app
         run: npm run test:flows
+
+  # Security gate: runs firestore.rules through the real rules engine in the
+  # emulator. The money tests protect what the app computes; this protects who
+  # is allowed to read it. A round holds names, scores and who owes whom, so
+  # "can a stranger fetch this" belongs in CI and not in a console setting
+  # nobody reviews.
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+
+      # The Firestore emulator is a Java process.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test the security rules
+        run: npm run test:rules
+
+  # The seam nothing else reaches: two real browsers sharing one round against
+  # the emulators and the real security rules. flows.mjs runs with Firebase
+  # stripped out and rules.test.mjs runs with no browser, so publishing a round,
+  # joining it by code, and scores crossing the wire were executed by nothing.
+  live-round:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Share a round between two browsers
+        run: npm run test:live
