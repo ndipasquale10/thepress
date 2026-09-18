@@ -44,7 +44,13 @@ See [`data/README.md`](data/README.md) for the schema and validation rules.
 
 - **`index.html`** — the entire application: markup, styles, and logic in one
   file, so the service worker caches one shell and the app opens on a course
-  with no signal.
+  with no signal. Nothing on the launch path goes to the network. The Firebase
+  SDK in particular is *not* a blocking `<script src>`: it is listed in
+  `FIREBASE_SDK` and fetched by `ensureFirebase()` on idle, after the first
+  screen is up — as three blocking tags it put 528KB of uncacheable
+  cross-origin JavaScript in front of the scorecard, and in a dead zone the app
+  never opened at all. Anything that genuinely needs the SDK (sign-in, joining
+  a live round, a `?watch=` link) awaits `ensureFirebase()`.
 - **`sw.js`** — the service worker. Caches the shell and static assets
   individually (never `addAll`, which fails atomically) and announces updates
   through the cache so a reloaded page still sees them.
@@ -55,10 +61,12 @@ See [`data/README.md`](data/README.md) for the schema and validation rules.
 Local storage is the source of truth. Everything in Firestore is a mirror of
 what is already on the device, which is why a signed-out player loses nothing.
 
-`scripts/build-preview.py` produces the two builds the browser tests drive:
-the default strips Firebase out entirely for `flows.mjs`, and `--live` keeps it,
-serves the SDK from `node_modules`, and points it at the emulators for
-`live-round.test.mjs`.
+`scripts/build-preview.py` produces the two builds the browser tests drive. Both
+work by rewriting the one `FIREBASE_SDK` array — emptied for `flows.mjs`, so
+`ensureFirebase()` resolves to "no Firebase" without a request; repointed at
+`node_modules` for `live-round.test.mjs`, which then drives the real SDK against
+the emulators. Rewriting the list rather than deleting the loader keeps the
+loader, its retry, and every `await ensureFirebase()` call site under test.
 
 ## Backend and security model
 

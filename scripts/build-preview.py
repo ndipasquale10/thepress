@@ -4,15 +4,18 @@
 The app is a single self-contained index.html, but two things stop it running
 outside a real deployment:
 
-  * the three Firebase CDN <script> tags, which fail with no network (and are
-    blocked outright by the artifact sandbox's CSP), and
+  * the Firebase CDN bundles, which fail with no network (and are blocked
+    outright by the artifact sandbox's CSP), and
   * an empty localStorage, which leaves every screen on an empty state.
 
-This strips the former and seeds a fixed demo season for the latter, so both
+The app no longer loads those bundles from blocking <script src> tags: it lists
+them in a FIREBASE_SDK array and fetches them on idle, so the seam this script
+rewrites is that array. Emptying it makes ensureFirebase() resolve to "no
+Firebase" without a request. A fixed demo season covers the second, so both
 `test/flows.mjs` and a published preview drive a populated app.
 
-There is a second mode. `--live` keeps Firebase instead of stripping it, swaps
-the CDN tags for the copies in node_modules, and points the SDK at the local
+There is a second mode. `--live` keeps Firebase instead of stripping it, points
+FIREBASE_SDK at the copies in node_modules, and hooks the SDK to the local
 emulators -- so `test/live-round.test.mjs` can drive two real browsers through a
 shared round against the real auth, the real database and the real security
 rules. Nothing else exercises that code at all.
@@ -62,12 +65,18 @@ AUTO_SEED = """<script>
 
 # Ports come from window.__EMU__, which the test sets before any page script
 # runs, so the emulator ports stay owned by the test rather than duplicated here.
+#
+# __FB_AFTER_INIT__ is the app's own hook, called the instant db and auth exist
+# and before anything reads them. It replaced injecting this block at a text
+# offset after `firebase.initializeApp(`: initialisation now happens inside a
+# promise, so there is no longer a point in the source that is also a point in
+# time.
 EMULATOR_WIRING = """<script>
-(function(){
+window.__FB_AFTER_INIT__ = function(){
   var e = window.__EMU__ || {};
   try { if (typeof db !== "undefined" && db) db.useEmulator(e.host || "127.0.0.1", e.firestorePort || 8080); } catch (err) { console.error("firestore emulator", err); }
   try { if (typeof auth !== "undefined" && auth) auth.useEmulator("http://" + (e.host || "127.0.0.1") + ":" + (e.authPort || 9099), { disableWarnings: true }); } catch (err) { console.error("auth emulator", err); }
-})();
+};
 </script>"""
 
 FIREBASE_BUNDLES = [
@@ -84,34 +93,37 @@ def build(fragment=False, live=False):
     body_start = src.index("<body>", src.index("</head>")) + len("<body>")
     body = src[body_start : src.rindex("</body>")]
 
-    tags = re.findall(
-        r'<script src="https://www\.gstatic\.com/firebasejs/[^"]*/(firebase-[a-z]+-compat\.js)"></script>',
-        head + body,
-    )
-    removed = 0
-    for name in tags:
-        tag = re.search(
-            r'<script src="https://www\.gstatic\.com/firebasejs/[^"]*/' + re.escape(name) + r'"></script>',
-            head + body,
-        ).group(0)
-        # In live mode the same bundle is served from next to the page, so the
-        # browser runs the real SDK with no network.
-        replacement = f'<script src="./{name}"></script>' if live else ""
-        head = head.replace(tag, replacement)
-        body = body.replace(tag, replacement)
-        removed += 1
-    if removed != 3:
+    # The one seam: the array ensureFirebase() walks. Rewritten rather than
+    # deleted, so the loader, the retry and every await ensureFirebase() call
+    # site under test are the same code paths production runs.
+    decl = re.search(r'var FIREBASE_SDK=\[([^\]]*)\];', body)
+    if not decl:
         print(
-            f"warning: rewrote {removed} Firebase tags, expected 3 — "
-            "check whether index.html changed its CDN imports",
+            "warning: no FIREBASE_SDK declaration found — "
+            "check whether index.html changed how it loads the SDK",
             file=sys.stderr,
         )
+        removed = 0
+    else:
+        removed = len(re.findall(r'firebase-[a-z]+-compat\.js', decl.group(1)))
+        if removed != 3:
+            print(
+                f"warning: FIREBASE_SDK lists {removed} bundles, expected 3 — "
+                "check whether index.html changed its CDN imports",
+                file=sys.stderr,
+            )
+        # Live mode serves the same bundles from next to the page, so the
+        # browser runs the real SDK with no network.
+        urls = ",".join(f'"./{b}"' for b in FIREBASE_BUNDLES) if live else ""
+        body = body.replace(decl.group(0), f"var FIREBASE_SDK=[{urls}];")
+        # Nothing to preconnect to once the CDN is out of the picture.
+        head = re.sub(r'<link rel="preconnect" href="https://www\.gstatic\.com"[^>]*>', "", head)
+        body = re.sub(r'<link rel="preconnect" href="https://www\.gstatic\.com"[^>]*>', "", body)
 
     if live:
-        # Immediately after initializeApp, before the app's own script uses
-        # either handle.
-        init_end = body.index("</script>", body.index("firebase.initializeApp(")) + len("</script>")
-        body = body[:init_end] + EMULATOR_WIRING + body[init_end:]
+        # Defined before the app's script runs, called the moment db and auth
+        # exist -- see EMULATOR_WIRING.
+        head = EMULATOR_WIRING + head
         head = head.replace("<title>The Press</title>", "<title>The Press — Live</title>")
     else:
         head = head.replace("<title>The Press</title>", "<title>The Press — Preview</title>")
@@ -167,8 +179,8 @@ def main():
             shutil.copyfile(vendor / b, out.parent / b)
 
     mode = "live" if args.live else "fragment" if args.fragment else "standalone"
-    verb = "rewritten" if args.live else "removed"
-    print(f"{out} — {mode}, {len(html):,} bytes, {removed} Firebase tags {verb}")
+    verb = "repointed at node_modules" if args.live else "dropped"
+    print(f"{out} — {mode}, {len(html):,} bytes, {removed} Firebase bundles {verb}")
     return 0
 
 
