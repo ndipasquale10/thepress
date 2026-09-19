@@ -220,6 +220,109 @@ for c in collisions:
         "pseudo-element -- min-width/min-height and centring leak otherwise."
     )
 
+# --- Player palettes: colour-blind separation -----------------------------
+# The eight player colours are a categorical scale, and a categorical scale is
+# only doing its job if the categories stay apart. An earlier revision of the
+# comment above PLAYER_PALETTES claimed they passed a CVD check; measured, the
+# worst clubhouse pair sat at CIE76 dE 1.9 under deuteranopia and the worst
+# broadcast pair at 1.1 -- indistinguishable. Broadcast was re-stepped; the
+# clubhouse trade was left for a person to make.
+#
+# This budgets what is there now so the next palette edit has to face the same
+# number. Floors sit just under the measured values: raise them when a palette
+# improves, and argue for it in the diff when one would lower them.
+def _srgb_to_lin(v):
+    v /= 255
+    return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+
+
+def _lin_to_srgb(v):
+    v = max(0.0, min(1.0, v))
+    return 255 * (12.92 * v if v <= 0.0031308 else 1.055 * v ** (1 / 2.4) - 0.055)
+
+
+def _mul(M, v):
+    return [sum(M[r][c] * v[c] for c in range(3)) for r in range(3)]
+
+
+_RGB2LMS = [[0.31399022, 0.63951294, 0.04649755],
+            [0.15537241, 0.75789446, 0.08670142],
+            [0.01775239, 0.10944209, 0.87256922]]
+_LMS2RGB = [[5.47221206, -4.6419601, 0.16963708],
+            [-1.1252419, 2.29317094, -0.1678952],
+            [0.02980165, -0.19318073, 1.16364789]]
+# Brettel/Vienot dichromat projections.
+_SIM = {
+    "protan": [[0, 1.05118294, -0.05116099], [0, 1, 0], [0, 0, 1]],
+    "deutan": [[1, 0, 0], [0.9513092, 0, 0.04866992], [0, 0, 1]],
+    "tritan": [[1, 0, 0], [0, 1, 0], [-0.86744736, 1.86727089, 0]],
+}
+
+
+def _hex(h):
+    h = h.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def _simulate(rgb, kind):
+    if kind == "normal":
+        return rgb
+    lin = [_srgb_to_lin(c) for c in rgb]
+    return tuple(_lin_to_srgb(c) for c in _mul(_LMS2RGB, _mul(_SIM[kind], _mul(_RGB2LMS, lin))))
+
+
+def _lab(rgb):
+    def f(t):
+        return t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
+    r, g, b = [_srgb_to_lin(c) for c in rgb]
+    x = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047)
+    y = f(0.2126 * r + 0.7152 * g + 0.0722 * b)
+    z = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883)
+    return (116 * y - 16, 500 * (x - y), 200 * (y - z))
+
+
+def _worst_pair(cols, kind):
+    pts = [_lab(_simulate(_hex(c), kind)) for c in cols]
+    return min(
+        sum((a - b) ** 2 for a, b in zip(pts[i], pts[j])) ** 0.5
+        for i in range(len(pts)) for j in range(i + 1, len(pts))
+    )
+
+
+_pal_src = re.search(r"const PLAYER_PALETTES=\{(.*?)\};", js, re.S)
+if not _pal_src:
+    failures.append("PLAYER_PALETTES not found -- the CVD budget is not running.")
+else:
+    PALETTE_FLOORS = {
+        # skin        normal protan deutan tritan
+        "clubhouse": (30.0, 4.5, 1.8, 1.9),
+        "broadcast": (29.0, 15.0, 10.0, 18.0),
+        # Sunlight's high-contrast floor pushes every entry dark, which frees
+        # lightness to do the separating -- so it is the best of the three.
+        "sunlight": (18.0, 10.0, 15.0, 18.0),
+    }
+    for skin, floors in PALETTE_FLOORS.items():
+        m = re.search(skin + r":\[([^\]]*)\]", _pal_src.group(1))
+        if not m:
+            failures.append("palette %s: not found in PLAYER_PALETTES." % skin)
+            continue
+        cols = re.findall(r"#[0-9a-fA-F]{6}", m.group(1))
+        if len(cols) != 8:
+            failures.append("palette %s: %d colours, expected 8." % (skin, len(cols)))
+            continue
+        got = [_worst_pair(cols, k) for k in ("normal", "protan", "deutan", "tritan")]
+        report.append(
+            "palette %-11s dE" % skin
+            + "".join("%7.1f" % v for v in got)
+            + "   (floors" + "".join("%6.1f" % v for v in floors) + ")"
+        )
+        for kind, value, floor in zip(("normal", "protan", "deutan", "tritan"), got, floors):
+            if value < floor:
+                failures.append(
+                    "palette %s: worst pair under %s is dE %.1f, below the %.1f floor. "
+                    "Two players would look the same." % (skin, kind, value, floor)
+                )
+
 # --- Legacy skin layer ----------------------------------------------------
 dark = css.count("body.dark")
 report.append(f"{'body.dark selectors':<34}: {dark:>4}")

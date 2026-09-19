@@ -1408,8 +1408,21 @@ console.log('playerColor: stable identity across skins, legacy hex migrates to a
 const _pal = JSON.parse(vm.runInContext('JSON.stringify(PLAYER_PALETTES)', context));
 assertEqual(_pal.clubhouse.length, 8, 'clubhouse palette has 8 slots');
 assertEqual(_pal.broadcast.length, 8, 'broadcast palette has 8 slots');
+assertEqual(_pal.sunlight.length, 8, 'sunlight palette has 8 slots');
 assertEqual(new Set(_pal.clubhouse).size, 8, 'clubhouse slots are all distinct');
 assertEqual(new Set(_pal.broadcast).size, 8, 'broadcast slots are all distinct');
+assertEqual(new Set(_pal.sunlight).size, 8, 'sunlight slots are all distinct');
+
+// Every skin must step every slot, or a player vanishes into the background on
+// whichever skin forgot them.
+assertEqual(
+  JSON.parse(vm.runInContext('JSON.stringify(SKINS)', context)).filter((k) => !_pal[k]).length,
+  0,
+  'every skin in SKINS has a player palette',
+);
+assertEqual(call('playerColor', { colorIdx: 5 }, 'sunlight'), _pal.sunlight[5], 'slot 5 resolves to the sunlight step');
+// An unknown skin must not return undefined into a style attribute.
+assertEqual(call('playerColor', { colorIdx: 3 }, 'no-such-skin'), _pal.clubhouse[3], 'an unknown skin falls back to clubhouse');
 
 // A player carries a slot, so each skin renders its own step of the same identity.
 assertEqual(call('playerColor', { colorIdx: 2 }, 'clubhouse'), _pal.clubhouse[2], 'slot 2 resolves to the clubhouse step');

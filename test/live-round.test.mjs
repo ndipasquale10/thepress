@@ -97,6 +97,13 @@ async function openApp({ uid, email, query = "" } = {}) {
   // The live-round write path is monkey-patched onto saveCurrentRound by a
   // polling interval, so a test that scores before it lands syncs nothing.
   await p.waitForFunction(() => typeof saveCurrentRound === "function" && saveCurrentRound._patched);
+  // The SDK is no longer loaded by a blocking script tag -- it arrives on idle,
+  // and anything that touches `firebase`, `db` or `auth` has to ask for it
+  // first. This test reaches straight for `auth` to mint a credential, which no
+  // app code does, so it has to make the same promise the app's own call sites
+  // make. Without this the sign-in below races the loader and fails on whichever
+  // run loses.
+  await p.evaluate(() => ensureFirebase());
 
   if (uid) {
     await p.evaluate(
