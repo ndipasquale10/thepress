@@ -1403,6 +1403,69 @@ assertEqual(call('computeHandicapIndex', 'Pat', _hcpRounds.slice(0, 2)).index, n
 // Rounds the player did not play in are ignored entirely.
 assertEqual(call('computeHandicapIndex', 'Pat', [hcpRound('Sam', 10, 18, '2026-01-01T12:00:00Z')]).index, null, 'other players\' rounds are ignored');
 
+// --- The write-behind round buffer ---
+// saveCurrentRound() writes only the active round, on its own key, so its cost
+// does not grow with the history. readRounds() folds that buffer back into the
+// one blob everything else reads, which is what keeps every other caller --
+// history, export, sync, the resume card -- unaware that any of this happens.
+console.log('Round storage: the hot path writes a buffer, reads fold it back');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  holeCount: 1,
+  scores: scoresFor([[4], [5]]),
+}));
+vm.runInContext('localStorage.clear(); state.roundId = "rid1"; state.started = true;', context);
+// Some history already on the device.
+vm.runInContext('localStorage.setItem("golfRounds", JSON.stringify({old1:{id:"old1",finished:true}}));', context);
+call('saveCurrentRound');
+assertEqual(
+  vm.runInContext('!!localStorage.getItem("golfRoundActive")', context), true,
+  'the active round lands in its own key',
+);
+assertEqual(
+  vm.runInContext('Object.keys(JSON.parse(localStorage.getItem("golfRounds"))).join()', context), 'old1',
+  'and the history blob is not rewritten for it',
+);
+// Any read folds it in and clears the buffer.
+assertEqual(call('getAllRounds').length, 2, 'a read sees the buffered round alongside the history');
+assertEqual(
+  vm.runInContext('Object.keys(JSON.parse(localStorage.getItem("golfRounds"))).sort().join()', context), 'old1,rid1',
+  'the fold writes it into the blob',
+);
+assertEqual(
+  vm.runInContext('localStorage.getItem("golfRoundActive")', context), null,
+  'and clears the buffer once it has landed',
+);
+assertEqual(call('getAllRounds').length, 2, 'folding twice does not duplicate the round');
+
+console.log('Round storage: a full quota must not lose the buffered round');
+vm.runInContext('localStorage.clear(); state.roundId = "rid2"; state.started = true;', context);
+call('saveCurrentRound');
+// Stand in for a device that has run out of room: the merged write fails.
+vm.runInContext(`
+  globalThis.__realSet = localStorage.setItem;
+  localStorage.setItem = (k, v) => { if (k === "golfRounds") throw new Error("QuotaExceededError"); return globalThis.__realSet(k, v); };
+`, context);
+call('flushActiveRound');
+assertEqual(
+  vm.runInContext('!!localStorage.getItem("golfRoundActive")', context), true,
+  'the buffer survives a failed fold -- it is the only copy of that round',
+);
+vm.runInContext('localStorage.setItem = globalThis.__realSet;', context);
+call('flushActiveRound');
+assertEqual(
+  vm.runInContext('!!JSON.parse(localStorage.getItem("golfRounds")).rid2', context), true,
+  'and folds in once there is room again',
+);
+
+console.log('Round storage: an unreadable buffer is dropped, not retried forever');
+vm.runInContext('localStorage.clear(); localStorage.setItem("golfRoundActive", "{not json");', context);
+call('flushActiveRound');
+assertEqual(
+  vm.runInContext('localStorage.getItem("golfRoundActive")', context), null,
+  'a corrupt buffer is cleared rather than parsed on every read',
+);
+
 // --- Picking up: a real thing that happens, scored by a real rule ---
 // Before this there was no way to say "I put it in my pocket", so people typed
 // a number they made up and the money engine settled on it. A pick-up now
