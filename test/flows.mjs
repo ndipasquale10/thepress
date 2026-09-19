@@ -1232,6 +1232,77 @@ section("Saying who you are");
   await ctx.close();
 }
 
+section("A typed handicap says so on the row");
+// --------------------------------------------------------------------------
+// Reported as "when you enter handicaps it seems like the system doesn't take
+// it". The value WAS taken -- it reached state and the money -- but the only
+// confirmation a player gets is the "Hdcp N" chip on the roster row, and that
+// chip lives outside the edit panel the field is in. adjHdcp() repaints it on
+// every -/+ tap; the typed path only wrote to state, and nothing repaints the
+// roster until a player is added or removed. So the row sat there reading
+// "Hdcp 0" while the round quietly used 12, which is indistinguishable from
+// being ignored -- and in a money app that is the part that matters.
+{
+  const { ctx, p, errors } = await page();
+  await p.evaluate(() => enterScreen("setup"));
+  await p.waitForTimeout(300);
+
+  // Open a player's editor and type, exactly as a person does: the commit is
+  // on `change`, so it needs a real blur rather than a direct state poke.
+  const enter = async (idx, text) => {
+    const open = await p.evaluate((i) => !!document.querySelectorAll(".player-card")[i]?.classList.contains("editing"), idx);
+    if (!open) { await p.locator(".roster-edit").nth(idx).click(); await p.waitForTimeout(120); }
+    const f = p.locator(".hdcp").nth(idx);
+    await f.click();
+    await f.fill(text);
+    await p.keyboard.press("Tab");
+    await p.waitForTimeout(150);
+  };
+  const row = (idx) => p.evaluate((i) => ({
+    state: state.players[i].hdcp,
+    chip: document.querySelectorAll(".roster-hdcp b")[i]?.textContent,
+    field: document.querySelectorAll(".hdcp")[i]?.value,
+  }), idx);
+
+  await enter(0, "12");
+  const plain = await row(0);
+  ok(plain.state === 12, "a typed handicap reaches state", JSON.stringify(plain));
+  ok(plain.chip === "12", "and the row says so rather than still reading 0", JSON.stringify(plain));
+
+  // A plus handicap is negative inside and must not display as "-2".
+  await enter(1, "+2");
+  const plus = await row(1);
+  ok(plus.state === -2, "a plus handicap is stored negative", JSON.stringify(plus));
+  ok(plus.chip === "+2", "and shown as a plus, not a minus", JSON.stringify(plus));
+
+  // Whatever the field could not parse, the field should stop claiming.
+  await enter(2, "abc");
+  const junk = await row(2);
+  ok(junk.state === 0 && junk.field === "0", "unparseable input is echoed back as what it became", JSON.stringify(junk));
+
+  // The stepper and the typed path must not disagree about the same player.
+  await enter(3, "10");
+  await p.locator('.player-card[data-pidx="3"] .hdcp-input-wrap button').first().click();
+  await p.waitForTimeout(150);
+  const stepped = await row(3);
+  ok(
+    stepped.state === 9 && stepped.chip === "9" && stepped.field === "9",
+    "stepping after typing keeps state, chip and field in agreement",
+    JSON.stringify(stepped)
+  );
+
+  // And the round actually plays off those numbers.
+  const strokes = await p.evaluate(() => getPlayingHandicaps());
+  ok(
+    JSON.stringify(strokes) === JSON.stringify([14, 0, 2, 11]),
+    "playing handicaps come off the typed values, relative to the low man",
+    JSON.stringify(strokes)
+  );
+
+  ok(errors.length === 0, "typed handicaps: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
