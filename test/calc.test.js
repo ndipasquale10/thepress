@@ -1403,13 +1403,151 @@ assertEqual(call('computeHandicapIndex', 'Pat', _hcpRounds.slice(0, 2)).index, n
 // Rounds the player did not play in are ignored entirely.
 assertEqual(call('computeHandicapIndex', 'Pat', [hcpRound('Sam', 10, 18, '2026-01-01T12:00:00Z')]).index, null, 'other players\' rounds are ignored');
 
+// --- The write-behind round buffer ---
+// saveCurrentRound() writes only the active round, on its own key, so its cost
+// does not grow with the history. readRounds() folds that buffer back into the
+// one blob everything else reads, which is what keeps every other caller --
+// history, export, sync, the resume card -- unaware that any of this happens.
+console.log('Round storage: the hot path writes a buffer, reads fold it back');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  holeCount: 1,
+  scores: scoresFor([[4], [5]]),
+}));
+vm.runInContext('localStorage.clear(); state.roundId = "rid1"; state.started = true;', context);
+// Some history already on the device.
+vm.runInContext('localStorage.setItem("golfRounds", JSON.stringify({old1:{id:"old1",finished:true}}));', context);
+call('saveCurrentRound');
+assertEqual(
+  vm.runInContext('!!localStorage.getItem("golfRoundActive")', context), true,
+  'the active round lands in its own key',
+);
+assertEqual(
+  vm.runInContext('Object.keys(JSON.parse(localStorage.getItem("golfRounds"))).join()', context), 'old1',
+  'and the history blob is not rewritten for it',
+);
+// Any read folds it in and clears the buffer.
+assertEqual(call('getAllRounds').length, 2, 'a read sees the buffered round alongside the history');
+assertEqual(
+  vm.runInContext('Object.keys(JSON.parse(localStorage.getItem("golfRounds"))).sort().join()', context), 'old1,rid1',
+  'the fold writes it into the blob',
+);
+assertEqual(
+  vm.runInContext('localStorage.getItem("golfRoundActive")', context), null,
+  'and clears the buffer once it has landed',
+);
+assertEqual(call('getAllRounds').length, 2, 'folding twice does not duplicate the round');
+
+console.log('Round storage: a full quota must not lose the buffered round');
+vm.runInContext('localStorage.clear(); state.roundId = "rid2"; state.started = true;', context);
+call('saveCurrentRound');
+// Stand in for a device that has run out of room: the merged write fails.
+vm.runInContext(`
+  globalThis.__realSet = localStorage.setItem;
+  localStorage.setItem = (k, v) => { if (k === "golfRounds") throw new Error("QuotaExceededError"); return globalThis.__realSet(k, v); };
+`, context);
+call('flushActiveRound');
+assertEqual(
+  vm.runInContext('!!localStorage.getItem("golfRoundActive")', context), true,
+  'the buffer survives a failed fold -- it is the only copy of that round',
+);
+vm.runInContext('localStorage.setItem = globalThis.__realSet;', context);
+call('flushActiveRound');
+assertEqual(
+  vm.runInContext('!!JSON.parse(localStorage.getItem("golfRounds")).rid2', context), true,
+  'and folds in once there is room again',
+);
+
+console.log('Round storage: an unreadable buffer is dropped, not retried forever');
+vm.runInContext('localStorage.clear(); localStorage.setItem("golfRoundActive", "{not json");', context);
+call('flushActiveRound');
+assertEqual(
+  vm.runInContext('localStorage.getItem("golfRoundActive")', context), null,
+  'a corrupt buffer is cleared rather than parsed on every read',
+);
+
+// --- Picking up: a real thing that happens, scored by a real rule ---
+// Before this there was no way to say "I put it in my pocket", so people typed
+// a number they made up and the money engine settled on it. A pick-up now
+// records the USGA maximum -- net double bogey -- which is a rule both players
+// in the bet already accept.
+console.log('Pick up: records net double bogey, not an invented number');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  holeCount: 1,
+  pars: [4, ...Array(17).fill(4)],
+  scores: scoresFor([[4], [4]]),
+  gameType: 'skins',
+  gameOpts: { skinVal: 5, carry: false },
+}));
+// Scratch player on a par 4: no strokes, so the max is a plain double bogey.
+assertEqual(call('pickUpGross', 0, 0), 6, 'scratch player picking up on a par 4 is scored 6');
+call('setPickUp', 0, 0);
+assertEqual(vm.runInContext('state.scores[0][0]', context), 6, 'the gross written is the maximum');
+assertEqual(call('isPickedUp', 0, 0), true, 'and the hole is flagged as a pick-up');
+assertEqual(call('getNetScore', 0, 0), 6, 'net is par + 2 -- net double bogey');
+// A pick-up loses the hole, so B takes the skin.
+assertEqual(call('calcSkinsMoney'), [-5, 5], 'picking up loses the hole rather than halving it');
+
+console.log('Pick up: strokes received raise the maximum, so net stays par + 2');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 18 }, { name: 'B', hdcp: 0 }],
+  holeCount: 1,
+  pars: [4, ...Array(17).fill(4)],
+  hdcps: [1, ...Array(17).fill(18)],
+  handicapMode: 'full',
+  scores: scoresFor([[4], [4]]),
+}));
+assertEqual(call('pickUpGross', 0, 0), 7, 'a stroke on this hole raises the maximum to 7');
+call('setPickUp', 0, 0);
+assertEqual(call('getNetScore', 0, 0), 6, 'but the NET is still par + 2, which is the point');
+
+console.log('Pick up: entering a real score clears the flag');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  holeCount: 1,
+  scores: scoresFor([[4], [4]]),
+}));
+call('setPickUp', 0, 0);
+assertEqual(call('isPickedUp', 0, 0), true, 'flagged after picking up');
+call('setQuickScore', 0, 0, 5);
+assertEqual(call('isPickedUp', 0, 0), false, 'holing out afterwards clears the pick-up');
+assertEqual(vm.runInContext('state.scores[0][0]', context), 5, 'and keeps the real score');
+call('setPickUp', 0, 0);
+call('adjScore', 0, 0, 1);
+assertEqual(call('isPickedUp', 0, 0), false, 'the stepper clears it too');
+
+console.log('Pick up: survives a round-trip through undo');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  holeCount: 1,
+  scores: scoresFor([[4], [4]]),
+}));
+call('setPickUp', 0, 0);
+call('doUndo');
+assertEqual(call('isPickedUp', 0, 0), false, 'undo takes the pick-up back');
+assertEqual(vm.runInContext('state.scores[0][0]', context), 4, 'and restores the score under it');
+
 // --- Player colour: one identity, re-stepped per skin ---
 console.log('playerColor: stable identity across skins, legacy hex migrates to a slot');
 const _pal = JSON.parse(vm.runInContext('JSON.stringify(PLAYER_PALETTES)', context));
 assertEqual(_pal.clubhouse.length, 8, 'clubhouse palette has 8 slots');
 assertEqual(_pal.broadcast.length, 8, 'broadcast palette has 8 slots');
+assertEqual(_pal.sunlight.length, 8, 'sunlight palette has 8 slots');
 assertEqual(new Set(_pal.clubhouse).size, 8, 'clubhouse slots are all distinct');
 assertEqual(new Set(_pal.broadcast).size, 8, 'broadcast slots are all distinct');
+assertEqual(new Set(_pal.sunlight).size, 8, 'sunlight slots are all distinct');
+
+// Every skin must step every slot, or a player vanishes into the background on
+// whichever skin forgot them.
+assertEqual(
+  JSON.parse(vm.runInContext('JSON.stringify(SKINS)', context)).filter((k) => !_pal[k]).length,
+  0,
+  'every skin in SKINS has a player palette',
+);
+assertEqual(call('playerColor', { colorIdx: 5 }, 'sunlight'), _pal.sunlight[5], 'slot 5 resolves to the sunlight step');
+// An unknown skin must not return undefined into a style attribute.
+assertEqual(call('playerColor', { colorIdx: 3 }, 'no-such-skin'), _pal.clubhouse[3], 'an unknown skin falls back to clubhouse');
 
 // A player carries a slot, so each skin renders its own step of the same identity.
 assertEqual(call('playerColor', { colorIdx: 2 }, 'clubhouse'), _pal.clubhouse[2], 'slot 2 resolves to the clubhouse step');
