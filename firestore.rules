@@ -53,7 +53,7 @@ service cloud.firestore {
         return [
           'course', 'gameType', 'gameOpts', 'sideBets', 'players', 'pars',
           'hdcps', 'scores', 'wolfHoles', 'wolfBreakouts', 'bankerHoles',
-          'bankerPresses', 'bonusPoints', 'matchPresses', 'holeCount',
+          'bankerPresses', 'bonusPoints', 'pickedUp', 'matchPresses', 'holeCount',
           'holeStart', 'handicapMode', 'currentHole', 'owner', 'code',
           'updatedAt'
         ];

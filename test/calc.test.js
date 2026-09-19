@@ -1403,6 +1403,68 @@ assertEqual(call('computeHandicapIndex', 'Pat', _hcpRounds.slice(0, 2)).index, n
 // Rounds the player did not play in are ignored entirely.
 assertEqual(call('computeHandicapIndex', 'Pat', [hcpRound('Sam', 10, 18, '2026-01-01T12:00:00Z')]).index, null, 'other players\' rounds are ignored');
 
+// --- Picking up: a real thing that happens, scored by a real rule ---
+// Before this there was no way to say "I put it in my pocket", so people typed
+// a number they made up and the money engine settled on it. A pick-up now
+// records the USGA maximum -- net double bogey -- which is a rule both players
+// in the bet already accept.
+console.log('Pick up: records net double bogey, not an invented number');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  holeCount: 1,
+  pars: [4, ...Array(17).fill(4)],
+  scores: scoresFor([[4], [4]]),
+  gameType: 'skins',
+  gameOpts: { skinVal: 5, carry: false },
+}));
+// Scratch player on a par 4: no strokes, so the max is a plain double bogey.
+assertEqual(call('pickUpGross', 0, 0), 6, 'scratch player picking up on a par 4 is scored 6');
+call('setPickUp', 0, 0);
+assertEqual(vm.runInContext('state.scores[0][0]', context), 6, 'the gross written is the maximum');
+assertEqual(call('isPickedUp', 0, 0), true, 'and the hole is flagged as a pick-up');
+assertEqual(call('getNetScore', 0, 0), 6, 'net is par + 2 -- net double bogey');
+// A pick-up loses the hole, so B takes the skin.
+assertEqual(call('calcSkinsMoney'), [-5, 5], 'picking up loses the hole rather than halving it');
+
+console.log('Pick up: strokes received raise the maximum, so net stays par + 2');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 18 }, { name: 'B', hdcp: 0 }],
+  holeCount: 1,
+  pars: [4, ...Array(17).fill(4)],
+  hdcps: [1, ...Array(17).fill(18)],
+  handicapMode: 'full',
+  scores: scoresFor([[4], [4]]),
+}));
+assertEqual(call('pickUpGross', 0, 0), 7, 'a stroke on this hole raises the maximum to 7');
+call('setPickUp', 0, 0);
+assertEqual(call('getNetScore', 0, 0), 6, 'but the NET is still par + 2, which is the point');
+
+console.log('Pick up: entering a real score clears the flag');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  holeCount: 1,
+  scores: scoresFor([[4], [4]]),
+}));
+call('setPickUp', 0, 0);
+assertEqual(call('isPickedUp', 0, 0), true, 'flagged after picking up');
+call('setQuickScore', 0, 0, 5);
+assertEqual(call('isPickedUp', 0, 0), false, 'holing out afterwards clears the pick-up');
+assertEqual(vm.runInContext('state.scores[0][0]', context), 5, 'and keeps the real score');
+call('setPickUp', 0, 0);
+call('adjScore', 0, 0, 1);
+assertEqual(call('isPickedUp', 0, 0), false, 'the stepper clears it too');
+
+console.log('Pick up: survives a round-trip through undo');
+loadState(freshStateLiteral({
+  players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+  holeCount: 1,
+  scores: scoresFor([[4], [4]]),
+}));
+call('setPickUp', 0, 0);
+call('doUndo');
+assertEqual(call('isPickedUp', 0, 0), false, 'undo takes the pick-up back');
+assertEqual(vm.runInContext('state.scores[0][0]', context), 4, 'and restores the score under it');
+
 // --- Player colour: one identity, re-stepped per skin ---
 console.log('playerColor: stable identity across skins, legacy hex migrates to a slot');
 const _pal = JSON.parse(vm.runInContext('JSON.stringify(PLAYER_PALETTES)', context));
