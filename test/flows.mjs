@@ -1303,6 +1303,74 @@ section("A typed handicap says so on the row");
   await ctx.close();
 }
 
+section("Payment handles fold away");
+// --------------------------------------------------------------------------
+// Venmo, Cash App and PayPal are set once and then usually never again, but
+// they sat permanently between the handicap and the bottom of the edit card --
+// and the handicap is the only reason anyone opens that card on the first tee.
+// Folded, the card drops from ~350px to ~200px, which is the difference
+// between seeing one player and seeing three. The summary line is the part
+// that has to stay honest: folding may hide the fields, never the fact that a
+// handle is set.
+{
+  const { ctx, p, errors } = await page();
+  await p.evaluate(() => enterScreen("setup"));
+  await p.waitForTimeout(300);
+  await p.locator(".roster-edit").first().click();
+  await p.waitForTimeout(200);
+
+  const card = () => p.evaluate(() => {
+    const c = document.querySelector('.player-card[data-pidx="0"]');
+    return {
+      h: Math.round(c.getBoundingClientRect().height),
+      fields: c.querySelector(".pay-fields")?.offsetParent !== null,
+      summary: c.querySelector(".pay-summary")?.textContent,
+      expanded: c.querySelector(".pay-toggle")?.getAttribute("aria-expanded"),
+    };
+  });
+
+  const shut = await card();
+  ok(shut.fields === false, "the handles start folded away", JSON.stringify(shut));
+  ok(shut.expanded === "false", "and the toggle says so to a screen reader", JSON.stringify(shut));
+
+  await p.locator(".pay-toggle").first().click();
+  await p.waitForTimeout(200);
+  const open = await card();
+  ok(open.fields === true, "one tap opens them", JSON.stringify(open));
+  ok(open.h > shut.h, "which is what costs the height", `${shut.h} -> ${open.h}`);
+
+  // Typing has to move the summary, or folding would hide a handle that exists
+  // -- the same stale-chip failure the roster handicap had.
+  await p.locator(".pvenmo").first().fill("@dana");
+  await p.locator(".pcashapp").first().fill("$dana");
+  await p.waitForTimeout(150);
+  await p.locator(".pay-toggle").first().click();
+  await p.waitForTimeout(200);
+  const refolded = await card();
+  ok(
+    refolded.summary === "Venmo \u00b7 Cash App",
+    "folded, the summary names the handles that are set",
+    JSON.stringify(refolded)
+  );
+  ok(refolded.fields === false, "and the fields are away again", JSON.stringify(refolded));
+
+  const kept = await p.evaluate(() => ({ v: state.players[0].venmo, c: state.players[0].cashapp }));
+  ok(kept.v === "@dana" && kept.c === "$dana", "folding keeps what was typed", JSON.stringify(kept));
+
+  // renderPlayers() rebuilds the roster from scratch; the fold must survive it.
+  await p.evaluate(() => renderPlayers());
+  await p.waitForTimeout(200);
+  const after = await card();
+  ok(
+    after.fields === false && after.summary === "Venmo \u00b7 Cash App",
+    "and a re-render does not reopen them or lose the summary",
+    JSON.stringify(after)
+  );
+
+  ok(errors.length === 0, "payment handles: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
