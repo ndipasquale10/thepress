@@ -580,19 +580,23 @@ section("The Wolf pick checkmark is a badge, not a blob");
  * actually used on. That asymmetry is why it survived: it is invisible in the
  * one place it gets looked at. Assert the invariant at the ratios real devices
  * report, not at the one the developer's monitor does.
+ *
+ * Checked on the season money sparkline in the home summary: the You screen's
+ * handicap-trend sparkline was removed when that screen was cut back to the
+ * handicap you type, and this is the only sparkline drawSparkline still draws.
  */
 section("Sparklines fill their canvas at every device pixel ratio");
 for (const dpr of [2, 3]) {
   const { ctx, p, errors } = await page({ deviceScaleFactor: dpr });
-  await p.evaluate(() => showScreen("you"));
+  await p.evaluate(() => showScreen("home"));
   await p.waitForTimeout(600);
   const cv = await p.evaluate(() => {
-    const c = document.getElementById("hcp-spark");
+    const c = document.getElementById("ss-spark");
     if (!c) return null;
     const r = c.getBoundingClientRect();
     return { w: c.width, h: c.height, cssW: r.width, cssH: r.height };
   });
-  ok(cv !== null, `${dpr}x: the handicap sparkline renders on the You screen`);
+  ok(cv !== null, `${dpr}x: the season sparkline renders on the Home screen`);
   if (cv) {
     ok(
       cv.h === Math.round(cv.cssH * dpr),
@@ -1469,9 +1473,16 @@ section("Your profile remembers your handicap");
 // The whole point: the next round starts from it, on a fresh launch.
 {
   const { ctx, p, errors } = await page();
-  // Deliberately leaves golfRounds alone: the preview build re-seeds its demo
-  // season on a cold load with no rounds, which would overwrite these.
+  /* The preview build re-seeds its demo season on a cold load with no rounds,
+     and that seed rewrites golfProfiles wholesale. It runs on a timer after
+     DOMContentLoaded, so waiting a fixed 1200ms for it is a race that a slow
+     runner loses: the seed lands between this fixture and the reload, and the
+     roster then comes up off demo profiles instead of these. Run the seed
+     here, synchronously, before the fixture -- then the reload finds rounds
+     already in place and leaves the fixture alone. */
   await p.evaluate(() => {
+    const rounds = () => Object.keys(JSON.parse(localStorage.getItem("golfRounds") || "{}")).length;
+    if (typeof seedDemoData === "function" && !rounds()) seedDemoData();
     localStorage.setItem("primaryPlayer", "You");
     localStorage.setItem(
       "golfProfiles",
@@ -1481,6 +1492,15 @@ section("Your profile remembers your handicap");
   });
   await p.reload({ waitUntil: "load" });
   await p.waitForTimeout(1200);
+
+  /* Asserted before anything reads it: every check below is about what the
+     roster does with these two rows, and if they are not what came back the
+     failures downstream say nothing about why. */
+  const fixture = await p.evaluate(() =>
+    JSON.parse(localStorage.getItem("golfProfiles") || "[]")
+      .map((x) => `${x.name}:${x.hdcp}${x.hdcpSet ? "*" : ""}`).join(", ")
+  );
+  ok(fixture === "You:12.4*, Big Dave:4*", "the saved profiles survive a cold launch", fixture);
 
   const seated = await p.evaluate(() => {
     enterScreen("setup");
@@ -1543,13 +1563,153 @@ section("Your profile remembers your handicap");
   ok(theirs.mine === 11 && theirs.dave === 7,
     "editing another player's row leaves your own handicap alone", JSON.stringify(theirs));
 
+  /* The You screen answers "what do I play off" once, with the figure you
+     typed. It used to answer twice -- the computed index rode along in the
+     identity line, in a note under the stepper, in a "use 9.6 instead" button
+     and in a trend sparkline -- and the demo seed has enough finished rounds
+     to produce one, so this asserts on a screen that would show it. */
   const shown = await p.evaluate(() => {
     showScreen("you");
-    return document.querySelector(".you-id .hint")?.textContent || "";
+    const el = document.getElementById("you-content");
+    return {
+      hint: document.querySelector(".you-id .hint")?.textContent || "",
+      text: el.textContent,
+      spark: !!document.getElementById("hcp-spark"),
+      /* An unclosed identity card swallows everything under it, which reads as
+         cards stacked on top of each other and no stats at all. */
+      tiles: el.querySelectorAll(".stat-tile").length,
+      swallowed: !!el.querySelector(".you-card .stat-tile, .you-card .you-hcp"),
+    };
   });
-  ok(/Plays off\s*11/.test(shown), "the You card leads with what you play off", shown);
+  ok(/Plays off\s*11/.test(shown.hint), "the You card leads with what you play off", shown.hint);
+  ok(
+    !/rounds say|work out to|Matches the|instead/.test(shown.text),
+    "and the figure your rounds work out to is not offered beside it",
+    shown.text.slice(0, 200)
+  );
+  ok(!shown.spark, "nor charted as a trend");
+  ok(shown.tiles > 0 && !shown.swallowed,
+    "the cards below it still stand on their own",
+    `${shown.tiles} tiles, swallowed=${shown.swallowed}`);
 
   ok(errors.length === 0, "remembered handicap: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
+/**
+ * The first page of a round is the roster, and the phone's owner is in almost
+ * every round played on it -- so it opens with you already on it. seatMe() ran
+ * once at boot, which was not enough: opening a finished round, Quick Start and
+ * last-group all replace the roster wholesale, so the next round you set up was
+ * whatever those left behind and you had to type yourself back in.
+ */
+section("The roster page opens with you in it");
+{
+  const { ctx, p, errors } = await page();
+  // Seed first, fixture second: see the note on the same pattern above.
+  await p.evaluate(() => {
+    const rounds = () => Object.keys(JSON.parse(localStorage.getItem("golfRounds") || "{}")).length;
+    if (typeof seedDemoData === "function" && !rounds()) seedDemoData();
+    localStorage.setItem("primaryPlayer", "You");
+    localStorage.setItem(
+      "golfProfiles",
+      JSON.stringify([{ name: "You", hdcp: 12.4, hdcpSet: true, colorIdx: 0, color: "" }])
+    );
+  });
+  await p.reload({ waitUntil: "load" });
+  await p.waitForTimeout(1200);
+  const seatFixture = await p.evaluate(() =>
+    JSON.parse(localStorage.getItem("golfProfiles") || "[]")
+      .map((x) => `${x.name}:${x.hdcp}${x.hdcpSet ? "*" : ""}`).join(", ")
+  );
+  ok(seatFixture === "You:12.4*", "your profile survives a cold launch", seatFixture);
+
+  // A roster that arrived from somewhere else, with no blank slot left to fill
+  // and no row for you in it.
+  const seated = await p.evaluate(() => {
+    state.players = [
+      { name: "Big Dave", hdcp: 4, colorIdx: 1, color: "" },
+      { name: "Tommy P", hdcp: 9, colorIdx: 2, color: "" },
+      { name: "Sanjay", hdcp: 14, colorIdx: 3, color: "" },
+    ];
+    enterScreen("setup");
+    return {
+      names: state.players.map((x) => x.name),
+      hdcp: state.players.find((x) => x.name === "You")?.hdcp,
+      rows: [...document.querySelectorAll("#players-list .pname")].map((i) => i.value),
+    };
+  });
+  ok(seated.names.includes("You"),
+    "a roster carried over from another round still gets you added",
+    JSON.stringify(seated.names));
+  ok(seated.hdcp === 12.4,
+    "off the handicap your profile remembers, not the 0 a blank slot starts at",
+    String(seated.hdcp));
+  ok(seated.rows.includes("You"), "and the row is on screen", JSON.stringify(seated.rows));
+  ok(
+    ["Big Dave", "Tommy P", "Sanjay"].every((n) => seated.names.includes(n)),
+    "without dropping anybody who was already there",
+    JSON.stringify(seated.names)
+  );
+
+  // Re-entering must not stack up copies of you, and must not touch a name
+  // that is half typed -- which is why enter() seats rather than re-renders.
+  const again = await p.evaluate(() => {
+    const f = document.querySelectorAll("#players-list .pname")[0];
+    f.value = "Big Da";
+    f.dispatchEvent(new Event("input"));
+    enterScreen("home");
+    enterScreen("setup");
+    return {
+      mine: state.players.filter((x) => x.name === "You").length,
+      first: state.players[0].name,
+    };
+  });
+  ok(again.mine === 1, "only once, however many times the page is opened", String(again.mine));
+  ok(again.first === "Big Da", "and a half-typed name is left alone", again.first);
+
+  /* Scoring for a group you are not playing in is a real thing people do on
+     this app, so taking your own row out has to stick. */
+  const removed = await p.evaluate(() => {
+    removePlayer(state.players.findIndex((x) => x.name === "You"));
+    enterScreen("home");
+    enterScreen("setup");
+    return state.players.map((x) => x.name);
+  });
+  ok(!removed.includes("You"),
+    "taking your own row out is not undone by reopening the page",
+    JSON.stringify(removed));
+
+  // ...but only for the round being set up. This is what closeFinishRound()
+  // does to the state once a round is settled.
+  const next = await p.evaluate(() => {
+    state.players = [
+      { name: "Big Dave", hdcp: 4, colorIdx: 1, color: "" },
+      { name: "Tommy P", hdcp: 9, colorIdx: 2, color: "" },
+    ];
+    document.getElementById("course-name").value = "Seating Test GC";
+    startRound();
+    state.started = false;
+    state.roundId = null;
+    enterScreen("setup");
+    return state.players.map((x) => x.name);
+  });
+  ok(next.includes("You"), "the next round you set up has you back", JSON.stringify(next));
+
+  // Nobody is seated off a guess: that would put somebody else's name and
+  // handicap on your card.
+  const guess = await p.evaluate(() => {
+    localStorage.removeItem("primaryPlayer");
+    state.players = [{ name: "Big Dave", hdcp: 4, colorIdx: 1, color: "" }];
+    enterScreen("home");
+    enterScreen("setup");
+    return state.players.map((x) => x.name);
+  });
+  ok(guess.length === 1 && guess[0] === "Big Dave",
+    "and an app that has only guessed who you are seats nobody",
+    JSON.stringify(guess));
+
+  ok(errors.length === 0, "roster seating: no page errors", errors[0] || "");
   await ctx.close();
 }
 
