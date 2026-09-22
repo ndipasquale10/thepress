@@ -580,19 +580,23 @@ section("The Wolf pick checkmark is a badge, not a blob");
  * actually used on. That asymmetry is why it survived: it is invisible in the
  * one place it gets looked at. Assert the invariant at the ratios real devices
  * report, not at the one the developer's monitor does.
+ *
+ * Checked on the season money sparkline in the home summary: the You screen's
+ * handicap-trend sparkline was removed when that screen was cut back to the
+ * handicap you type, and this is the only sparkline drawSparkline still draws.
  */
 section("Sparklines fill their canvas at every device pixel ratio");
 for (const dpr of [2, 3]) {
   const { ctx, p, errors } = await page({ deviceScaleFactor: dpr });
-  await p.evaluate(() => showScreen("you"));
+  await p.evaluate(() => showScreen("home"));
   await p.waitForTimeout(600);
   const cv = await p.evaluate(() => {
-    const c = document.getElementById("hcp-spark");
+    const c = document.getElementById("ss-spark");
     if (!c) return null;
     const r = c.getBoundingClientRect();
     return { w: c.width, h: c.height, cssW: r.width, cssH: r.height };
   });
-  ok(cv !== null, `${dpr}x: the handicap sparkline renders on the You screen`);
+  ok(cv !== null, `${dpr}x: the season sparkline renders on the Home screen`);
   if (cv) {
     ok(
       cv.h === Math.round(cv.cssH * dpr),
@@ -1543,11 +1547,34 @@ section("Your profile remembers your handicap");
   ok(theirs.mine === 11 && theirs.dave === 7,
     "editing another player's row leaves your own handicap alone", JSON.stringify(theirs));
 
+  /* The You screen answers "what do I play off" once, with the figure you
+     typed. It used to answer twice -- the computed index rode along in the
+     identity line, in a note under the stepper, in a "use 9.6 instead" button
+     and in a trend sparkline -- and the demo seed has enough finished rounds
+     to produce one, so this asserts on a screen that would show it. */
   const shown = await p.evaluate(() => {
     showScreen("you");
-    return document.querySelector(".you-id .hint")?.textContent || "";
+    const el = document.getElementById("you-content");
+    return {
+      hint: document.querySelector(".you-id .hint")?.textContent || "",
+      text: el.textContent,
+      spark: !!document.getElementById("hcp-spark"),
+      /* An unclosed identity card swallows everything under it, which reads as
+         cards stacked on top of each other and no stats at all. */
+      tiles: el.querySelectorAll(".stat-tile").length,
+      swallowed: !!el.querySelector(".you-card .stat-tile, .you-card .you-hcp"),
+    };
   });
-  ok(/Plays off\s*11/.test(shown), "the You card leads with what you play off", shown);
+  ok(/Plays off\s*11/.test(shown.hint), "the You card leads with what you play off", shown.hint);
+  ok(
+    !/rounds say|work out to|Matches the|instead/.test(shown.text),
+    "and the figure your rounds work out to is not offered beside it",
+    shown.text.slice(0, 200)
+  );
+  ok(!shown.spark, "nor charted as a trend");
+  ok(shown.tiles > 0 && !shown.swallowed,
+    "the cards below it still stand on their own",
+    `${shown.tiles} tiles, swallowed=${shown.swallowed}`);
 
   ok(errors.length === 0, "remembered handicap: no page errors", errors[0] || "");
   await ctx.close();
