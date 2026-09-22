@@ -1473,9 +1473,16 @@ section("Your profile remembers your handicap");
 // The whole point: the next round starts from it, on a fresh launch.
 {
   const { ctx, p, errors } = await page();
-  // Deliberately leaves golfRounds alone: the preview build re-seeds its demo
-  // season on a cold load with no rounds, which would overwrite these.
+  /* The preview build re-seeds its demo season on a cold load with no rounds,
+     and that seed rewrites golfProfiles wholesale. It runs on a timer after
+     DOMContentLoaded, so waiting a fixed 1200ms for it is a race that a slow
+     runner loses: the seed lands between this fixture and the reload, and the
+     roster then comes up off demo profiles instead of these. Run the seed
+     here, synchronously, before the fixture -- then the reload finds rounds
+     already in place and leaves the fixture alone. */
   await p.evaluate(() => {
+    const rounds = () => Object.keys(JSON.parse(localStorage.getItem("golfRounds") || "{}")).length;
+    if (typeof seedDemoData === "function" && !rounds()) seedDemoData();
     localStorage.setItem("primaryPlayer", "You");
     localStorage.setItem(
       "golfProfiles",
@@ -1485,6 +1492,15 @@ section("Your profile remembers your handicap");
   });
   await p.reload({ waitUntil: "load" });
   await p.waitForTimeout(1200);
+
+  /* Asserted before anything reads it: every check below is about what the
+     roster does with these two rows, and if they are not what came back the
+     failures downstream say nothing about why. */
+  const fixture = await p.evaluate(() =>
+    JSON.parse(localStorage.getItem("golfProfiles") || "[]")
+      .map((x) => `${x.name}:${x.hdcp}${x.hdcpSet ? "*" : ""}`).join(", ")
+  );
+  ok(fixture === "You:12.4*, Big Dave:4*", "the saved profiles survive a cold launch", fixture);
 
   const seated = await p.evaluate(() => {
     enterScreen("setup");
@@ -1590,7 +1606,10 @@ section("Your profile remembers your handicap");
 section("The roster page opens with you in it");
 {
   const { ctx, p, errors } = await page();
+  // Seed first, fixture second: see the note on the same pattern above.
   await p.evaluate(() => {
+    const rounds = () => Object.keys(JSON.parse(localStorage.getItem("golfRounds") || "{}")).length;
+    if (typeof seedDemoData === "function" && !rounds()) seedDemoData();
     localStorage.setItem("primaryPlayer", "You");
     localStorage.setItem(
       "golfProfiles",
@@ -1599,6 +1618,11 @@ section("The roster page opens with you in it");
   });
   await p.reload({ waitUntil: "load" });
   await p.waitForTimeout(1200);
+  const seatFixture = await p.evaluate(() =>
+    JSON.parse(localStorage.getItem("golfProfiles") || "[]")
+      .map((x) => `${x.name}:${x.hdcp}${x.hdcpSet ? "*" : ""}`).join(", ")
+  );
+  ok(seatFixture === "You:12.4*", "your profile survives a cold launch", seatFixture);
 
   // A roster that arrived from somewhere else, with no blank slot left to fill
   // and no row for you in it.
