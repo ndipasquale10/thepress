@@ -1580,6 +1580,115 @@ section("Your profile remembers your handicap");
   await ctx.close();
 }
 
+/**
+ * The first page of a round is the roster, and the phone's owner is in almost
+ * every round played on it -- so it opens with you already on it. seatMe() ran
+ * once at boot, which was not enough: opening a finished round, Quick Start and
+ * last-group all replace the roster wholesale, so the next round you set up was
+ * whatever those left behind and you had to type yourself back in.
+ */
+section("The roster page opens with you in it");
+{
+  const { ctx, p, errors } = await page();
+  await p.evaluate(() => {
+    localStorage.setItem("primaryPlayer", "You");
+    localStorage.setItem(
+      "golfProfiles",
+      JSON.stringify([{ name: "You", hdcp: 12.4, hdcpSet: true, colorIdx: 0, color: "" }])
+    );
+  });
+  await p.reload({ waitUntil: "load" });
+  await p.waitForTimeout(1200);
+
+  // A roster that arrived from somewhere else, with no blank slot left to fill
+  // and no row for you in it.
+  const seated = await p.evaluate(() => {
+    state.players = [
+      { name: "Big Dave", hdcp: 4, colorIdx: 1, color: "" },
+      { name: "Tommy P", hdcp: 9, colorIdx: 2, color: "" },
+      { name: "Sanjay", hdcp: 14, colorIdx: 3, color: "" },
+    ];
+    enterScreen("setup");
+    return {
+      names: state.players.map((x) => x.name),
+      hdcp: state.players.find((x) => x.name === "You")?.hdcp,
+      rows: [...document.querySelectorAll("#players-list .pname")].map((i) => i.value),
+    };
+  });
+  ok(seated.names.includes("You"),
+    "a roster carried over from another round still gets you added",
+    JSON.stringify(seated.names));
+  ok(seated.hdcp === 12.4,
+    "off the handicap your profile remembers, not the 0 a blank slot starts at",
+    String(seated.hdcp));
+  ok(seated.rows.includes("You"), "and the row is on screen", JSON.stringify(seated.rows));
+  ok(
+    ["Big Dave", "Tommy P", "Sanjay"].every((n) => seated.names.includes(n)),
+    "without dropping anybody who was already there",
+    JSON.stringify(seated.names)
+  );
+
+  // Re-entering must not stack up copies of you, and must not touch a name
+  // that is half typed -- which is why enter() seats rather than re-renders.
+  const again = await p.evaluate(() => {
+    const f = document.querySelectorAll("#players-list .pname")[0];
+    f.value = "Big Da";
+    f.dispatchEvent(new Event("input"));
+    enterScreen("home");
+    enterScreen("setup");
+    return {
+      mine: state.players.filter((x) => x.name === "You").length,
+      first: state.players[0].name,
+    };
+  });
+  ok(again.mine === 1, "only once, however many times the page is opened", String(again.mine));
+  ok(again.first === "Big Da", "and a half-typed name is left alone", again.first);
+
+  /* Scoring for a group you are not playing in is a real thing people do on
+     this app, so taking your own row out has to stick. */
+  const removed = await p.evaluate(() => {
+    removePlayer(state.players.findIndex((x) => x.name === "You"));
+    enterScreen("home");
+    enterScreen("setup");
+    return state.players.map((x) => x.name);
+  });
+  ok(!removed.includes("You"),
+    "taking your own row out is not undone by reopening the page",
+    JSON.stringify(removed));
+
+  // ...but only for the round being set up. This is what closeFinishRound()
+  // does to the state once a round is settled.
+  const next = await p.evaluate(() => {
+    state.players = [
+      { name: "Big Dave", hdcp: 4, colorIdx: 1, color: "" },
+      { name: "Tommy P", hdcp: 9, colorIdx: 2, color: "" },
+    ];
+    document.getElementById("course-name").value = "Seating Test GC";
+    startRound();
+    state.started = false;
+    state.roundId = null;
+    enterScreen("setup");
+    return state.players.map((x) => x.name);
+  });
+  ok(next.includes("You"), "the next round you set up has you back", JSON.stringify(next));
+
+  // Nobody is seated off a guess: that would put somebody else's name and
+  // handicap on your card.
+  const guess = await p.evaluate(() => {
+    localStorage.removeItem("primaryPlayer");
+    state.players = [{ name: "Big Dave", hdcp: 4, colorIdx: 1, color: "" }];
+    enterScreen("home");
+    enterScreen("setup");
+    return state.players.map((x) => x.name);
+  });
+  ok(guess.length === 1 && guess[0] === "Big Dave",
+    "and an app that has only guessed who you are seats nobody",
+    JSON.stringify(guess));
+
+  ok(errors.length === 0, "roster seating: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

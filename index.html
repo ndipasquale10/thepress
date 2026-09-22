@@ -885,9 +885,23 @@ function rememberIfMine(pl){
    in almost every one of them -- so slot one is filled in from the profile
    that knows your handicap rather than left for you to type again. Only once
    the app has actually been told who you are: seating a guess would put
-   somebody else's name and number on your card. */
+   somebody else's name and number on your card.
+
+   Called on every entry to the roster screen, not just at startup. Booting
+   once was not enough: the roster is replaced wholesale by opening a finished
+   round, by Quick Start and by last-group, so the next round you set up was
+   whoever those rounds held -- you, if you were lucky. Safe to re-run because
+   it only ever fills a blank "Player N" slot or appends; a name somebody typed
+   is never touched, and being in the roster already makes it a no-op.
+
+   Taking your own row out is the one thing it does not argue with: scoring for
+   a group you are not playing in is a real thing people do on this app, and a
+   roster page that puts you back every time you leave it would make that
+   impossible. That decision lasts as long as the setup does -- starting a
+   round, or saying who you are, asks the question again. */
+let _unseatedMe=!1;
 function seatMe(){
-  if(state.started||primaryPlayerIsGuess())return!1;
+  if(state.started||primaryPlayerIsGuess()||_unseatedMe)return!1;
   const me=myProfileName();
   if(!me||inRoster(me))return!1;
   if(!_addToRoster(myProfile()||{name:me,hdcp:0}))return!1;
@@ -1011,7 +1025,15 @@ function rankProfiles(list){
    button. The roster is the basis of every bet already placed, so it is
    locked for the duration rather than remapped. */
 function rosterLocked(){return!!state.started&&(showToast("The roster is locked once the round starts \u2014 every score and bet is tied to it.",{type:"info"}),!0)}
-function removePlayer(e){if(rosterLocked())return;state.players.length<=1?showToast("At least 1 player required",{type:"info"}):(state.players.splice(e,1),renderPlayers())}let _pEdit=new Set();
+function removePlayer(e){
+  if(rosterLocked())return;
+  if(state.players.length<=1)return void showToast("At least 1 player required",{type:"info"});
+  /* Remembered before the splice: seatMe() would otherwise seat you again the
+     next time this screen opens. */
+  const me=myProfileName().toLowerCase(),gone=state.players[e];
+  me&&gone&&String(gone.name||"").trim().toLowerCase()===me&&(_unseatedMe=!0);
+  state.players.splice(e,1),renderPlayers()
+}let _pEdit=new Set();
 /* The three payment handles are set once, usually never again, but they were
    three labels and three inputs sitting permanently between the handicap and
    the bottom of the card -- 266px of edit panel where the handicap is the
@@ -1358,7 +1380,7 @@ function netRow(h){return h>=0&&h<maxHole()?_netTable()[h].slice():state.players
   state.course=document.getElementById("course-name").value||"Round";
   showScreen("games")
 }
-function startRound(){if(state.players.length<1)return void showToast("Add at least 1 player.",{type:"error"});const e=state.players.map(e=>e.name.trim().toLowerCase());e.some(e=>!e)?showToast("All players need a name.",{type:"error"}):new Set(e).size===e.length?(vegasSetupValid()&&nassauSetupValid()&&sixesSetupValid()&&bankerSetupValid()?(state.course=document.getElementById("course-name").value||"Round",state.gameOpts=readGameOpts(),state.sideBets=readSideBets(),saveProfiles(),state.scores={},state.players.forEach((e,t)=>{state.scores[t]={}}),state.bonusPoints={},state.players.forEach((e,t)=>{state.bonusPoints[t]={}}),state.wolfHoles={},state.wolfBreakouts={},state.bankerHoles={},state.bankerPresses={},state.confirmedHoles={},state.pairingsLocked=!1,state.matchPresses=[],state.currentHole=0,state.started=!0,enterScreen("scoring"),state.roundId=generateRoundId(),state.roundDate=(new Date).toISOString(),saveCurrentRound(),renderStrokeSummary(),invalidateMoneyCache(),debouncedSave(),renderHole(),maybeShowStrokesAtStart()):void 0):showToast("Player names must be unique.",{type:"error"})}function renderStrokeSummary(){const e=document.getElementById("stroke-summary"),t=getPlayingHandicaps(),a=state.handicapMode,s=state.players.map(e=>e.hdcp),n=Math.min(...s),o=state.players[s.indexOf(n)].name;if("none"===a)return void(e.innerHTML='<div class="summary-toggle">Playing Scratch — No Strokes Given <span class="toggle-arrow">▼</span></div>');let l=`<div class="summary-toggle">Stroke Summary <span class="toggle-arrow">▼</span></div><div class="summary-body">\n    <div class="summary-meta">Low handicap: <strong>${esc(o)} (${n<0?"+"+Math.abs(n):n})</strong> — plays scratch${"80pct"===a?" · 80% applied":""}</div>\n    <div class="summary-players">`;state.players.forEach((e,a)=>{const s=t[a],n=(e.hdcp<0?Math.abs(e.hdcp):e.hdcp,[]),o=[];for(let e=0;e<maxHole();e++){const t=getStrokesOnHole(s,e);2===t?o.push(e+1):1===t&&n.push(e+1)}l+=`<div class="summary-player">\n      <div class="summary-player-top">\n        ${avatarHTML(e,10)}\n        <span class="summary-name">${esc(e.name)}</span>\n        <span class="summary-hdcp">${0===s?"Scratch":`<strong>${s}</strong> strokes`}</span>\n      </div>\n      ${s>0?`<div class="summary-holes">\n        ${n.length?`<span class="stroke-dot-label">● Holes:</span> ${n.join(", ")}`:""}\n        ${o.length?`<span class="stroke-dot-label double">●● Holes:</span> ${o.join(", ")}`:""}\n      </div>`:""}\n    </div>`}),l+="</div></div>",e.innerHTML=l}let _navHole=!1;/* No invalidateMoneyCache() here on purpose: every calc*Money() settles the
+function startRound(){if(state.players.length<1)return void showToast("Add at least 1 player.",{type:"error"});const e=state.players.map(e=>e.name.trim().toLowerCase());e.some(e=>!e)?showToast("All players need a name.",{type:"error"}):new Set(e).size===e.length?(vegasSetupValid()&&nassauSetupValid()&&sixesSetupValid()&&bankerSetupValid()?(state.course=document.getElementById("course-name").value||"Round",state.gameOpts=readGameOpts(),state.sideBets=readSideBets(),saveProfiles(),state.scores={},state.players.forEach((e,t)=>{state.scores[t]={}}),state.bonusPoints={},state.players.forEach((e,t)=>{state.bonusPoints[t]={}}),state.wolfHoles={},state.wolfBreakouts={},state.bankerHoles={},state.bankerPresses={},state.confirmedHoles={},state.pairingsLocked=!1,state.matchPresses=[],state.currentHole=0,state.started=!0,_unseatedMe=!1,enterScreen("scoring"),state.roundId=generateRoundId(),state.roundDate=(new Date).toISOString(),saveCurrentRound(),renderStrokeSummary(),invalidateMoneyCache(),debouncedSave(),renderHole(),maybeShowStrokesAtStart()):void 0):showToast("Player names must be unique.",{type:"error"})}function renderStrokeSummary(){const e=document.getElementById("stroke-summary"),t=getPlayingHandicaps(),a=state.handicapMode,s=state.players.map(e=>e.hdcp),n=Math.min(...s),o=state.players[s.indexOf(n)].name;if("none"===a)return void(e.innerHTML='<div class="summary-toggle">Playing Scratch — No Strokes Given <span class="toggle-arrow">▼</span></div>');let l=`<div class="summary-toggle">Stroke Summary <span class="toggle-arrow">▼</span></div><div class="summary-body">\n    <div class="summary-meta">Low handicap: <strong>${esc(o)} (${n<0?"+"+Math.abs(n):n})</strong> — plays scratch${"80pct"===a?" · 80% applied":""}</div>\n    <div class="summary-players">`;state.players.forEach((e,a)=>{const s=t[a],n=(e.hdcp<0?Math.abs(e.hdcp):e.hdcp,[]),o=[];for(let e=0;e<maxHole();e++){const t=getStrokesOnHole(s,e);2===t?o.push(e+1):1===t&&n.push(e+1)}l+=`<div class="summary-player">\n      <div class="summary-player-top">\n        ${avatarHTML(e,10)}\n        <span class="summary-name">${esc(e.name)}</span>\n        <span class="summary-hdcp">${0===s?"Scratch":`<strong>${s}</strong> strokes`}</span>\n      </div>\n      ${s>0?`<div class="summary-holes">\n        ${n.length?`<span class="stroke-dot-label">● Holes:</span> ${n.join(", ")}`:""}\n        ${o.length?`<span class="stroke-dot-label double">●● Holes:</span> ${o.join(", ")}`:""}\n      </div>`:""}\n    </div>`}),l+="</div></div>",e.innerHTML=l}let _navHole=!1;/* No invalidateMoneyCache() here on purpose: every calc*Money() settles the
    whole card and none of them read state.currentHole, so walking between holes
    cannot change a single figure. Dropping the cache here made each swipe replay
    the round's money from scratch. */
@@ -1891,7 +1913,10 @@ function importableRound(r){
 function handleImportFile(e){const t=e.target.files&&e.target.files[0];if(e.target.value="",!t)return;const a=new FileReader;a.onload=()=>{const e=safeParseJSON(a.result,null);if(!e||"object"!=typeof e||!e.profiles&&!e.courses&&!e.rounds)return void showToast("Import failed: not a valid backup file.",{type:"error"});let s=0,n=0,o=0,d=0;if(Array.isArray(e.profiles)){const t=getSavedProfiles(),a=mergeByName(t,e.profiles);s=a.length-t.length,safeSetItem("golfProfiles",JSON.stringify(a))}if(Array.isArray(e.courses)){const t=getSavedCourses(),a=mergeByName(t,e.courses);n=a.length-t.length,safeSetItem("golfCourses",JSON.stringify(a))}if(e.rounds&&"object"==typeof e.rounds){const t=readRounds(),c={};Object.keys(e.rounds).forEach(k=>{importableRound(e.rounds[k])&&(c[k]=e.rounds[k]),importableRound(e.rounds[k])||d++});const a={...c,...t};o=Object.keys(a).length-Object.keys(t).length,safeSetItem("golfRounds",JSON.stringify(a))}"function"==typeof renderPlayers&&renderPlayers(),"function"==typeof renderHistory&&renderHistory(),"function"==typeof updateNavCounts&&updateNavCounts(),showToast("Imported "+s+" profiles, "+n+" courses, "+o+" rounds"+(d?" \u2014 skipped "+d+" unreadable round"+(1===d?"":"s"):""),{type:d?"info":"success"})},a.onerror=()=>showToast("Could not read the selected file.",{type:"error"}),a.readAsText(t)}const SCREENS={
   home:{id:"home-screen",tab:"home",enter:()=>{_groupEditMode=!1,renderResumeCard(),renderLiveGames(),renderHome()}},
   games:{id:"games-screen",tab:"games",enter:()=>{renderTheCard(),updateGameOptions(),dockGameOptions(),updateGamesSummary()}},
-  setup:{id:"setup-screen",tab:"games",enter:()=>{}},
+  /* enter() stays out of the roster itself -- rebuilding it would trample a
+     half-typed name -- but seating the phone's owner only fills a blank slot,
+     so the first page of a round always has you on it. */
+  setup:{id:"setup-screen",tab:"games",enter:()=>{seatMe()}},
   scoring:{id:"scoring-screen",tab:"scoring",chrome:"round",enter:()=>{}},
   watch:{id:"watch-screen",chrome:"watch",enter:()=>renderWatch()},
   settle:{id:"settle-screen",tab:"settle",enter:()=>renderSettle()},
@@ -1938,11 +1963,16 @@ function setPrimaryPlayer(name){
   if(!safeSetItem("primaryPlayer",n))return!1;
   haptic();
   /* Now that the app knows who you are, your own remembered handicap is what
-     your roster row should be playing off -- not the 0 a blank slot starts at. */
+     your roster row should be playing off -- not the 0 a blank slot starts at.
+     Naming yourself also outranks having taken an earlier row out, so the
+     roster being set up gets you in it. */
+  _unseatedMe=!1;
   adoptMyHandicap();
-  /* Repaint whatever is reading the name. The setup screen's enter() is a
-     deliberate no-op -- it would trample a half-typed roster -- so the roster
-     is refreshed by hand here, which is also what retires the prompt. */
+  seatMe();
+  /* Repaint whatever is reading the name. The setup screen's enter() seats you
+     but deliberately renders nothing else -- it would trample a half-typed
+     roster -- so the roster is refreshed by hand here, which is also what
+     retires the prompt. */
   try{SCREENS[_currentScreen]&&SCREENS[_currentScreen].enter&&SCREENS[_currentScreen].enter()}catch(e){}
   try{document.getElementById("setup-screen").classList.contains("hidden")||renderPlayers()}catch(e){}
   try{state.started&&!document.getElementById("scoring-screen").classList.contains("hidden")&&renderHole()}catch(e){}
