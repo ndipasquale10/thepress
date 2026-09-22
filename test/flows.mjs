@@ -1371,6 +1371,188 @@ section("Payment handles fold away");
   await ctx.close();
 }
 
+section("Your profile remembers your handicap");
+// --------------------------------------------------------------------------
+// A handicap could only ever be typed into a roster row, and the row dies with
+// the round: startRound() was the only thing that ever wrote one down, so a
+// Saturday that never got past the first tee forgot the number. The You screen
+// showed the computed index instead -- read-only, and null until three rounds
+// are finished -- so somebody who knows they are a 14 had nowhere to say so
+// and re-typed it every week. These check the profile that now holds it: that
+// it is stored, that a reload still knows it, and that it is what the next
+// round's roster starts from.
+{
+  const { ctx, p, errors } = await page();
+  // file:// localStorage carries over between contexts, so start from nothing.
+  await p.evaluate(() => {
+    ["primaryPlayer", "golfProfiles", "golfRounds"].forEach((k) => {
+      try { localStorage.removeItem(k); } catch (e) {}
+    });
+    enterScreen("setup");
+    state.players = [];
+    addPlayer(); addPlayer(); addPlayer(); addPlayer();
+    renderPlayers();
+  });
+
+  // Nobody has said who they are and the roster is four blank slots, so there
+  // is no name to file a handicap under -- and the field says nothing rather
+  // than offering to save one against "Player 1".
+  const anon = await p.evaluate(() => {
+    showScreen("you");
+    return { field: !!document.getElementById("my-hdcp"), name: myProfileName(), hcp: myHandicap() };
+  });
+  ok(anon.name === "", "a blank roster slot is not somebody a handicap can belong to", anon.name);
+  ok(anon.field === false, "so the You screen offers no handicap field yet");
+  ok(anon.hcp === null, "and reports no handicap rather than 0", String(anon.hcp));
+
+  // Say who you are, then say what you play off.
+  const set = await p.evaluate(() => {
+    setPrimaryPlayer("You");
+    showScreen("you");
+    const f = document.getElementById("my-hdcp");
+    f.value = "12.4";
+    f.dispatchEvent(new Event("change"));
+    return {
+      read: myHandicap(),
+      stored: JSON.parse(localStorage.getItem("golfProfiles") || "[]").find((x) => x.name === "You"),
+      field: document.getElementById("my-hdcp").value,
+    };
+  });
+  ok(set.read === 12.4, "a handicap typed on the You screen is read back", String(set.read));
+  ok(!!set.stored && set.stored.hdcp === 12.4, "it is stored on your profile", JSON.stringify(set.stored));
+  ok(!!set.stored && set.stored.hdcpSet === true,
+    "flagged as set by a person, not defaulted", JSON.stringify(set.stored));
+  ok(set.field === "12.4", "and the field echoes what it parsed to", set.field);
+
+  // Scratch and "never said" have to stay tellable apart, so clearing the
+  // field is not a claim to play off 0 -- that would stroke the whole group.
+  const cleared = await p.evaluate(() => {
+    const f = document.getElementById("my-hdcp");
+    f.value = "";
+    f.dispatchEvent(new Event("change"));
+    return { read: myHandicap(), field: f.value };
+  });
+  ok(cleared.read === 12.4, "emptying the field is not filed as scratch", String(cleared.read));
+  ok(cleared.field === "12.4", "and the field is put back to what is stored", cleared.field);
+
+  // A plus handicap is negative inside and must never be shown as "-2".
+  const plus = await p.evaluate(() => {
+    const f = document.getElementById("my-hdcp");
+    f.value = "+2";
+    f.dispatchEvent(new Event("change"));
+    return { read: myHandicap(), field: f.value };
+  });
+  ok(plus.read === -2, "a plus handicap is stored negative", String(plus.read));
+  ok(plus.field === "+2", "and shown as a plus", plus.field);
+
+  // The stepper and the field are the same edit, on both screens that show it.
+  const stepped = await p.evaluate(() => {
+    setMyHandicap(9);
+    stepMyHandicap(1);
+    showSettings();
+    return {
+      read: myHandicap(),
+      fields: [...document.querySelectorAll(".my-hdcp")].map((f) => f.value),
+    };
+  });
+  ok(stepped.read === 10, "the stepper moves the stored figure", String(stepped.read));
+  ok(
+    stepped.fields.length === 2 && stepped.fields.every((v) => v === "10"),
+    "and Settings shows the same number as the You screen",
+    JSON.stringify(stepped.fields)
+  );
+
+  ok(errors.length === 0, "your handicap: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
+// The whole point: the next round starts from it, on a fresh launch.
+{
+  const { ctx, p, errors } = await page();
+  // Deliberately leaves golfRounds alone: the preview build re-seeds its demo
+  // season on a cold load with no rounds, which would overwrite these.
+  await p.evaluate(() => {
+    localStorage.setItem("primaryPlayer", "You");
+    localStorage.setItem(
+      "golfProfiles",
+      JSON.stringify([{ name: "You", hdcp: 12.4, hdcpSet: true, colorIdx: 0, color: "" },
+                      { name: "Big Dave", hdcp: 4, hdcpSet: true, colorIdx: 1, color: "" }])
+    );
+  });
+  await p.reload({ waitUntil: "load" });
+  await p.waitForTimeout(1200);
+
+  const seated = await p.evaluate(() => {
+    enterScreen("setup");
+    return {
+      names: state.players.map((x) => x.name),
+      hdcps: state.players.map((x) => x.hdcp),
+      touched: !!state.players[0]._hdcpTouched,
+      chip: document.querySelectorAll(".roster-hdcp b")[0]?.textContent,
+      count: state.players.length,
+    };
+  });
+  ok(seated.names[0] === "You", "a new round already has you in it", JSON.stringify(seated.names));
+  ok(seated.hdcps[0] === 12.4, "playing off the handicap it remembered", JSON.stringify(seated.hdcps));
+  ok(seated.chip === "12.4", "and the row says so", String(seated.chip));
+  ok(seated.count === 4, "without changing how many slots the round opens with", String(seated.count));
+  ok(
+    seated.touched === true,
+    "marked as a figure a person chose, so the history-derived one cannot overwrite it"
+  );
+
+  // Typing a name the database knows is the same as tapping it in the list.
+  const typed = await p.evaluate(() => {
+    const f = document.querySelectorAll(".pname")[1];
+    f.value = "Big Dave";
+    f.dispatchEvent(new Event("input"));
+    f.dispatchEvent(new Event("change"));
+    return {
+      hdcp: state.players[1].hdcp,
+      chip: document.querySelectorAll(".roster-hdcp b")[1]?.textContent,
+    };
+  });
+  ok(typed.hdcp === 4, "a typed name brings its saved handicap along", String(typed.hdcp));
+  ok(typed.chip === "4", "and the row says so rather than still reading 0", String(typed.chip));
+
+  // The reverse direction: a handicap typed on the first tee is the same fact,
+  // so yours is filed right then rather than waiting for a round to start.
+  const wrote = await p.evaluate(() => {
+    const f = document.querySelectorAll(".hdcp")[0];
+    f.value = "11";
+    f.dispatchEvent(new Event("change"));
+    return {
+      profile: JSON.parse(localStorage.getItem("golfProfiles") || "[]").find((x) => x.name === "You"),
+      read: myHandicap(),
+    };
+  });
+  ok(wrote.read === 11, "editing your roster row updates your profile", String(wrote.read));
+  ok(
+    !!wrote.profile && wrote.profile.hdcp === 11 && wrote.profile.hdcpSet === true,
+    "without waiting for the round to be started",
+    JSON.stringify(wrote.profile)
+  );
+
+  // Somebody else's row is their business, not yours.
+  const theirs = await p.evaluate(() => {
+    const f = document.querySelectorAll(".hdcp")[1];
+    f.value = "7";
+    f.dispatchEvent(new Event("change"));
+    return { mine: myHandicap(), dave: state.players[1].hdcp };
+  });
+  ok(theirs.mine === 11 && theirs.dave === 7,
+    "editing another player's row leaves your own handicap alone", JSON.stringify(theirs));
+
+  const shown = await p.evaluate(() => {
+    showScreen("you");
+    return document.querySelector(".you-id .hint")?.textContent || "";
+  });
+  ok(/Plays off\s*11/.test(shown), "the You card leads with what you play off", shown);
+
+  ok(errors.length === 0, "remembered handicap: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
