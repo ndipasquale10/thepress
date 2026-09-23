@@ -22,7 +22,7 @@
 import { chromium } from "playwright";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PREVIEW = resolve(ROOT, "build/preview.html");
@@ -69,20 +69,25 @@ async function page(opts = {}) {
 }
 
 /**
- * localStorage writes commit to the browser process asynchronously, and a
- * reload can boot the new document before the last of them lands. On a slow
- * runner the fixture written just before a reload came back as whatever the
- * first boot had seeded -- once in about ten runs, and never locally. A second
- * page in the same context reads through the browser process, so the fixture
- * being visible there is the write being durable; it usually is at once.
+ * Reload, and make sure the new document sees the storage this test just wrote.
+ *
+ * A large write can still be in flight when the next document boots: it reads
+ * a snapshot without it, the preview's auto-seed finds no rounds and seeds the
+ * demo season again, and the profile fixture written a moment before comes
+ * back as the demo's. The seed is a 200 KB write, and the miss measured 4 in
+ * 60 here and about 1 in 10 on CI. A fixed wait before the reload does not
+ * close it. So: reload, check what the new document sees, and if the snapshot
+ * was stale, write the fixture again and go round once more -- by then the
+ * first write has landed and the seed leaves the fixture alone.
  */
-const BLANK = resolve(ROOT, "build/probe.html");
-writeFileSync(BLANK, "<!doctype html><title>probe</title>");
-async function durable(ctx, check) {
-  const probe = await ctx.newPage();
-  await probe.goto(`file://${BLANK}`);
-  await probe.waitForFunction(check, null, { timeout: 30000 });
-  await probe.close();
+async function reloadSettled(p, apply, check, tries = 4) {
+  for (let i = 0; i < tries; i++) {
+    await p.reload({ waitUntil: "load" });
+    await p.waitForTimeout(1200);
+    if (await p.evaluate(check)) return;
+    await p.evaluate(apply);
+  }
+  throw new Error("storage never settled across a reload");
 }
 
 const screenOf = (p) =>
@@ -1498,7 +1503,7 @@ section("Your profile remembers your handicap");
      roster then comes up off demo profiles instead of these. Run the seed
      here, synchronously, before the fixture -- then the reload finds rounds
      already in place and leaves the fixture alone. */
-  await p.evaluate(() => {
+  const applyFixture = () => {
     const rounds = () => Object.keys(JSON.parse(localStorage.getItem("golfRounds") || "{}")).length;
     if (typeof seedDemoData === "function" && !rounds()) seedDemoData();
     localStorage.setItem("primaryPlayer", "You");
@@ -1507,12 +1512,11 @@ section("Your profile remembers your handicap");
       JSON.stringify([{ name: "You", hdcp: 12.4, hdcpSet: true, colorIdx: 0, color: "" },
                       { name: "Big Dave", hdcp: 4, hdcpSet: true, colorIdx: 1, color: "" }])
     );
-  });
-  await durable(ctx, () =>
+  };
+  await p.evaluate(applyFixture);
+  await reloadSettled(p, applyFixture, () =>
     Object.keys(JSON.parse(localStorage.getItem("golfRounds") || "{}")).length > 0 &&
     (localStorage.getItem("golfProfiles") || "").includes('"hdcp":12.4'));
-  await p.reload({ waitUntil: "load" });
-  await p.waitForTimeout(1200);
 
   /* Asserted before anything reads it: every check below is about what the
      roster does with these two rows, and if they are not what came back the
@@ -1628,7 +1632,7 @@ section("The roster page opens with you in it");
 {
   const { ctx, p, errors } = await page();
   // Seed first, fixture second: see the note on the same pattern above.
-  await p.evaluate(() => {
+  const applyFixture = () => {
     const rounds = () => Object.keys(JSON.parse(localStorage.getItem("golfRounds") || "{}")).length;
     if (typeof seedDemoData === "function" && !rounds()) seedDemoData();
     localStorage.setItem("primaryPlayer", "You");
@@ -1636,12 +1640,11 @@ section("The roster page opens with you in it");
       "golfProfiles",
       JSON.stringify([{ name: "You", hdcp: 12.4, hdcpSet: true, colorIdx: 0, color: "" }])
     );
-  });
-  await durable(ctx, () =>
+  };
+  await p.evaluate(applyFixture);
+  await reloadSettled(p, applyFixture, () =>
     Object.keys(JSON.parse(localStorage.getItem("golfRounds") || "{}")).length > 0 &&
     (localStorage.getItem("golfProfiles") || "").includes('"hdcp":12.4'));
-  await p.reload({ waitUntil: "load" });
-  await p.waitForTimeout(1200);
   const seatFixture = await p.evaluate(() =>
     JSON.parse(localStorage.getItem("golfProfiles") || "[]")
       .map((x) => `${x.name}:${x.hdcp}${x.hdcpSet ? "*" : ""}`).join(", ")
