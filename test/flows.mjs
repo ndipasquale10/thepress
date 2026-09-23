@@ -68,6 +68,28 @@ async function page(opts = {}) {
   return { ctx, p, errors };
 }
 
+/**
+ * Reload, and make sure the new document sees the storage this test just wrote.
+ *
+ * A large write can still be in flight when the next document boots: it reads
+ * a snapshot without it, the preview's auto-seed finds no rounds and seeds the
+ * demo season again, and the profile fixture written a moment before comes
+ * back as the demo's. The seed is a 200 KB write, and the miss measured 4 in
+ * 60 here and about 1 in 10 on CI. A fixed wait before the reload does not
+ * close it. So: reload, check what the new document sees, and if the snapshot
+ * was stale, write the fixture again and go round once more -- by then the
+ * first write has landed and the seed leaves the fixture alone.
+ */
+async function reloadSettled(p, apply, check, tries = 4) {
+  for (let i = 0; i < tries; i++) {
+    await p.reload({ waitUntil: "load" });
+    await p.waitForTimeout(1200);
+    if (await p.evaluate(check)) return;
+    await p.evaluate(apply);
+  }
+  throw new Error("storage never settled across a reload");
+}
+
 const screenOf = (p) =>
   p.evaluate(
     () =>
@@ -381,7 +403,7 @@ section("Resuming and watching a live round");
   await p.evaluate(() => enterScreen("home"));
   await p.waitForTimeout(400);
   const resumed = await p.evaluate(() => {
-    const card = document.querySelector('#resume-card [onclick*="loadRound"]');
+    const card = document.querySelector('#resume-card [data-act*="loadRound"]');
     if (!card) return false;
     card.click();
     return true;
@@ -444,7 +466,7 @@ section("A screen change starts at the top of that screen");
 
   // ...but a deliberate scroll must still work.
   await p.evaluate(() => {
-    const c = document.querySelector('#resume-card [onclick*="loadRound"]');
+    const c = document.querySelector('#resume-card [data-act*="loadRound"]');
     if (c) c.click();
   });
   await p.waitForTimeout(600);
@@ -785,8 +807,9 @@ section("The home screen tells the season's story");
       delta: /\+\$40 last round/.test(t),
       heater: /3-round heater/.test(t),
       lastOut: document.querySelector(".lr-name")?.textContent || "",
-      lastOutOpens: (document.querySelector(".lr-card")?.getAttribute("onclick") || "").includes("viewFinishedRound"),
-      moves: [...document.querySelectorAll(".lb-move")].map((e) => e.textContent),
+      lastOutOpens: (document.querySelector(".lr-card")?.getAttribute("data-act") || "").includes("viewFinishedRound"),
+      // The direction is an icon now, so read it off the class rather than the glyph.
+      moves: [...document.querySelectorAll(".lb-move")].map((e) => (e.classList.contains("up") ? "▲" : e.classList.contains("dn") ? "▼" : "") + e.textContent.trim()),
       rivalAmt: document.querySelector(".rv-amt")?.textContent || "",
     };
   });
@@ -1480,7 +1503,7 @@ section("Your profile remembers your handicap");
      roster then comes up off demo profiles instead of these. Run the seed
      here, synchronously, before the fixture -- then the reload finds rounds
      already in place and leaves the fixture alone. */
-  await p.evaluate(() => {
+  const applyFixture = () => {
     const rounds = () => Object.keys(JSON.parse(localStorage.getItem("golfRounds") || "{}")).length;
     if (typeof seedDemoData === "function" && !rounds()) seedDemoData();
     localStorage.setItem("primaryPlayer", "You");
@@ -1489,9 +1512,11 @@ section("Your profile remembers your handicap");
       JSON.stringify([{ name: "You", hdcp: 12.4, hdcpSet: true, colorIdx: 0, color: "" },
                       { name: "Big Dave", hdcp: 4, hdcpSet: true, colorIdx: 1, color: "" }])
     );
-  });
-  await p.reload({ waitUntil: "load" });
-  await p.waitForTimeout(1200);
+  };
+  await p.evaluate(applyFixture);
+  await reloadSettled(p, applyFixture, () =>
+    Object.keys(JSON.parse(localStorage.getItem("golfRounds") || "{}")).length > 0 &&
+    (localStorage.getItem("golfProfiles") || "").includes('"hdcp":12.4'));
 
   /* Asserted before anything reads it: every check below is about what the
      roster does with these two rows, and if they are not what came back the
@@ -1607,7 +1632,7 @@ section("The roster page opens with you in it");
 {
   const { ctx, p, errors } = await page();
   // Seed first, fixture second: see the note on the same pattern above.
-  await p.evaluate(() => {
+  const applyFixture = () => {
     const rounds = () => Object.keys(JSON.parse(localStorage.getItem("golfRounds") || "{}")).length;
     if (typeof seedDemoData === "function" && !rounds()) seedDemoData();
     localStorage.setItem("primaryPlayer", "You");
@@ -1615,9 +1640,11 @@ section("The roster page opens with you in it");
       "golfProfiles",
       JSON.stringify([{ name: "You", hdcp: 12.4, hdcpSet: true, colorIdx: 0, color: "" }])
     );
-  });
-  await p.reload({ waitUntil: "load" });
-  await p.waitForTimeout(1200);
+  };
+  await p.evaluate(applyFixture);
+  await reloadSettled(p, applyFixture, () =>
+    Object.keys(JSON.parse(localStorage.getItem("golfRounds") || "{}")).length > 0 &&
+    (localStorage.getItem("golfProfiles") || "").includes('"hdcp":12.4'));
   const seatFixture = await p.evaluate(() =>
     JSON.parse(localStorage.getItem("golfProfiles") || "[]")
       .map((x) => `${x.name}:${x.hdcp}${x.hdcpSet ? "*" : ""}`).join(", ")

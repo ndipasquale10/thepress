@@ -94,8 +94,8 @@ async function openApp({ uid, email, query = "" } = {}) {
     [FIRESTORE_PORT, AUTH_PORT]
   );
   await p.goto(`${ORIGIN}/live.html${query}`, { waitUntil: "load" });
-  // The live-round write path is monkey-patched onto saveCurrentRound by a
-  // polling interval, so a test that scores before it lands syncs nothing.
+  // The live-round write path is wrapped onto saveCurrentRound at load and
+  // marks itself _patched; wait for the mark so a test never scores unwrapped.
   await p.waitForFunction(() => typeof saveCurrentRound === "function" && saveCurrentRound._patched);
   // The SDK is no longer loaded by a blocking script tag -- it arrives on idle,
   // and anything that touches `firebase`, `db` or `auth` has to ask for it
