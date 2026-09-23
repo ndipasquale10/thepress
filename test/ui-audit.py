@@ -323,6 +323,71 @@ else:
                     "Two players would look the same." % (skin, kind, value, floor)
                 )
 
+# --- Money vs. score colour -----------------------------------------------
+# Red is under par in golf and down in money; green is the reverse. Both used
+# to draw from --green-t/--red-t, so a birdie ring and a losing total sat
+# eleven millimetres apart in one colour meaning opposite things. Money reads
+# --up/--down and score-to-par reads --under/--over; the raw ramp values stay
+# in the token layer. Any use outside :root is a new collision.
+ramp = re.findall(r"var\(--(?:green-t|red-t)\)", css_wo) + re.findall(
+    r"var\(--(?:green-t|red-t)\)", js
+)
+budget(
+    "raw red/green ramp uses",
+    ramp,
+    0,
+    "Money is --up/--down, score-to-par is --under/--over. --green-t/--red-t "
+    "are ramp values for the token layer only.",
+)
+
+# --- Duplicate selector lists ---------------------------------------------
+# A selector list declared twice is a place the next edit changes the wrong
+# rule: the fix lands in the first one, the second keeps winning, and nothing
+# says so. Every list was flattened to one declaration; this keeps it that way.
+# Scoped by the at-rule it sits in, so a @media override is not a duplicate.
+def _rules(text):
+    out, stack, buf, j = [], [], "", 0
+    while j < len(text):
+        if text.startswith("/*", j):
+            j = text.find("*/", j) + 2
+            continue
+        ch = text[j]
+        if ch == "{":
+            sel = " ".join(buf.split())
+            buf = ""
+            if sel.startswith("@") and not sel.startswith("@font-face"):
+                stack.append(sel)
+                j += 1
+                continue
+            k = text.find("}", j)
+            out.append((tuple(stack), sel))
+            j = k + 1
+            continue
+        if ch == "}":
+            if stack:
+                stack.pop()
+            buf = ""
+            j += 1
+            continue
+        buf += ch
+        j += 1
+    return out
+
+_seen = {}
+_dupes = []
+for _ctx, _sel in _rules(_body if "_body" in dir() else re.sub(r"</?style[^>]*>", "", css)):
+    if _sel.startswith("@font-face"):
+        continue
+    if (_ctx, _sel) in _seen:
+        _dupes.append(_sel[:60])
+    _seen[(_ctx, _sel)] = True
+budget(
+    "duplicate selector lists",
+    _dupes,
+    0,
+    "Add to the existing rule for that selector list instead of declaring it again.",
+)
+
 # --- Legacy skin layer ----------------------------------------------------
 dark = css.count("body.dark")
 report.append(f"{'body.dark selectors':<34}: {dark:>4}")
