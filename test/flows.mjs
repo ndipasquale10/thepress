@@ -22,7 +22,7 @@
 import { chromium } from "playwright";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PREVIEW = resolve(ROOT, "build/preview.html");
@@ -66,6 +66,23 @@ async function page(opts = {}) {
   await p.goto(`file://${PREVIEW}`, { waitUntil: "load" });
   await p.waitForTimeout(1200);
   return { ctx, p, errors };
+}
+
+/**
+ * localStorage writes commit to the browser process asynchronously, and a
+ * reload can boot the new document before the last of them lands. On a slow
+ * runner the fixture written just before a reload came back as whatever the
+ * first boot had seeded -- once in about ten runs, and never locally. A second
+ * page in the same context reads through the browser process, so the fixture
+ * being visible there is the write being durable; it usually is at once.
+ */
+const BLANK = resolve(ROOT, "build/probe.html");
+writeFileSync(BLANK, "<!doctype html><title>probe</title>");
+async function durable(ctx, check) {
+  const probe = await ctx.newPage();
+  await probe.goto(`file://${BLANK}`);
+  await probe.waitForFunction(check, null, { timeout: 30000 });
+  await probe.close();
 }
 
 const screenOf = (p) =>
@@ -1491,6 +1508,9 @@ section("Your profile remembers your handicap");
                       { name: "Big Dave", hdcp: 4, hdcpSet: true, colorIdx: 1, color: "" }])
     );
   });
+  await durable(ctx, () =>
+    Object.keys(JSON.parse(localStorage.getItem("golfRounds") || "{}")).length > 0 &&
+    (localStorage.getItem("golfProfiles") || "").includes('"hdcp":12.4'));
   await p.reload({ waitUntil: "load" });
   await p.waitForTimeout(1200);
 
@@ -1617,6 +1637,9 @@ section("The roster page opens with you in it");
       JSON.stringify([{ name: "You", hdcp: 12.4, hdcpSet: true, colorIdx: 0, color: "" }])
     );
   });
+  await durable(ctx, () =>
+    Object.keys(JSON.parse(localStorage.getItem("golfRounds") || "{}")).length > 0 &&
+    (localStorage.getItem("golfProfiles") || "").includes('"hdcp":12.4'));
   await p.reload({ waitUntil: "load" });
   await p.waitForTimeout(1200);
   const seatFixture = await p.evaluate(() =>
