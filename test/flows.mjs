@@ -381,7 +381,7 @@ section("Resuming and watching a live round");
   await p.evaluate(() => enterScreen("home"));
   await p.waitForTimeout(400);
   const resumed = await p.evaluate(() => {
-    const card = document.querySelector('#resume-card [onclick*="loadRound"]');
+    const card = document.querySelector('#resume-card [data-act*="loadRound"]');
     if (!card) return false;
     card.click();
     return true;
@@ -444,7 +444,7 @@ section("A screen change starts at the top of that screen");
 
   // ...but a deliberate scroll must still work.
   await p.evaluate(() => {
-    const c = document.querySelector('#resume-card [onclick*="loadRound"]');
+    const c = document.querySelector('#resume-card [data-act*="loadRound"]');
     if (c) c.click();
   });
   await p.waitForTimeout(600);
@@ -785,8 +785,9 @@ section("The home screen tells the season's story");
       delta: /\+\$40 last round/.test(t),
       heater: /3-round heater/.test(t),
       lastOut: document.querySelector(".lr-name")?.textContent || "",
-      lastOutOpens: (document.querySelector(".lr-card")?.getAttribute("onclick") || "").includes("viewFinishedRound"),
-      moves: [...document.querySelectorAll(".lb-move")].map((e) => e.textContent),
+      lastOutOpens: (document.querySelector(".lr-card")?.getAttribute("data-act") || "").includes("viewFinishedRound"),
+      // The direction is an icon now, so read it off the class rather than the glyph.
+      moves: [...document.querySelectorAll(".lb-move")].map((e) => (e.classList.contains("up") ? "▲" : e.classList.contains("dn") ? "▼" : "") + e.textContent.trim()),
       rivalAmt: document.querySelector(".rv-amt")?.textContent || "",
     };
   });

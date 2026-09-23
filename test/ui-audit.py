@@ -151,7 +151,7 @@ if display_rules > 6:
 # already preceded the game options while the bug was live.
 FLOW = [
     (
-        r'nav-tab" onclick="showScreen\(.setup.\)" data-screen="games"',
+        r'nav-tab" data-act="showScreen\(.setup.\)" data-screen="games"',
         "the Games tab opens the roster, not the game picker",
     ),
     (
@@ -159,7 +159,7 @@ FLOW = [
         "the roster screen continues to game setup (not straight into the round)",
     ),
     (
-        r'onclick="startRound\(\)"',
+        r'data-act="startRound\(\)"',
         "the game screen is what starts the round",
     ),
     (

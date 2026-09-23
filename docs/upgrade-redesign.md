@@ -319,3 +319,50 @@ each phase can be judged:
   changes how the file is authored, not what ships.
 - **Surgical DOM updates on the scoring screen.** Measured at 0.63 ms per
   tap with four players. The audit was right to leave it alone.
+
+---
+
+## Shipped from this plan
+
+Picked from the list above and built on the branch this document arrived on,
+in the order below. Each was verified against the money-math tests, the
+design-system audit, and the browser flow suite.
+
+- **Sticky confirm bar** (§2). Fixed above the tab bar on the scoring screen
+  only, with "2 of 4 scored" when the hole is incomplete.
+- **Scores · Money · Feed** (§2). The six cards sit behind a segment; the
+  Money tab carries your running total; a round with no game hides it.
+- **The stroke row** (§2). Coloured left rule, dots on the number, net result
+  at full weight; the "No strokes" chips are gone.
+- **Money vs. score colour** (§3). `--up`/`--down` for money, new
+  `--under`/`--over` for score-to-par in all three skins; `--green-t`/`--red-t`
+  are ramp values the audit now forbids outside `:root`.
+- **The picker** (§3). Birdie a circle, eagle a double ring, bogey a square,
+  double a double square. The dead `.qp-par` rule is gone.
+- **Duplicate selectors** (§3). Forty-one lists flattened to one declaration
+  each, merged in whichever direction the cascade allowed; the audit budgets
+  duplicates at zero. A side effect worth knowing: the wolf-pick warning on
+  the hole strip now shows on any hole, where the notation rules used to
+  overwrite it on every hole but a par.
+- **The icon set** (§3). One `ICONS` map of stroke SVGs replaces every emoji
+  and text glyph in the chrome, hydrated from `<i data-ico>` placeholders.
+  Each game card carries a mark that doubles as its selection state.
+- **The skin picker** (§3). Three equal cards with swatches; the header moon
+  became a palette button that opens Settings on the picker.
+- **The Go Live sheet** (§4). Code at display size, tap to copy; a QR of the
+  watch link from a byte-mode encoder written for the purpose (versions 1 to
+  10, level M, checked module for module against a reference encoder and
+  decoded back with a real reader); the link with the system share sheet.
+- **Event delegation** (§8). Every inline handler is a `data-act`,
+  `data-change` or `data-input` attribute served by one delegate that keeps
+  bubbling semantics and evaluates nothing. The six sync-wrapper pollers are
+  direct calls.
+- **Font subsetting** (§8). Both faces re-subset without hinting. The saving
+  is 14 KB of base64, smaller than the plan assumed: the fonts were already
+  subset and made up 75 KB of the style block, not most of it. The rest of
+  that block is the stylesheet itself.
+
+Not picked up from this plan, and still open: everything under §1, §5, §6
+and §7, relative-to-par entry, the landscape layout, the broadcast Watch
+layout, presence, the print stylesheet, the source split and the modular
+Firebase SDK.
