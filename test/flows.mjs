@@ -1740,6 +1740,43 @@ section("The roster page opens with you in it");
   await ctx.close();
 }
 
+/**
+ * The top of the Settings popup was cut off on an iPhone. The app draws under
+ * the status bar, so a popup padded 16px from the edge started under the clock
+ * and the Dynamic Island; and with Safari's toolbars showing, a popup capped at
+ * 85vh (vh being the toolbar-hidden height there) was taller than the visible
+ * area, and centring clipped its title and close button off the top with no
+ * way to scroll back. Emulate both: a 59px safe area, and an overlay that ends
+ * 190px short of 100vh the way the visible area does with toolbars showing.
+ */
+section("A popup's top clears the notch and the toolbars");
+{
+  const { ctx, p, errors } = await page({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
+  const cdp = await ctx.newCDPSession(p);
+  await cdp.send("Emulation.setSafeAreaInsetsOverride", { insets: { top: 59, bottom: 34 } });
+  await p.evaluate(() => document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden")));
+  for (const [toolbars, how] of [[0, "installed"], [190, "in Safari with its toolbars showing"]]) {
+    if (toolbars) await p.addStyleTag({ content: `.modal{bottom:${toolbars}px !important}` });
+    for (const [sel, btn] of [[".settings-toggle", "the gear"], [".dark-toggle", "the skin button"]]) {
+      await p.tap(sel);
+      await p.waitForTimeout(400);
+      const m = await p.evaluate((toolbars) => {
+        const mc = document.querySelector("#settings-modal .modal-content");
+        const b = mc.getBoundingClientRect(), x = mc.querySelector(".modal-close").getBoundingClientRect();
+        return { top: b.top, close: x.top, bottom: b.bottom, visible: innerHeight - toolbars,
+                 safe: parseFloat(getComputedStyle(document.body).paddingTop) || 0 };
+      }, toolbars);
+      ok(m.top >= m.safe && m.close >= m.safe && m.bottom <= m.visible,
+        `Settings from ${btn}, ${how}, opens whole and below the notch`,
+        `top ${Math.round(m.top)}, close ${Math.round(m.close)}, notch ${m.safe}, bottom ${Math.round(m.bottom)} of ${m.visible}`);
+      await p.evaluate(() => closeModal("settings-modal"));
+      await p.waitForTimeout(300);
+    }
+  }
+  ok(errors.length === 0, "popup placement: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
