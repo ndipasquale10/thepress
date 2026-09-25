@@ -42,6 +42,9 @@ See [`data/README.md`](data/README.md) for the schema and validation rules.
 
 ## Architecture
 
+Diagrams of the system, the money engine, live rounds, and CI live in
+[`docs/architecture.md`](docs/architecture.md).
+
 - **`index.html`** — the entire application: markup, styles, and logic in one
   file, so the service worker caches one shell and the app opens on a course
   with no signal. Nothing on the launch path goes to the network. The Firebase
