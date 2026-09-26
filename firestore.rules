@@ -67,6 +67,37 @@ service cloud.firestore {
             && request.resource.data.players.size() <= 12;
       }
 
+      // Payment handles stay on each player's own phone. This document is
+      // readable by anyone with the code and writable by anyone who joined, so a
+      // handle here could be read by a stranger or swapped for someone else's
+      // and paid out by the next phone to open the round. An empty handle is
+      // let through: the app has always written blank ones, and a phone still
+      // on the previous version must be able to go live until it reloads.
+      // Rules cannot loop, so each of the (at most 12) seats is checked in turn.
+      function noHandles(p) {
+        return p is map
+            && p.get('venmo', '') == ''
+            && p.get('cashapp', '') == ''
+            && p.get('paypal', '') == '';
+      }
+      function seatClean(ps, i) {
+        return ps.size() <= i || noHandles(ps[i]);
+      }
+      function rosterCarriesNoHandles() {
+        let ps = request.resource.data.players;
+        return seatClean(ps, 0) && seatClean(ps, 1) && seatClean(ps, 2)
+            && seatClean(ps, 3) && seatClean(ps, 4) && seatClean(ps, 5)
+            && seatClean(ps, 6) && seatClean(ps, 7) && seatClean(ps, 8)
+            && seatClean(ps, 9) && seatClean(ps, 10) && seatClean(ps, 11);
+      }
+
+      // Only a write that touches the roster is held to that, so a round
+      // published before handles were stripped can still be scored.
+      function rosterUnchangedOrClean() {
+        return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['players'])
+            || rosterCarriesNoHandles();
+      }
+
       // Knowing the code is the capability. Watch links (?watch=CODE) are opened
       // by people who may not have signed in yet, so a read by exact ID stays
       // open.
@@ -85,14 +116,16 @@ service cloud.firestore {
                     && request.resource.data.owner == request.auth.uid
                     && request.resource.data.code == code
                     && code.matches('^[A-Z0-9]{6}$')
-                    && shapedLikeARound();
+                    && shapedLikeARound()
+                    && rosterCarriesNoHandles();
 
       // Anyone holding the code may keep score -- that is the point of sharing
       // it -- but they cannot take the round over or re-point its code.
       allow update: if signedIn()
                     && request.resource.data.owner == resource.data.owner
                     && request.resource.data.code == resource.data.code
-                    && shapedLikeARound();
+                    && shapedLikeARound()
+                    && rosterUnchangedOrClean();
 
       allow delete: if signedIn() && resource.data.owner == request.auth.uid;
     }
