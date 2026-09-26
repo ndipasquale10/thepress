@@ -11,12 +11,33 @@ Stableford, Vegas, Snake, Bingo Bango Bongo, Sixes, Banker, and Trash/Dots.
 
 ## Running it
 
-There is no build step for the app. `index.html` is the whole thing — open it,
-or serve the repository root over HTTP so the service worker registers:
+The shipped app is one file, `index.html` — open it, or serve the repository
+root over HTTP so the service worker registers:
 
 ```sh
 python3 -m http.server 8000
 ```
+
+## Editing it
+
+`index.html` is generated. The source is under `src/`: the markup in
+`src/index.html`, the stylesheet in `src/css/`, and the script in `src/js/`,
+one file per area of the app (players, scoring, games, storage, screens, live
+rounds, …). Edit those, then rebuild and commit both:
+
+```sh
+npm run build      # reassemble index.html from src/ and data/courses.json
+npm run format     # optional: format src/ with Prettier (CI checks it)
+```
+
+The build only concatenates: each `<style>`/`<script>` in `src/index.html`
+is filled with its folder's files in filename order, so the numeric prefixes
+are the load order. Nothing is transformed, and the shipped code is exactly
+the source. `npm test` fails if `index.html` is out of date.
+
+Much of the script was recovered from minified code, so many functions still
+have single-letter parameter names (`function (e, t)`). Rename them as you
+touch them.
 
 ## Tests
 
@@ -24,7 +45,7 @@ The money math is the product, so it has the most tests.
 
 | Command | What it covers |
 | --- | --- |
-| `npm test` | Money math, Wolf/Hammer settlement, the course-data build check, and a static design-system audit. A few seconds, no dependencies. |
+| `npm test` | Money math, Wolf/Hammer settlement, the check that `index.html` is built from the current `src/` and course data, and a static design-system audit. A few seconds, no dependencies. |
 | `npm run test:flows` | Drives a real browser (Playwright) through complete rounds — the only check that sees bugs in the seam between two screens. |
 | `npm run test:rules` | Runs `firestore.rules` through the real rules engine in the Firestore emulator. Requires Java. |
 | `npm run test:live` | Two real browsers sharing one round against the Firestore and Auth emulators and the real security rules — publishing, joining by code, scores and Breakouts crossing the wire, the watch link, and account deletion. Requires Java. |
@@ -36,7 +57,7 @@ All three run in CI on every push.
 `data/courses.json` is the single source of truth for the built-in course list;
 it is inlined into `index.html` at build time because the app reads `COURSE_DB`
 synchronously and has to work with no signal. After editing it, run
-`npm run build:courses` and commit both files — `npm test` fails if they drift.
+`npm run build` and commit both files — `npm test` fails if they drift.
 
 See [`data/README.md`](data/README.md) for the schema and validation rules.
 
@@ -45,8 +66,8 @@ See [`data/README.md`](data/README.md) for the schema and validation rules.
 Diagrams of the system, the money engine, live rounds, and CI live in
 [`docs/architecture.md`](docs/architecture.md).
 
-- **`index.html`** — the entire application: markup, styles, and logic in one
-  file, so the service worker caches one shell and the app opens on a course
+- **`index.html`** — the entire application, built from `src/`: markup,
+  styles, and logic in one file, so the service worker caches one shell and the app opens on a course
   with no signal. Nothing on the launch path goes to the network. The Firebase
   SDK in particular is *not* a blocking `<script src>`: it is listed in
   `FIREBASE_SDK` and fetched by `ensureFirebase()` on idle, after the first
@@ -57,7 +78,9 @@ Diagrams of the system, the money engine, live rounds, and CI live in
 - **`sw.js`** — the service worker. Caches the shell and static assets
   individually (never `addAll`, which fails atomically) and announces updates
   through the cache so a reloaded page still sees them.
-- **`data/`, `scripts/`** — the course database and its build/validation step.
+- **`src/`** — the readable source `index.html` is built from.
+- **`data/`, `scripts/`** — the course database, `build.js` (which assembles
+  `index.html`), and the preview builds the browser tests use.
 - **`test/`** — money math, Wolf/Hammer settlement, security rules, browser
   flows, and a static design-system audit.
 

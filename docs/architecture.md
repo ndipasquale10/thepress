@@ -10,7 +10,7 @@ library. The diagrams below render on GitHub.
 flowchart LR
   subgraph Device["Player's phone"]
     direction TB
-    UI["index.html<br/>markup · styles · logic<br/>COURSE_DB inlined"]
+    UI["index.html<br/>markup · styles · logic<br/>built from src/, COURSE_DB inlined"]
     SW["sw.js<br/>service worker"]
     Cache[("Cache Storage<br/>app shell · logos · html2canvas")]
     LS[("localStorage<br/>golfProfiles · golfCourses<br/>golfRounds · golfRoundActive")]
@@ -101,24 +101,28 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-  Data["data/courses.json"] -->|"npm run build:courses"| HTML["index.html<br/>COURSE_DB block"]
+  Src["src/<br/>index.html · css/ · js/boot · js/app · js/cloud"] -->|"npm run build"| HTML["index.html<br/>one file, generated"]
+  Data["data/courses.json"] -->|"inlined as COURSE_DB"| HTML
   Rules["firestore.rules"]
 
   subgraph CI["GitHub Actions"]
     direction TB
-    T1["npm test<br/>money math · Wolf/Hammer · course sync check · UI audit"]
-    T2["test:flows<br/>Playwright, Firebase stubbed out"]
+    T1["npm test<br/>build check · money math · Wolf/Hammer · UI audit"]
+    T2["test:flows<br/>src/ formatting · Playwright, Firebase stubbed out"]
     T3["test:rules<br/>Firestore emulator"]
     T4["test:live<br/>two browsers vs Auth + Firestore emulators"]
     Deploy["deploy-rules.yml<br/>push to main"]
   end
 
   HTML --> T1 & T2 & T4
+  Src --> T1 & T2
   Data --> T1
   Rules --> T3 & T4
   Rules --> Deploy -->|"firebase deploy --only firestore:rules"| Prod[("Production Firestore")]
 ```
 
+`scripts/build.js` only concatenates: each `<style>`/`<script>` placeholder in
+`src/index.html` is filled with its folder's files in filename order.
 `scripts/build-preview.py` produces the two builds the browser tests drive by
 rewriting the `FIREBASE_SDK` array: emptied for `flows.mjs`, repointed at
 `node_modules` for `live-round.test.mjs`.

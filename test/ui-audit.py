@@ -31,7 +31,7 @@ js = "\n".join(lines[_close + 1 :])
 css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
 
 # The :root blocks are the token layer -- the one place raw values belong.
-roots = re.findall(r':root(?:\[data-theme="[a-z]+"\])?\{[^}]*\}', css)
+roots = re.findall(r':root(?:\[data-theme="[a-z]+"\])?\s*\{[^}]*\}', css)
 css_wo = css
 for r in roots:
     css_wo = css_wo.replace(r, "")
@@ -131,7 +131,7 @@ budget("raw font-size", fontsize, 2, "Use the --fs-3xs..--fs-4xl scale.")
 
 # The display face is a two-level treatment; applying it broadly is what made
 # the type read as inconsistent in the first place.
-display_rules = len(re.findall(r"font-family:var\(--font-display\)", css))
+display_rules = len(re.findall(r"font-family:\s*var\(--font-display\)", css))
 report.append(f"{'display-face rules':<34}: {display_rules:>4}")
 if display_rules > 6:
     failures.append(
@@ -155,7 +155,7 @@ FLOW = [
         "the Games tab opens the roster, not the game picker",
     ),
     (
-        r'getElementById\("start-btn"\)\.addEventListener\("click",continueToGame\)',
+        r'getElementById\("start-btn"\)\s*\.addEventListener\(\s*"click",\s*continueToGame\s*\)',
         "the roster screen continues to game setup (not straight into the round)",
     ),
     (
@@ -163,7 +163,7 @@ FLOW = [
         "the game screen is what starts the round",
     ),
     (
-        r'games:\{id:"games-screen".*?updateGameOptions\(\)',
+        r'games:\s*\{\s*id:\s*"games-screen".*?updateGameOptions\(\)',
         "entering the game screen rebuilds options from the current roster",
     ),
 ]
@@ -182,7 +182,8 @@ for pattern, why in FLOW:
 # the two rules fight over one box: the expander's min-width/min-height and
 # centring leak into the badge, because the badge rule never thinks to reset
 # them. That is what turned the Wolf checkmark into a 44px blob over the chip.
-tap_rules = re.findall(r"([^{}]*)\{[^{}]*min-width:var\(--tap\)[^{}]*\}", css)
+TAP = r"min-width:\s*var\(--tap\)"
+tap_rules = re.findall(r"([^{}]*)\{[^{}]*" + TAP + r"[^{}]*\}", css)
 collisions = []
 checked = 0
 checked_none = []
@@ -202,7 +203,7 @@ for sel_list in tap_rules:
             s
             for s, b in re.findall(r"([^{}]+)\{([^{}]*)\}", css)
             if re.search(re.escape(base) + r"[^,]*::" + pseudo + r"\b", s)
-            and "min-width:var(--tap)" not in b
+            and not re.search(TAP, b)
         ]
         checked += 1
         if other:
@@ -289,7 +290,7 @@ def _worst_pair(cols, kind):
     )
 
 
-_pal_src = re.search(r"const PLAYER_PALETTES=\{(.*?)\};", js, re.S)
+_pal_src = re.search(r"const PLAYER_PALETTES\s*=\s*\{(.*?)\};", js, re.S)
 if not _pal_src:
     failures.append("PLAYER_PALETTES not found -- the CVD budget is not running.")
 else:
@@ -302,7 +303,7 @@ else:
         "sunlight": (18.0, 10.0, 15.0, 18.0),
     }
     for skin, floors in PALETTE_FLOORS.items():
-        m = re.search(skin + r":\[([^\]]*)\]", _pal_src.group(1))
+        m = re.search(skin + r":\s*\[([^\]]*)\]", _pal_src.group(1))
         if not m:
             failures.append("palette %s: not found in PLAYER_PALETTES." % skin)
             continue

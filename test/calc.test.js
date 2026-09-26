@@ -303,7 +303,7 @@ assertEqual(statsA.trend, [0, -2], 'player A trend retains each round\'s score-v
 assertEqual(statsB.trend, [0, 3], 'player B trend retains each round\'s score-vs-par diff in order');
 
 console.log('Wolf: "Lone Wolf" button label reflects gameOpts.lone2x, not hardcoded (Bug 6)');
-const hasConditionalLabel = html.includes('Lone Wolf (${state.gameOpts.lone2x?"2×":"1×"})');
+const hasConditionalLabel = /Lone Wolf \(\$\{\s*state\.gameOpts\.lone2x\s*\?\s*"2×"\s*:\s*"1×"\s*\}\)/.test(html);
 if (hasConditionalLabel) { pass++; console.log('  ok - label is rendered conditionally on gameOpts.lone2x'); }
 else { fail++; console.log('  FAIL - static "Lone Wolf (2×)" label found instead of a conditional one'); }
 

@@ -32,6 +32,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # src/ is the readable source index.html is built from; keep it formatted
+      # so a diff shows the change and not someone's editor settings. (That
+      # index.html matches src/ is checked by `npm test` above, which needs no
+      # dependencies.)
+      - name: Check src/ formatting
+        run: npm run format:check
+
       # Deliberately not cached. Caching the browser skips the ~66s download,
       # but a cache hit still needs the OS libraries Chromium links against,
       # and installing those alone costs ~100s -- so the cached path measured

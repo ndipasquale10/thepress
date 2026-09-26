@@ -350,7 +350,7 @@ test("every field the app writes to a live round is allowed by the rules", () =>
   const writes = [
     ["liveRoundPayload", app.indexOf("return {", app.indexOf("function liveRoundPayload(")) + "return ".length],
     ["liveProgress", app.indexOf("return {", app.indexOf("function liveProgress(")) + "return ".length],
-    ...[...app.matchAll(/liveRounds"\)\.doc\([^)]*\)\.update\(/g)].map((m) => [
+    ...[...app.matchAll(/liveRounds"\)\s*\.doc\([^)]*\)\s*\.update\(/g)].map((m) => [
       "update at " + m.index,
       m.index + m[0].length - 1,
     ]),
@@ -378,7 +378,14 @@ test("every field a joiner reads from a live round is one the app writes", () =>
   const readersOf = (fnName, receiver) => {
     const start = app.indexOf("function " + fnName + "(");
     assert.ok(start > -1, `could not find ${fnName}`);
-    const body = app.slice(start, start + 2000);
+    // The whole function, found by matching its braces.
+    const open = app.indexOf("{", start);
+    let depth = 0, end = open;
+    for (let i = open; i < app.length; i++) {
+      if (app[i] === "{") depth++;
+      else if (app[i] === "}" && !--depth) { end = i; break; }
+    }
+    const body = app.slice(start, end + 1);
     return new Set(
       [...body.matchAll(new RegExp("state\\.([a-zA-Z]+)\\s*=\\s*" + receiver + "\\.([a-zA-Z]+)", "g"))]
         .map((m) => m[2])
@@ -398,7 +405,7 @@ test("every field a joiner reads from a live round is one the app writes", () =>
   };
   collect(app.indexOf("return {", app.indexOf("function liveRoundPayload(")));
   collect(app.indexOf("return {", app.indexOf("function liveProgress(")));
-  for (const m of app.matchAll(/liveRounds"\)\.doc\([^)]*\)\.update\(/g)) collect(m.index + m[0].length - 1);
+  for (const m of app.matchAll(/liveRounds"\)\s*\.doc\([^)]*\)\s*\.update\(/g)) collect(m.index + m[0].length - 1);
 
   // State the app derives locally rather than taking from the document.
   const local = new Set(["updatedAt"]);
