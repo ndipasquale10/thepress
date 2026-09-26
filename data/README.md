@@ -8,16 +8,17 @@ time rather than fetched at runtime.
 ## Editing courses
 
 1. Edit `data/courses.json`.
-2. Regenerate the inlined copy in `index.html`:
+2. Rebuild `index.html`, which inlines the list:
 
    ```sh
-   npm run build:courses
+   npm run build
    ```
 
 3. Commit both `data/courses.json` and `index.html`.
 
-`npm test` runs `build-courses.js --check`, which fails if `index.html` is out
+`npm test` runs `build.js --check`, which fails if `index.html` is out
 of sync with `data/courses.json` — so a forgotten rebuild is caught in CI.
+(`npm run build:courses` still works and does the same thing.)
 
 ## Course shape
 

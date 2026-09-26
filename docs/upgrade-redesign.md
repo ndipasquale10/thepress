@@ -251,6 +251,9 @@ below because most of the M and L items are unsafe without it.
   on. `scripts/build-courses.js` and `scripts/build-preview.py` already
   establish the pattern of generated output checked by CI. The shipped
   artefact stays one file; only the authoring form changes.
+  *Done:* `src/` plus `scripts/build.js`, with the formatting and file split
+  verified behaviour-neutral (identical syntax trees, identical CSSOM). The
+  single-letter parameter names remain, to be renamed as code is touched.
 - **Modular Firebase, still on idle (M).** The compat build of SDK 10.12
   is three bundles totalling 528 KB. The modular SDK tree-shakes to a
   fraction of that and the loader's contract (`ensureFirebase()` on idle,

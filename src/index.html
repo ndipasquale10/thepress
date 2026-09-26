@@ -1,0 +1,417 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><!-- No maximum-scale/user-scalable here. They were the old fix for iOS
+     zooming in on a focused sub-16px field; #100 replaced that properly by
+     flooring every control at 16px under @media (pointer:coarse), so the
+     lock only had one effect left: Android honours user-scalable=no, so the
+     app could not be pinch-zoomed at all. That is WCAG 1.4.4 on a dense
+     numeric scorecard read outdoors, mostly by people in reading glasses. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"><title>The Press</title>
+<link rel="icon" href="data:image/jpeg;base64,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" type="image/png">
+<!-- Points at the file rather than inlining it. This is the same 34KB image as
+     logo.png, byte for byte; as a data URI it added 46KB of base64 to the head
+     of every response, ahead of the stylesheet, and the service worker refetches
+     the whole shell on each launch to check for a deploy. logo.png is already
+     precached by that worker, so the icon still resolves offline -- and iOS only
+     ever asks for it on "Add to Home Screen", never on the render path. -->
+<link rel="apple-touch-icon" href="logo.png">
+<meta name="theme-color" content="#efe7d3"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="./manifest.json">
+<style data-src="css"></style></head><body>
+<!-- The Firebase SDK is NOT a blocking script tag any more. As three plain
+     script-src tags at the top of the body (spelled out rather than written
+     literally here, because test/calc.test.js scans this file for script tags
+     and a real one inside a comment is captured as a block of its own), they
+     sat in front of the app's own markup and its own script: 528KB
+     (159KB gzipped) of cross-origin
+     JavaScript that the parser had to fetch and run before a single row of the
+     scorecard existed. Nothing caches it either -- it is cross-origin, so the
+     service worker's fetch handler never sees it -- so every launch whose HTTP
+     cache had expired went to the network for it. On a course with one bar
+     that is the whole app waiting on a request it does not need: sign-in is
+     optional, local storage is the source of truth, and a signed-out player
+     never touches Firebase at all.
+
+     So: load it on idle, after the app is up and interactive, and let anything
+     that genuinely needs it (sign-in, joining or watching a live round) await
+     ensureFirebase() instead. FIREBASE_SDK is the seam scripts/build-preview.py
+     rewrites -- to [] for the offline test build, to local copies for the
+     emulator build -- so keep it a plain array literal on one line. -->
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<script data-src="js/boot"></script>
+  <div id="app">
+    <header data-act="goHome()" style="cursor:pointer" role="button" tabindex="0" aria-label="Home">
+      <div class="header-logo brand-seal" aria-hidden="true"><span>P</span></div>
+      <div class="header-text">
+        <h1>The Press</h1>
+        <p>Score. Bet. Settle up.</p>
+      </div>
+      <button class="dark-toggle" aria-label="Skin" data-act="event.stopPropagation();showSettings('skin')"><i data-ico="palette"></i></button>
+      <button class="settings-toggle" aria-label="Settings" data-act="event.stopPropagation();showSettings()"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    </header>
+
+    <!-- Auth Bar -->
+    <div id="auth-bar" class="auth-bar">
+      <div id="auth-signed-out">
+        <div id="auth-banner-full" class="auth-banner-full">
+          <svg class="auth-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.2-8.5"/><path d="M21 3v6h-6"/></svg>
+          <span class="auth-banner-text">Sign in to sync your rounds across devices</span>
+          <button class="auth-cta" data-act="signInWithGoogle(this)">Sign in</button>
+          <button class="auth-dismiss" aria-label="Dismiss sign-in banner" data-act="dismissAuthBanner()"><i data-ico="close"></i></button>
+        </div>
+        <button id="auth-banner-mini" class="auth-mini hidden" data-act="signInWithGoogle(this)">Sign in to sync</button>
+      </div>
+      <div id="auth-signed-in" class="hidden">
+        <div class="auth-user">
+          <img id="auth-avatar" class="auth-avatar" src="" alt="">
+          <span id="auth-name" class="auth-name"></span>
+          <button class="auth-signout" data-act="signOutUser()">Sign Out</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nav Bar -->
+    <div id="nav-bar" class="nav-bar">
+      <button class="nav-tab active" data-act="showScreen('home')" data-screen="home" aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><span class="nav-lbl">Home</span></button>
+      <button class="nav-tab" data-act="showScreen('setup')" data-screen="games" aria-label="Games"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg><span class="nav-lbl">Games</span></button>
+      <button class="nav-tab" data-act="showScreen('scoring')" data-screen="scoring" aria-label="Score"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V6M4 6l13-3v9L4 12"/></svg><span class="nav-lbl">Score</span><span id="live-count" class="nav-count"></span></button>
+      <button class="nav-tab" data-act="showScreen('settle')" data-screen="settle" aria-label="Settle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M17 6H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg><span class="nav-lbl">Settle</span></button>
+      <button class="nav-tab" data-act="showScreen('you')" data-screen="you" aria-label="You"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg><span class="nav-lbl">You</span></button>
+    </div>
+
+    <!-- Home button (visible during round) -->
+    <div class="round-topbar">
+      <div id="home-btn" class="home-btn hidden" data-act="goHome()" role="button" tabindex="0">Home</div>
+      <button id="live-btn" class="home-btn live-btn" aria-label="Share round live" data-act="goLiveTap()"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="1.6"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8"/></svg><span id="live-btn-label">Share</span></button>
+    </div>
+
+    <!-- Home / Season Dashboard -->
+    <div id="home-screen" class="hidden">
+      <div id="resume-card" class="hidden"></div>
+      <div id="live-list"></div>
+      <div id="home-content"></div>
+      <button class="btn primary large" style="width:100%;margin-top:16px" data-act="showScreen('setup')"><i data-ico="plus"></i> Start a New Round</button>
+      <button class="btn secondary" style="width:100%;margin-top:10px" data-act="joinLiveRound()">Join a Live Round with a Code</button>
+    </div>
+
+    <!-- Watch / Broadcast Screen -->
+    <div id="watch-screen" class="hidden">
+      <div id="watch-content"></div>
+    </div>
+
+    <!-- Settle Screen -->
+    <div id="settle-screen" class="hidden">
+      <div id="settle-content"></div>
+    </div>
+
+    <!-- You / Profile Screen -->
+    <div id="you-screen" class="hidden">
+      <div id="you-content"></div>
+    </div>
+
+    <!-- History Screen -->
+    <div id="history-screen" class="hidden">
+      <div class="section-head"><h2>Season</h2><span class="hint">every finished round</span></div>
+      <div class="course-search-wrap" style="margin-bottom:12px"><input type="text" id="history-search" placeholder="Search by course or game type..." aria-label="Search rounds" data-input="renderHistory()" autocomplete="off"></div>
+      <div id="history-list"></div>
+      <div id="season-stats"></div>
+      <div id="season-extras"></div>
+      <div id="scoring-stats"></div>
+      <div id="history-empty" class="empty-state hidden">
+        <div class="es-icon" aria-hidden="true"><i data-ico="flag"></i></div>
+        <div class="es-title">No rounds yet</div>
+        <div class="es-body">Finish a round and it lands here with the scorecard and the money.</div>
+        <button class="btn primary" data-act="showScreen('setup')">Start your first round</button>
+      </div>
+      <button class="btn secondary" data-act="exportAllData()" style="width:100%;margin-top:12px">Export All Data (Backup)</button>
+    </div>
+
+    <!-- Setup Screen (course + players) -->
+    <div id="setup-screen" class="hidden">
+      <section class="card">
+        <h2>Course Setup</h2>
+        <div class="form-group">
+          <label for="course-search">Search Courses · U.S.</label>
+          <div class="course-search-wrap">
+            <input type="text" id="course-search" placeholder="Search by course name..." autocomplete="off">
+            <div id="course-results" class="course-results hidden"></div>
+          </div>
+        </div>
+        <div id="selected-course" class="selected-course hidden"></div>
+        <div class="form-group">
+          <label for="course-name">Or Enter Manually</label>
+          <input type="text" id="course-name" placeholder="Course name">
+        </div>
+        <div class="form-group">
+          <label id="holes-label">Holes</label>
+          <div class="hole-toggle" role="group" aria-labelledby="holes-label">
+            <button class="hole-toggle-btn active" data-act="setHoleCount(9)" data-holes="9">9 Holes</button>
+            <button class="hole-toggle-btn" data-act="setHoleCount(18)" data-holes="18">18 Holes</button>
+          </div>
+        </div>
+        <div class="form-group" id="nine-select">
+          <label id="nine-label">Which Nine</label>
+          <div class="hole-toggle" role="group" aria-labelledby="nine-label">
+            <button class="hole-toggle-btn nine-toggle-btn active" data-act="setNine(0)" data-start="0">Front 9</button>
+            <button class="hole-toggle-btn nine-toggle-btn" data-act="setNine(9)" data-start="9">Back 9</button>
+          </div>
+        </div>
+        <div id="par-entry">
+          <h3 class="par-toggle" data-act="toggleParDetail()" role="button" tabindex="0" aria-expanded="true" aria-controls="par-detail">Hole Pars & Handicap Strokes <span id="par-total" class="par-total-badge"></span><span class="par-toggle-hint" id="par-toggle-hint">Hide</span></h3>
+          <div id="par-detail">
+            <p class="hint">Handicap rank: 1 = hardest hole, 18 = easiest</p>
+            <div class="nine-header" id="front-nine-header">Front Nine</div>
+            <div class="par-grid" id="front-pars"></div>
+            <div id="back-nine-section" class="hidden">
+              <div class="nine-header">Back Nine</div>
+              <div class="par-grid" id="back-pars"></div>
+            </div>
+          </div>
+        </div>
+        <button class="btn secondary" data-act="saveCourse()" style="width:100%;margin-top:10px">Save Course for Future Rounds</button>
+      </section>
+
+      <section class="card">
+        <h2>Players</h2>
+        <div id="players-list"></div>
+        <button id="add-player-btn" class="btn secondary" style="width:100%;margin-top:6px">+ Add Player</button>
+      </section>
+
+      <button id="start-btn" class="btn primary large">Continue → Game &amp; Bets</button>
+    </div>
+
+    <!-- Games Screen (pick the bets) -->
+    <div id="games-screen" class="hidden">
+      <div id="the-card"></div>
+      <div class="games-intro">
+        <h2 class="games-title">Pick your game</h2>
+        <p class="hint" id="games-intro-hint">Choose one main game, then stack any side bets on top. They all settle into one number.</p>
+      </div>
+      <div id="games-summary" class="games-summary"></div>
+      <section class="card">
+        <h2>Main game</h2>
+        <div class="form-group">
+          <label id="game-type-label" class="sr-only">Game Type</label>
+          <div id="game-grid" class="game-grid" role="radiogroup" aria-labelledby="game-type-label">
+            <button type="button" class="game-card selected" data-game="wolf" role="radio" aria-checked="true" data-act="selectGameType('wolf')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-wolf"></i></span><span class="gc-name">Wolf Hammer</span><span class="gc-desc">Rotating wolf picks a partner — or goes lone</span></button>
+            <button type="button" class="game-card" data-game="nassau" role="radio" aria-checked="false" data-act="selectGameType('nassau')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-nassau"></i></span><span class="gc-name">Nassau</span><span class="gc-desc">Front, back &amp; overall match bets</span></button>
+            <button type="button" class="game-card" data-game="skins" role="radio" aria-checked="false" data-act="selectGameType('skins')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-skins"></i></span><span class="gc-name">Skins</span><span class="gc-desc">Low net takes the hole's pot</span></button>
+            <button type="button" class="game-card" data-game="match" role="radio" aria-checked="false" data-act="selectGameType('match')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-match"></i></span><span class="gc-name">Match Play</span><span class="gc-desc">Every hole worth $</span></button>
+            <button type="button" class="game-card" data-game="stableford" role="radio" aria-checked="false" data-act="selectGameType('stableford')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-stableford"></i></span><span class="gc-name">Stableford</span><span class="gc-desc">Points vs par, settle the diff</span></button>
+            <button type="button" class="game-card" data-game="bingo" role="radio" aria-checked="false" data-act="selectGameType('bingo')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-bingo"></i></span><span class="gc-name">Bingo Bango Bongo</span><span class="gc-desc">First on, closest, first in</span></button>
+            <button type="button" class="game-card" data-game="dots" role="radio" aria-checked="false" data-act="selectGameType('dots')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-dots"></i></span><span class="gc-name">Trash / Dots</span><span class="gc-desc">Greenies, sandies &amp; side bets</span></button>
+            <button type="button" class="game-card" data-game="vegas" role="radio" aria-checked="false" data-act="selectGameType('vegas')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-vegas"></i></span><span class="gc-name">Vegas</span><span class="gc-desc">2-team combined numbers</span></button>
+            <button type="button" class="game-card" data-game="snake" role="radio" aria-checked="false" data-act="selectGameType('snake')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-snake"></i></span><span class="gc-name">Snake</span><span class="gc-desc">Last 3-putt pays the pot</span></button>
+            <button type="button" class="game-card" data-game="sixes" role="radio" aria-checked="false" data-act="selectGameType('sixes')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-sixes"></i></span><span class="gc-name">Sixes</span><span class="gc-desc">Partners rotate every 6 holes</span></button>
+            <button type="button" class="game-card" data-game="banker" role="radio" aria-checked="false" data-act="selectGameType('banker')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-banker"></i></span><span class="gc-name">Banker</span><span class="gc-desc">Rotating banker vs each player</span></button>
+            <button type="button" class="game-card" data-game="none" role="radio" aria-checked="false" data-act="selectGameType('none')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-none"></i></span><span class="gc-name">None</span><span class="gc-desc">Score only, no betting</span></button>
+          </div>
+          <select id="game-type" class="hidden" aria-hidden="true" tabindex="-1">
+            <option value="none">None (Score Only)</option>
+            <option value="wolf" selected>Wolf Hammer</option>
+            <option value="nassau">Nassau (Front/Back/Overall Match)</option>
+            <option value="skins">Skins (Low Net Wins Pot)</option>
+            <option value="match">Match Play (Hole-by-Hole $)</option>
+            <option value="stableford">Stableford (Points Pool)</option>
+            <option value="bingo">Bingo Bango Bongo (3 pts/hole)</option>
+            <option value="dots">Trash / Dots (Side Bets)</option>
+            <option value="vegas">Vegas (2-Team Numbers)</option>
+            <option value="snake">Snake (3-Putt Penalty Pot)</option>
+            <option value="sixes">Sixes (Rotating Partners)</option>
+            <option value="banker">Banker (Rotating Banker vs Field)</option>
+          </select>
+        </div>
+        <div id="game-desc" class="hint"></div>
+        <div id="game-options"></div>
+        <div class="form-group">
+          <label for="handicap-mode">Handicap Mode</label>
+          <select id="handicap-mode">
+            <option value="full">Full Handicap (off low man)</option>
+            <option value="80pct">80% Handicap (off low man)</option>
+            <option value="course">Course Handicap (Slope/Rating, off low man)</option>
+            <option value="none">No Handicaps (scratch)</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Side bets <span class="hint-inline">stack any</span></h2>
+        <div class="sb-list">
+          <div class="sb-card" data-sb="skins">
+            <label class="sb-head"><input type="checkbox" id="sb-skins-on" data-change="updateGamesSummary()"><span class="sb-name">Skins</span><span class="sb-check" aria-hidden="true"></span></label>
+            <p class="sb-desc">Low net wins the hole's pot. Tie and it carries — a stacked skin can swing the round.</p>
+            <div class="sb-opts">
+              <label class="sb-opt">$ per skin <input type="number" id="sb-skins-val" value="2" min="0" step="1" inputmode="decimal" data-change="updateGamesSummary()"></label>
+              <label class="sb-opt sb-inline"><input type="checkbox" id="sb-skins-carry" checked data-change="updateGamesSummary()"> Carry ties</label>
+            </div>
+          </div>
+          <div class="sb-card" data-sb="snake">
+            <label class="sb-head"><input type="checkbox" id="sb-snake-on" data-change="updateGamesSummary()"><span class="sb-name">Snake <i data-ico="snake"></i></span><span class="sb-check" aria-hidden="true"></span></label>
+            <p class="sb-desc">Three-putt and you hold the Snake. Whoever holds it at the end pays everyone.</p>
+            <div class="sb-opts">
+              <label class="sb-opt">$ pot <input type="number" id="sb-snake-val" value="5" min="0" step="1" inputmode="decimal" data-change="updateGamesSummary()"></label>
+            </div>
+          </div>
+          <div class="sb-card" data-sb="junk">
+            <label class="sb-head"><input type="checkbox" id="sb-junk-on" data-change="updateGamesSummary()"><span class="sb-name">Junk / Dots</span><span class="sb-check" aria-hidden="true"></span></label>
+            <p class="sb-desc">Greenies, Sandies, Barkies, birdies, eagles and Polies — award them as they happen.</p>
+            <div class="sb-opts">
+              <label class="sb-opt">$ per dot <input type="number" id="sb-junk-val" value="2" min="0" step="1" inputmode="decimal" data-change="updateGamesSummary()"></label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <button class="btn primary large" style="width:100%" data-act="startRound()">Start Round</button>
+    </div>
+
+    <!-- Scoring Screen -->
+    <div id="scoring-screen" class="hidden">
+      <div class="scoring-nav sticky-hole-header">
+        <button id="prev-hole" class="btn small" aria-label="Previous hole"><i data-ico="left"></i></button>
+        <div id="hole-indicator"></div>
+        <button id="next-hole" class="btn small" aria-label="Next hole"><i data-ico="right"></i></button>
+      </div>
+      <div id="spectator-banner" class="spectator-banner hidden" role="status"><i data-ico="eye"></i> Watching live — read-only</div>
+      <div class="hole-dots" id="hole-dots"></div>
+      <div id="standings-ribbon" class="hidden"></div>
+      <div id="stroke-summary" class="card collapsible collapsed hidden" data-act="toggleCollapsed(this)" role="button" tabindex="0" aria-label="Handicap strokes summary"></div>
+
+      <!-- Only the score rows are needed on every hole. The ledger cards sit
+           behind a segment so the screen is the scorecard, not a scroll. -->
+      <div id="score-seg" class="hole-toggle score-seg hidden" role="tablist" aria-label="Scoring view">
+        <button type="button" class="hole-toggle-btn seg-btn active" role="tab" aria-selected="true" data-seg="scores" data-act="setScoreSeg('scores')">Scores</button>
+        <button type="button" class="hole-toggle-btn seg-btn" role="tab" aria-selected="false" tabindex="-1" data-seg="money" data-act="setScoreSeg('money')">Money<span id="seg-money-sub" class="seg-sub"></span></button>
+        <button type="button" class="hole-toggle-btn seg-btn" role="tab" aria-selected="false" tabindex="-1" data-seg="feed" data-act="setScoreSeg('feed')">Feed</button>
+      </div>
+      <div id="hole-info" class="card" data-panel="scores"></div>
+      <div id="score-inputs" class="card" data-panel="scores"></div>
+      <div id="hole-preview" class="card hidden" data-panel="scores"></div>
+      <div id="game-status" class="card" data-panel="money"></div>
+      <div id="hole-money-log" class="card" data-panel="money"></div>
+      <div id="play-feed" class="card hidden" data-panel="feed"></div>
+      <div id="feed-empty" class="card seg-empty hidden" data-panel="feed">The feed fills in as holes are settled.</div>
+
+      <div class="scoring-actions">
+        <button id="undo-btn" class="btn secondary hidden" data-act="doUndo()">Undo</button>
+        <button id="strokes-btn" class="btn secondary" data-act="showStrokes()">Strokes</button>
+        <button id="scorecard-btn" class="btn secondary">Scorecard</button>
+        <button id="standings-btn" class="btn secondary">Standings</button>
+        <button id="edit-round-btn" class="btn secondary" data-act="showEditRound()">Edit</button>
+      </div>
+      <button id="finish-btn" class="btn secondary large" data-act="finishRound()" style="margin-top:8px">Finish Round</button>
+    </div>
+
+    <!-- Sticky Leaderboard -->
+    <div id="sticky-leaderboard" class="sticky-lb hidden"></div>
+    <!-- The hole confirm, pinned above the tab bar on the scoring screen -->
+    <div id="confirm-bar" class="confirm-bar hidden"></div>
+
+    <!-- Scorecard Modal -->
+    <div id="strokes-modal" class="modal hidden" role="dialog" aria-modal="true" tabindex="-1">
+      <div class="modal-content">
+        <button class="modal-close" aria-label="Close" data-act="closeModal('strokes-modal')"><i data-ico="close"></i></button>
+        <h2>Handicap Strokes</h2>
+        <div id="strokes-content"></div>
+        <button class="btn primary" data-act="closeModal('strokes-modal')" style="width:100%;margin-top:14px">Got It</button>
+      </div>
+    </div>
+
+    <!-- Standings Modal -->
+    <div id="standings-modal" class="modal hidden" role="dialog" aria-modal="true" tabindex="-1">
+      <div class="modal-content">
+        <button class="modal-close" aria-label="Close" data-act="closeModal('standings-modal')"><i data-ico="close"></i></button>
+        <h2>Standings & Payouts</h2>
+        <div id="standings-content"></div>
+      </div>
+    </div>
+
+    <!-- Final Results Modal -->
+    <div id="results-modal" class="modal hidden" role="dialog" aria-modal="true" tabindex="-1">
+      <div class="modal-content results-modal-content">
+        <button class="modal-close" aria-label="Close" data-act="closeFinishRound()"><i data-ico="close"></i></button>
+        <h2>Final Results</h2>
+        <div id="results-content"></div>
+        <div class="results-actions">
+          <button class="btn secondary" data-act="showScorecard()">Scorecard</button>
+          <button class="btn primary" data-act="shareResults()">Copy Text</button>
+          <button class="btn secondary" data-act="downloadResultsImage()">Save Image</button>
+          <button class="btn ghost" data-act="closeFinishRound()">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Full Scorecard Modal — placed after the results modal so it stacks on top when opened from the finish screen (paint order and Tab-trapping both follow DOM order) -->
+    <div id="scorecard-modal" class="modal hidden" role="dialog" aria-modal="true" tabindex="-1">
+      <div class="modal-content">
+        <button class="modal-close" aria-label="Close" data-act="closeModal('scorecard-modal')"><i data-ico="close"></i></button>
+        <h2>Full Scorecard</h2>
+        <div id="scorecard-table-wrap"></div>
+        <button class="btn primary" data-act="shareScorecard()" style="width:100%;margin-top:12px">Share Scorecard</button>
+      </div>
+    </div>
+
+    <!-- Edit Round Modal -->
+    <div id="edit-round-modal" class="modal hidden" role="dialog" aria-modal="true" tabindex="-1">
+      <div class="modal-content">
+        <button class="modal-close" aria-label="Close" data-act="closeModal('edit-round-modal')"><i data-ico="close"></i></button>
+        <h2>Edit Round</h2>
+        <div id="edit-round-content"></div>
+        <div class="app-dialog-actions" style="margin-top:16px">
+          <button class="btn secondary" type="button" data-act="closeModal('edit-round-modal')" style="flex:1">Cancel</button>
+          <button class="btn primary" type="button" data-act="saveEditRound()" style="flex:1">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true" tabindex="-1">
+    <div class="modal-content">
+      <button class="modal-close" aria-label="Close" data-act="closeModal('settings-modal')"><i data-ico="close"></i></button>
+      <h2>Settings</h2>
+      <div id="settings-content"></div>
+    </div>
+  </div>
+
+  <!-- Go Live sheet -->
+  <div id="live-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="live-title" tabindex="-1">
+    <div class="modal-content live-sheet">
+      <button class="modal-close" aria-label="Close" data-act="closeModal('live-modal')"><i data-ico="close"></i></button>
+      <h2 id="live-title">Round is live</h2>
+      <div id="live-sheet-content"></div>
+    </div>
+  </div>
+
+  <!-- Onboarding Modal -->
+  <div id="onboarding-modal" class="modal hidden" role="dialog" aria-modal="true" tabindex="-1">
+    <div class="modal-content" style="text-align:center">
+      <div id="onboarding-content"></div>
+    </div>
+  </div>
+
+  <!-- Legal Modal -->
+  <div id="legal-modal" class="modal hidden" role="dialog" aria-modal="true" tabindex="-1">
+    <div class="modal-content">
+      <button class="modal-close" aria-label="Close" data-act="closeModal('legal-modal')"><i data-ico="close"></i></button>
+      <div id="legal-content"></div>
+    </div>
+  </div>
+
+  <!-- App Dialog (themed confirm/prompt) -->
+  <div id="app-dialog" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title" tabindex="-1">
+    <div class="modal-content app-dialog-content">
+      <h2 id="app-dialog-title">Confirm</h2>
+      <p id="app-dialog-msg" class="app-dialog-msg"></p>
+      <input type="text" id="app-dialog-input" class="hidden" autocomplete="off" aria-labelledby="app-dialog-msg">
+      <div class="app-dialog-actions">
+        <button id="app-dialog-cancel" class="btn secondary" type="button">Cancel</button>
+        <button id="app-dialog-ok" class="btn primary" type="button">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="error-toast" class="error-toast hidden" role="alert" aria-live="assertive"></div>
+<div id="storage-warn-toast" class="storage-warn-toast hidden" role="status" aria-live="polite">Couldn't save — your device storage may be full. Tap to dismiss.</div>
+<div id="offline-chip" class="offline-chip hidden" role="status" aria-live="polite"><span class="offline-dot" aria-hidden="true"></span>Offline · scores still saving</div>
+<div id="app-toast" class="app-toast" role="status" aria-live="polite"></div>
+<script data-src="js/app"></script><script data-src="js/cloud"></script>
+</body></html>

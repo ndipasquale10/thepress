@@ -4,15 +4,19 @@
   "description": "The Press — golf betting tracker PWA. Score. Bet. Settle up.",
   "private": true,
   "scripts": {
-    "test": "node scripts/build-courses.js --check && node test/calc.test.js && node test/wolf-hammer.test.js && python3 test/ui-audit.py",
+    "build": "node scripts/build.js",
+    "build:courses": "node scripts/build.js",
+    "format": "prettier --write \"src/**/*.{js,css}\"",
+    "format:check": "prettier --check \"src/**/*.{js,css}\"",
+    "test": "node scripts/build.js --check && node test/calc.test.js && node test/wolf-hammer.test.js && python3 test/ui-audit.py",
     "test:flows": "python3 scripts/build-preview.py && node test/flows.mjs",
     "test:rules": "firebase emulators:exec --only firestore --project thepress-rules-test \"node --test test/rules.test.mjs\"",
-    "test:live": "python3 scripts/build-preview.py --live -o build/live.html && firebase emulators:exec --only firestore,auth --project thepress-live-test \"node test/live-round.test.mjs\"",
-    "build:courses": "node scripts/build-courses.js"
+    "test:live": "python3 scripts/build-preview.py --live -o build/live.html && firebase emulators:exec --only firestore,auth --project thepress-live-test \"node test/live-round.test.mjs\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^4.0.1",
     "firebase-tools": "^13.35.1",
-    "playwright": "^1.56.1"
+    "playwright": "^1.56.1",
+    "prettier": "3.9.9"
   }
 }

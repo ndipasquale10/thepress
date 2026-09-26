@@ -1,23 +1,18 @@
 #!/usr/bin/env node
 /*
- * build-courses.js — regenerate the built-in course database inside index.html
- * from the single source of truth in data/courses.json.
+ * build-courses.js — validate the built-in course database in data/courses.json
+ * and render it as the COURSE_DB literal.
  *
  * The app is an offline-first PWA that reads COURSE_DB synchronously, so the
- * data is inlined into index.html rather than fetched at runtime. Edit
- * data/courses.json, then run `npm run build:courses` to sync index.html.
+ * data is inlined into index.html rather than fetched at runtime. scripts/build.js
+ * does the inlining, using validate() and buildBlock() from here.
  *
- * Usage:
- *   node scripts/build-courses.js          # regenerate index.html
+ * Usage (kept for habit; both run the full build):
+ *   node scripts/build-courses.js          # rebuild index.html
  *   node scripts/build-courses.js --check  # verify index.html is in sync (CI)
  */
 "use strict";
-const fs = require("fs");
-const path = require("path");
 
-const ROOT = path.resolve(__dirname, "..");
-const DATA = path.join(ROOT, "data", "courses.json");
-const HTML = path.join(ROOT, "index.html");
 const START = "/*__COURSE_DB_START__*/";
 const END = "/*__COURSE_DB_END__*/";
 
@@ -70,41 +65,5 @@ function buildBlock(courses) {
   return `${START}const COURSE_DB=${literal(courses)};${END}`;
 }
 
-// Replace the COURSE_DB region in html; bootstraps markers on first run.
-function replaceRegion(html, block) {
-  const s = html.indexOf(START), e = html.indexOf(END);
-  if (s !== -1 && e !== -1) {
-    return html.slice(0, s) + block + html.slice(e + END.length);
-  }
-  // Bootstrap: original construction is `const COURSE_DB=[ ... push(...)` up to `;;`.
-  const cs = html.indexOf("const COURSE_DB=[");
-  if (cs === -1) fail("could not find COURSE_DB construction in index.html");
-  const term = html.indexOf(";;", cs);
-  if (term === -1) fail("could not find `;;` terminator after COURSE_DB");
-  return html.slice(0, cs) + block + html.slice(term + 2);
-}
-
-function main() {
-  const check = process.argv.includes("--check");
-  const courses = JSON.parse(fs.readFileSync(DATA, "utf8"));
-  validate(courses);
-  const block = buildBlock(courses);
-  const html = fs.readFileSync(HTML, "utf8");
-  const next = replaceRegion(html, block);
-
-  if (check) {
-    if (next !== html) fail("index.html is out of sync with data/courses.json — run `npm run build:courses`");
-    console.log(`build-courses: in sync (${courses.length} courses)`);
-    return;
-  }
-  if (next === html) {
-    console.log(`build-courses: no change (${courses.length} courses)`);
-  } else {
-    fs.writeFileSync(HTML, next);
-    const byState = {};
-    courses.forEach(c => byState[c.state] = (byState[c.state] || 0) + 1);
-    console.log(`build-courses: wrote ${courses.length} courses across ${Object.keys(byState).length} states into index.html`);
-  }
-}
-
-main();
+if (require.main === module) require("./build").main();
+module.exports = { validate, buildBlock };
