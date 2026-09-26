@@ -203,6 +203,57 @@ test("liveRounds: a round with no players, or a crowd, is refused", async () => 
   );
 });
 
+// A round is readable by anyone with the code and writable by anyone who
+// joined, so a payment handle in it could be read by a stranger, or swapped for
+// the joiner's own and paid out by the next phone to open the round.
+test("liveRounds: a round cannot be published with payment handles in it", async () => {
+  for (const key of ["venmo", "cashapp", "paypal"]) {
+    await assertFails(
+      host_()
+        .collection("liveRounds")
+        .doc(CODE)
+        .set(roundDoc({ players: [{ name: "Nick" }, { name: "Pat", [key]: "pat-golf" }] }))
+    );
+  }
+  // The twelfth seat is checked too, not just the first few.
+  const crowd = Array.from({ length: 12 }, (_, i) => ({ name: "P" + i }));
+  crowd[11].venmo = "p11";
+  await assertFails(host_().collection("liveRounds").doc(CODE).set(roundDoc({ players: crowd })));
+  // Blank handles, which the previous app version always wrote, are not a leak.
+  await assertSucceeds(
+    host_()
+      .collection("liveRounds")
+      .doc(CODE)
+      .set(roundDoc({ players: [{ name: "Nick", venmo: "", cashapp: "", paypal: "" }, { name: "Pat" }] }))
+  );
+});
+
+test("liveRounds: a joiner cannot write a payment handle into the roster", async () => {
+  await seedRound();
+  await assertFails(
+    guest()
+      .collection("liveRounds")
+      .doc(CODE)
+      .update({ players: [{ name: "Nick", venmo: "guest-handle" }, { name: "Pat" }] })
+  );
+  // Renaming a player, which Edit Round does, is still allowed.
+  await assertSucceeds(
+    guest().collection("liveRounds").doc(CODE).update({ players: [{ name: "Nick B" }, { name: "Pat" }] })
+  );
+});
+
+test("liveRounds: a round published with handles before the fix can still be scored", async () => {
+  await seedRound({ players: [{ name: "Nick", venmo: "nick" }, { name: "Pat" }] });
+  await assertSucceeds(guest().collection("liveRounds").doc(CODE).update({ "scores.0.0": 4 }));
+});
+
+test("liveRounds: scores can be written one entry at a time", async () => {
+  await seedRound({ scores: { 0: { 0: 4 } } });
+  await assertSucceeds(
+    guest().collection("liveRounds").doc(CODE).update({ "scores.1.0": 5, "wolfHoles.0": { wolf: 0 } })
+  );
+});
+
 test("liveRounds: only the host can delete the round", async () => {
   await seedRound();
   await assertFails(guest().collection("liveRounds").doc(CODE).delete());
@@ -294,14 +345,17 @@ test("every field the app writes to a live round is allowed by the rules", () =>
     return keys.filter((k) => /^[a-zA-Z]+$/.test(k));
   };
 
+  // The in-play fields are written entry by entry from liveProgress(), so its
+  // literal is the list of what that path can send.
   const writes = [
     ["liveRoundPayload", app.indexOf("return {", app.indexOf("function liveRoundPayload(")) + "return ".length],
+    ["liveProgress", app.indexOf("return {", app.indexOf("function liveProgress(")) + "return ".length],
     ...[...app.matchAll(/liveRounds"\)\.doc\([^)]*\)\.update\(/g)].map((m) => [
       "update at " + m.index,
       m.index + m[0].length - 1,
     ]),
   ];
-  assert.ok(writes.length >= 3, "expected the payload builder and both update paths");
+  assert.ok(writes.length >= 3, "expected the payload builder, the progress writer and the edit path");
 
   for (const [what, at] of writes) {
     const keys = keysOfLiteralAt(at);
@@ -343,6 +397,7 @@ test("every field a joiner reads from a live round is one the app writes", () =>
     for (const m of app.slice(open + 1, end).matchAll(/(?:^|,)\s*([a-zA-Z]+)\s*:/g)) written.add(m[1]);
   };
   collect(app.indexOf("return {", app.indexOf("function liveRoundPayload(")));
+  collect(app.indexOf("return {", app.indexOf("function liveProgress(")));
   for (const m of app.matchAll(/liveRounds"\)\.doc\([^)]*\)\.update\(/g)) collect(m.index + m[0].length - 1);
 
   // State the app derives locally rather than taking from the document.

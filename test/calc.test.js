@@ -1667,6 +1667,61 @@ assertEqual(/\+4 on hole 12/.test(_backOut), true, 'blow-up hole labels respect 
 assertEqual(_sup({ players: [{ name: 'Solo', color: 0 }], pars: _supPars, scores: scoresFor([[4, 4, 4, 4, 4, 4, 4, 4, 4]]), gameType: 'none', holeCount: 9 }), '', 'a solo round produces no superlatives');
 assertEqual(_sup({ players: [{ name: 'A', color: 0 }, { name: 'B', color: 1 }], pars: _supPars, scores: {}, gameType: 'none', holeCount: 9 }), '', 'a round with no scores produces no superlatives');
 
+// --- Round sync across devices: edits and deletions both have to survive ---
+{
+  const merge = context.mergeRoundSets;
+  const a1 = { id: 'a', course: 'Old', updatedAt: 100 };
+  const a2 = { id: 'a', course: 'New', updatedAt: 200 };
+  let m = merge({ a: a1 }, {}, { a: a2 }, {});
+  assertEqual(m.rounds.a.course, 'New', 'an edit made on the other device wins over an older local copy');
+  m = merge({ a: a2 }, {}, { a: a1 }, {});
+  assertEqual(m.rounds.a.course, 'New', 'and a newer local edit is not overwritten by an older cloud copy');
+  m = merge({ a: { id: 'a', course: 'Here' } }, {}, { a: { id: 'a', course: 'There' } }, {});
+  assertEqual(m.rounds.a.course, 'Here', 'two copies with no edit time keep this device\'s, as before');
+  m = merge({}, { a: 150 }, { a: a1 }, {});
+  assertEqual('a' in m.rounds, false, 'a round deleted here does not come back from the cloud');
+  m = merge({ a: a1 }, {}, {}, { a: 150 });
+  assertEqual('a' in m.rounds, false, 'a round deleted on the other device is removed here');
+  assertEqual(m.deleted, { a: 150 }, 'and the deletion is remembered here too');
+  m = merge({ a: { id: 'a' } }, {}, {}, { a: 1 });
+  assertEqual('a' in m.rounds, false, 'a deletion removes a copy saved before edit times existed');
+  m = merge({ a: a2 }, {}, {}, { a: 150 });
+  assertEqual(m.rounds.a && m.rounds.a.course, 'New', 'a copy edited after the deletion is kept');
+  m = merge({}, { a: 100 }, {}, { a: 300 });
+  assertEqual(m.deleted.a, 300, 'the later of two deletion times is kept');
+  m = merge({ l: { id: 'l' } }, {}, { r: { id: 'r' } }, {});
+  assertEqual(Object.keys(m.rounds).sort(), ['l', 'r'], 'rounds only one side has are kept from both');
+}
+
+// --- Live rounds: write only what changed, and never payment handles ---
+{
+  const diff = (b, c) => JSON.parse(JSON.stringify(context.liveDiff(b, c)));
+  const base = { scores: { 0: { 0: 4 }, 1: { 0: 5 } }, wolfHoles: { 0: { wolf: 0 } }, matchPresses: [], currentHole: 0 };
+  const cur = JSON.parse(JSON.stringify(base));
+  cur.scores[1][1] = 3;
+  assertEqual(diff(base, cur), [[['scores', '1', '1'], 3]], 'one new score is written as that one entry, not the whole card');
+  const del = JSON.parse(JSON.stringify(base));
+  delete del.scores[0][0];
+  const d = diff(base, del);
+  assertEqual(d.length === 1 && d[0][0].join('.') === 'scores.0.0' && d[0].length === 2, true, 'a cleared score is written as a removal of that entry');
+  const wolf = JSON.parse(JSON.stringify(base));
+  wolf.wolfHoles[0].partners = [1];
+  assertEqual(diff(base, wolf), [[['wolfHoles', '0'], { wolf: 0, partners: [1] }]], 'a Wolf pick is written per hole');
+  const pres = JSON.parse(JSON.stringify(base));
+  pres.matchPresses = [{ start: 3 }];
+  assertEqual(diff(base, pres), [[['matchPresses'], [{ start: 3 }]]], 'match presses, a list, go whole');
+  assertEqual(diff(base, JSON.parse(JSON.stringify(base))), [], 'nothing changed means nothing written');
+
+  const players = [{ name: 'Nick', hdcp: 4, venmo: 'nick-v', cashapp: '$nick', paypal: 'nickpp' }, { name: 'Pat', hdcp: 9 }];
+  const stripped = JSON.parse(JSON.stringify(context.stripPayHandles(players)));
+  assertEqual(stripped, [{ name: 'Nick', hdcp: 4 }, { name: 'Pat', hdcp: 9 }], 'handles are stripped from a roster before it goes live');
+  assertEqual(players[0].venmo, 'nick-v', 'without touching the host\'s own roster');
+  memoryStorage.setItem('golfProfiles', JSON.stringify([{ name: 'pat', venmo: 'pat-mine' }]));
+  const filled = JSON.parse(JSON.stringify(context.withOwnPayHandles([{ name: 'Nick', venmo: 'attacker' }, { name: 'Pat' }])));
+  assertEqual(filled[0].venmo, '', 'a handle arriving in a live round is ignored');
+  assertEqual(filled[1].venmo, 'pat-mine', 'and handles come from this phone\'s own saved profiles');
+  memoryStorage.removeItem('golfProfiles');
+}
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

@@ -148,6 +148,8 @@ const roundSetUp = await setUpRound(host.p, ["You", "Big Dave", "Tommy P", "Sanj
 ok(roundSetUp.course === COURSE, "the host's round is on the course they typed", roundSetUp.course);
 
 const shared = await host.p.evaluate(async () => {
+  // The host has Big Dave's Venmo saved; it must stay on the host's phone.
+  state.players[1].venmo = "big-dave-golf";
   // appConfirm shows the "copy the watch link" dialog after the round is live;
   // the test is not the clipboard, so answer it and move on.
   window.appConfirm = async () => false;
@@ -195,6 +197,41 @@ ok(joinedState.course === COURSE, "and the host's course", joinedState.course);
 ok(joinedState.screen === "scoring-screen", "on the scoring screen", joinedState.screen);
 ok(joinedState.owner === host.uid, "and knows who the host is", `${joinedState.owner} vs ${host.uid}`);
 ok(joinedState.owner !== joiner.uid, "which is not the joiner");
+
+// --------------------------------------------------------------------------
+section("Payment handles stay on the phone they were saved on");
+// The round is readable by anyone with the code and writable by anyone who
+// joined. A handle in it could be read by a stranger, or swapped for someone
+// else's and paid out by the next phone to open the round.
+// --------------------------------------------------------------------------
+
+const published = await joiner.p.evaluate(async (code) => {
+  const snap = await db.collection("liveRounds").doc(code).get();
+  return snap.data().players;
+}, CODE);
+ok(
+  published.every((p) => !("venmo" in p) && !("cashapp" in p) && !("paypal" in p)),
+  "the published roster carries no payment handles",
+  JSON.stringify(published)
+);
+const handles = {
+  host: await host.p.evaluate(() => state.players[1].venmo),
+  joiner: await joiner.p.evaluate(() => state.players[1].venmo),
+};
+ok(handles.host === "big-dave-golf", "the host still has Big Dave's handle to settle up with", handles.host);
+ok(handles.joiner === "", "the joiner does not receive it", handles.joiner);
+
+const swap = await joiner.p.evaluate(async (code) => {
+  const players = state.players.map((p) => ({ name: p.name, hdcp: p.hdcp }));
+  players[1].venmo = "guest-handle";
+  try {
+    await db.collection("liveRounds").doc(code).update({ players });
+    return "allowed";
+  } catch (e) {
+    return e.code || "denied";
+  }
+}, CODE);
+ok(swap === "permission-denied", "the rules refuse a joiner writing a handle into the roster", swap);
 
 // --------------------------------------------------------------------------
 section("Scores cross the wire");
@@ -265,6 +302,35 @@ const joinerScoreLanded = await host.p
   .catch(() => false);
 ok(joinerScoreLanded, "the joiner's score reaches the host");
 
+// Both phones score the same hole in the same moment. Each used to send its
+// whole scorecard, so whichever write landed second erased the other's score,
+// and the snapshot then carried the loss back to both phones.
+await Promise.all([
+  host.p.evaluate(() => {
+    state.scores[0][5] = 4;
+    saveCurrentRound();
+  }),
+  joiner.p.evaluate(() => {
+    state.scores[1][5] = 6;
+    saveCurrentRound();
+  }),
+]);
+const bothScores = () => state.scores[0] && state.scores[0][5] === 4 && state.scores[1] && state.scores[1][5] === 6;
+const bothOnHost = await host.p
+  .waitForFunction(bothScores, null, { timeout: 15000 })
+  .then(() => true)
+  .catch(() => false);
+const bothOnJoiner = await joiner.p
+  .waitForFunction(bothScores, null, { timeout: 15000 })
+  .then(() => true)
+  .catch(() => false);
+ok(bothOnHost && bothOnJoiner, "scores entered at the same moment on two phones both survive", `host ${bothOnHost}, joiner ${bothOnJoiner}`);
+const onServer = await joiner.p.evaluate(async (code) => {
+  const s = (await db.collection("liveRounds").doc(code).get({ source: "server" })).data().scores;
+  return [s[0] && s[0][5], s[1] && s[1][5]];
+}, CODE);
+ok(onServer[0] === 4 && onServer[1] === 6, "and both are on the server", JSON.stringify(onServer));
+
 const takeover = await joiner.p.evaluate(async ({ code, uid }) => {
   try {
     await db.collection("liveRounds").doc(code).update({ owner: uid });
@@ -334,6 +400,76 @@ const wrongCode = await stranger.p.evaluate(async () => {
 ok(!wrongCode.started && !wrongCode.liveId, "an unknown code does not start a round", JSON.stringify(wrongCode));
 
 // --------------------------------------------------------------------------
+section("Round history syncs deletions and edits between one player's devices");
+// Deleting a round only removed it from the phone, and the upload merged into
+// the cloud copy without removing anything, so the round came back on the next
+// sign-in. And when both devices had a round, the local copy always won, so an
+// edit made on the other device never arrived.
+// --------------------------------------------------------------------------
+
+const SYNC = { uid: "sync-uid", email: "sync@example.com" };
+const phone = await openApp(SYNC);
+await phone.p.evaluate(async () => {
+  localStorage.setItem(
+    "golfRounds",
+    JSON.stringify({
+      keep: { id: "keep", course: "Keeper CC", finished: true, updatedAt: 2000 },
+      drop: { id: "drop", course: "Mistake Muni", finished: true, updatedAt: 1000 },
+    })
+  );
+  await syncRoundsToFirestore();
+  window.appConfirm = async () => true;
+  window.enterScreen = () => {};
+  await deleteRound("drop");
+});
+// Polled by hand: waitForFunction treats an async predicate's promise as a
+// truthy answer and returns at once.
+const cloudAfterDelete = await phone.p.evaluate(async () => {
+  let r = {};
+  for (let i = 0; i < 30; i++) {
+    r = (await userDoc().get({ source: "server" })).data().rounds || {};
+    if (!("drop" in r) && "keep" in r) return "ok";
+    await new Promise((res) => setTimeout(res, 500));
+  }
+  return JSON.stringify(Object.keys(r));
+});
+ok(cloudAfterDelete === "ok", "a deleted round is removed from the cloud copy", cloudAfterDelete);
+
+// A second device, signed out, still holding the deleted round and an older
+// copy of the kept one, then signing in to the same account.
+const tablet = await openApp();
+await tablet.p.evaluate(() => {
+  localStorage.setItem(
+    "golfRounds",
+    JSON.stringify({
+      keep: { id: "keep", course: "Old Name", finished: true, updatedAt: 1500 },
+      drop: { id: "drop", course: "Mistake Muni", finished: true, updatedAt: 1000 },
+    })
+  );
+});
+await tablet.p.evaluate(async ({ uid, email }) => {
+  const cred = firebase.auth.GoogleAuthProvider.credential(
+    JSON.stringify({ sub: uid, email, email_verified: true, name: "sync" })
+  );
+  await auth.signInWithCredential(cred);
+}, SYNC);
+const tabletSynced = await tablet.p
+  .waitForFunction(() => {
+    const r = readRounds();
+    return !("drop" in r) && r.keep && r.keep.course === "Keeper CC";
+  }, null, { timeout: 15000 })
+  .then(() => true)
+  .catch(() => false);
+const tabletRounds = await tablet.p.evaluate(() => readRounds());
+ok(tabletSynced, "the other device drops the deleted round and takes the newer edit", JSON.stringify(tabletRounds));
+const cloudStillClean = await tablet.p.evaluate(async () => {
+  await new Promise((r) => setTimeout(r, 1500));
+  const r = (await userDoc().get({ source: "server" })).data().rounds || {};
+  return !("drop" in r);
+});
+ok(cloudStillClean, "and does not upload the deleted round again");
+
+// --------------------------------------------------------------------------
 section("Deleting the host's account takes the round with it");
 // --------------------------------------------------------------------------
 
@@ -345,14 +481,13 @@ const deleted = await host.p.evaluate(async () => {
 });
 ok(deleted, "deletion runs to completion");
 
-const roundGone = await stranger.p
-  .waitForFunction(
-    async (code) => !(await db.collection("liveRounds").doc(code).get()).exists,
-    CODE,
-    { timeout: 15000 }
-  )
-  .then(() => true)
-  .catch(() => false);
+const roundGone = await stranger.p.evaluate(async (code) => {
+  for (let i = 0; i < 30; i++) {
+    if (!(await db.collection("liveRounds").doc(code).get({ source: "server" })).exists) return true;
+    await new Promise((res) => setTimeout(res, 500));
+  }
+  return false;
+}, CODE);
 ok(roundGone, "the hosted live round is gone from the server");
 
 const profileGone = await stranger.p.evaluate(async (hostUid) => {
@@ -366,7 +501,7 @@ const profileGone = await stranger.p.evaluate(async (hostUid) => {
 ok(profileGone === "permission-denied", "and another account still cannot read the host's document", profileGone);
 
 // --------------------------------------------------------------------------
-for (const [name, h] of [["host", host], ["joiner", joiner], ["watcher", watcher], ["stranger", stranger]]) {
+for (const [name, h] of [["host", host], ["joiner", joiner], ["watcher", watcher], ["stranger", stranger], ["phone", phone], ["tablet", tablet]]) {
   const real = h.errors.filter((e) => !/permission-denied|Missing or insufficient/.test(e));
   ok(real.length === 0, `no unexpected page errors: ${name}`, real.join("\n    "));
 }
