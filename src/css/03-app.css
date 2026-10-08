@@ -3684,6 +3684,52 @@ body:has(#scoring-screen:not(.hidden)) #auth-bar {
   gap: var(--sp-3);
   padding-left: var(--sp-8);
 }
+.scoring-stat-pills.scoring-net {
+  margin-top: var(--sp-3);
+}
+.course-hist summary {
+  cursor: pointer;
+  list-style: none;
+}
+.course-hist summary::-webkit-details-marker {
+  display: none;
+}
+.course-hist[open] summary {
+  border-bottom: none;
+}
+.course-hist-best:empty {
+  display: none;
+}
+.course-holes {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: var(--sp-2);
+  padding: var(--sp-3) 0 var(--sp-5);
+}
+.course-hole {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--panel);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) 0;
+}
+.course-hole .ch-no {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+.course-hole .ch-avg {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+}
+.course-hole.ch-under {
+  background: var(--under-surface);
+  color: var(--under);
+}
+.course-hole.ch-over {
+  background: var(--over-surface);
+  color: var(--over);
+}
 .stat-pill {
   display: flex;
   flex-direction: column;
@@ -5747,18 +5793,6 @@ body.watch-mode #app {
   justify-content: space-between;
   gap: var(--sp-6);
 }
-.bg-name {
-  font-family: var(--font-ui);
-  font-size: var(--fs-md);
-  font-weight: 700;
-  color: var(--ink);
-}
-.bg-amt {
-  font-family: var(--font-num);
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  font-size: var(--fs-xl);
-}
 .you-id {
   flex: 1;
   min-width: 0;
@@ -5858,8 +5892,7 @@ h3,
 .games-title,
 .hole-big,
 .you-name,
-.watch-course,
-.bg-name {
+.watch-course {
   letter-spacing: var(--ls-display);
   word-spacing: 0.04em;
 }

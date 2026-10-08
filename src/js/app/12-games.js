@@ -27,20 +27,38 @@ function sideBetActive(key) {
 function anySideBetActive() {
   return Object.keys(SIDE_BET_DEFAULTS).some(sideBetActive);
 }
-function sideBetMoney() {
-  const out = state.players.map(() => 0);
+// Each active side bet's own result, keyed as in SIDE_BET_DEFAULTS.
+function sideBetParts() {
+  const out = {};
   if (sideBetActive("skins")) {
     const sb = state.sideBets.skins;
-    calcSkinsMoney({ skinVal: +sb.val || 0, carry: !!sb.carry }).forEach((v, i) => (out[i] += v));
+    out.skins = calcSkinsMoney({ skinVal: +sb.val || 0, carry: !!sb.carry });
   }
   if (sideBetActive("snake")) {
     const sb = state.sideBets.snake;
-    calcSnakeMoney({ potVal: +sb.val || 0 }).forEach((v, i) => (out[i] += v));
+    out.snake = calcSnakeMoney({ potVal: +sb.val || 0 });
   }
   if (sideBetActive("junk")) {
     const sb = state.sideBets.junk;
-    calcBonusMoney({ val: +sb.val || 0, cats: JUNK_CATS }).forEach((v, i) => (out[i] += v));
+    out.junk = calcBonusMoney({ val: +sb.val || 0, cats: JUNK_CATS });
   }
+  return out;
+}
+function sideBetMoney() {
+  const out = state.players.map(() => 0),
+    parts = sideBetParts();
+  Object.keys(parts).forEach((k) => parts[k].forEach((v, i) => (out[i] += v)));
+  return out;
+}
+/* What each bet in the round paid, so the season can say which games make you
+   money and which ones bleed it. The main game is keyed by its type, each side
+   bet as "side:<key>"; values are rounded to the cent like the round's nets. */
+function moneyBreakdown() {
+  const c = (a) => a.map((v) => Math.round(100 * (v || 0)) / 100),
+    out = {},
+    parts = sideBetParts();
+  out[state.gameType || "none"] = c(mainGameMoney());
+  Object.keys(parts).forEach((k) => (out["side:" + k] = c(parts[k])));
   return out;
 }
 function mainGameMoney() {
@@ -1214,7 +1232,7 @@ function strokesData() {
       doubles = [];
     for (let k = 0; k < maxHole(); k++) {
       const s = getStrokesOnHole(c, k);
-      2 === s ? doubles.push(k + 1) : 1 === s && singles.push(k + 1);
+      2 === s ? doubles.push(hLbl(k)) : 1 === s && singles.push(hLbl(k));
     }
     return { player: p, name: p.name, h: c, singles, doubles };
   });

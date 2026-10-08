@@ -46,6 +46,7 @@ function saveFinishedRound(e, t) {
     ((a[state.roundId].finished = !0),
     (a[state.roundId].money = e),
     (a[state.roundId].debts = t),
+    (a[state.roundId].moneyBy = moneyBreakdown()),
     (a[state.roundId].finishedDate = new Date().toISOString()),
     (a[state.roundId].updatedAt = Date.now()),
     safeSetItem("golfRounds", JSON.stringify(a))),

@@ -533,24 +533,78 @@ function getPlayingHandicaps() {
   let t = e + "|";
   for (let i = 0; i < p.length; i++) t += (i ? "," : "") + p[i].hdcp;
   t += "|" + (state.selectedTee ? state.selectedTee.rating + "/" + state.selectedTee.slope : "");
+  t += "|" + (halvesStrokes(state) ? "9" : "");
   if (_hdcpCache && _hdcpCacheKey === t) return _hdcpCache;
-  const a = state.players.map((e) => e.hdcp);
-  if ("none" === e) return ((_hdcpCache = a.map(() => 0)), (_hdcpCacheKey = t), _hdcpCache);
+  return (
+    (_hdcpCache = playingHandicapsFor(Object.assign({}, state, { handicapMode: e }))),
+    (_hdcpCacheKey = t),
+    _hdcpCache
+  );
+}
+/* Rounds started before 9-hole strokes were halved carry no strokeRule, and
+   viewing one re-settles it from its card -- so the rule is stamped on the
+   round at the first tee and only rounds that carry it play the new way. A
+   saved round must keep settling exactly as it was paid. */
+const STROKE_RULE = 2;
+function halvesStrokes(r) {
+  return 9 === r.holeCount && !!r.gameOpts && r.gameOpts.strokeRule >= STROKE_RULE;
+}
+// The strokes each player gets, off the low handicapper. Pure over a round
+// object (live state or a saved round) so cross-round stats can net a card the
+// same way the money did.
+function playingHandicapsFor(r) {
+  const e = r.handicapMode || "full",
+    a = (r.players || []).map((p) => +p.hdcp || 0);
+  if (!a.length) return [];
+  if ("none" === e) return a.map(() => 0);
   let s = [...a];
   if ("80pct" === e) s = a.map((e) => 0.8 * e);
-  else if ("course" === e && state.selectedTee?.rating && state.selectedTee?.slope) {
-    const n = state.pars.reduce((e, t) => e + t, 0);
-    s = a.map((e) => e * (state.selectedTee.slope / 113) + (state.selectedTee.rating - n));
+  else if ("course" === e && r.selectedTee?.rating && r.selectedTee?.slope) {
+    const n = (r.pars || []).reduce((e, t) => e + t, 0);
+    s = a.map((e) => e * (r.selectedTee.slope / 113) + (r.selectedTee.rating - n));
   }
+  // A nine is played off half a course handicap (WHS), so halve before the
+  // field is zeroed and rounded -- a 13 vs scratch gets 7 strokes, not 13.
+  halvesStrokes(r) && (s = s.map((v) => v / 2));
   const n = Math.min(...s);
-  return ((_hdcpCache = s.map((e) => Math.round(e - n))), (_hdcpCacheKey = t), _hdcpCache);
+  return s.map((e) => Math.round(e - n));
 }
 function invalidateHdcpCache() {
   ((_hdcpCache = null), (_hdcpCacheKey = ""));
 }
+/* A nine's stroke indexes are still the 18-hole ones (the front nine is
+   usually the odd ones), so a half handicap would never reach a hole indexed
+   past 9 on it. Rank the nine's own holes 1..9 by index instead and allocate
+   strokes against that. Ties keep card order, so hand-entered duplicates
+   still give every hole a distinct rank. */
+let _nineRankSrc = null,
+  _nineRanks = null;
+function nineRanks(hdcps) {
+  if (
+    _nineRanks &&
+    _nineRankSrc &&
+    _nineRankSrc.length === 9 &&
+    _nineRankSrc.every((v, i) => v === hdcps[i])
+  )
+    return _nineRanks;
+  const order = [0, 1, 2, 3, 4, 5, 6, 7, 8].sort(
+      (x, y) => (+hdcps[x] || 99) - (+hdcps[y] || 99) || x - y,
+    ),
+    ranks = [];
+  order.forEach((h, i) => (ranks[h] = i + 1));
+  return ((_nineRankSrc = hdcps.slice(0, 9)), (_nineRanks = ranks));
+}
+function strokesOnHoleFor(r, hc, h) {
+  const hd = r.hdcps || [];
+  if (halvesStrokes(r)) {
+    const k = nineRanks(hd)[h];
+    return null == k ? 0 : hc >= 9 + k ? 2 : hc >= k ? 1 : 0;
+  }
+  const a = hd[h];
+  return hc >= 18 + a ? 2 : hc >= a ? 1 : 0;
+}
 function getStrokesOnHole(e, t) {
-  const a = state.hdcps[t];
-  return e >= 18 + a ? 2 : e >= a ? 1 : 0;
+  return strokesOnHoleFor(state, e, t);
 }
 /* Every format settles by walking holes and asking for a net score, and the
    money replay repeats that walk once per completed hole, so the same few

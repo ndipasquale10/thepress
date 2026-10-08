@@ -4032,6 +4032,52 @@ body:has(#scoring-screen:not(.hidden)) #auth-bar {
   gap: var(--sp-3);
   padding-left: var(--sp-8);
 }
+.scoring-stat-pills.scoring-net {
+  margin-top: var(--sp-3);
+}
+.course-hist summary {
+  cursor: pointer;
+  list-style: none;
+}
+.course-hist summary::-webkit-details-marker {
+  display: none;
+}
+.course-hist[open] summary {
+  border-bottom: none;
+}
+.course-hist-best:empty {
+  display: none;
+}
+.course-holes {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: var(--sp-2);
+  padding: var(--sp-3) 0 var(--sp-5);
+}
+.course-hole {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--panel);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) 0;
+}
+.course-hole .ch-no {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+.course-hole .ch-avg {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+}
+.course-hole.ch-under {
+  background: var(--under-surface);
+  color: var(--under);
+}
+.course-hole.ch-over {
+  background: var(--over-surface);
+  color: var(--over);
+}
 .stat-pill {
   display: flex;
   flex-direction: column;
@@ -6095,18 +6141,6 @@ body.watch-mode #app {
   justify-content: space-between;
   gap: var(--sp-6);
 }
-.bg-name {
-  font-family: var(--font-ui);
-  font-size: var(--fs-md);
-  font-weight: 700;
-  color: var(--ink);
-}
-.bg-amt {
-  font-family: var(--font-num);
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  font-size: var(--fs-xl);
-}
 .you-id {
   flex: 1;
   min-width: 0;
@@ -6206,8 +6240,7 @@ h3,
 .games-title,
 .hole-big,
 .you-name,
-.watch-course,
-.bg-name {
+.watch-course {
   letter-spacing: var(--ls-display);
   word-spacing: 0.04em;
 }
@@ -11183,24 +11216,78 @@ function getPlayingHandicaps() {
   let t = e + "|";
   for (let i = 0; i < p.length; i++) t += (i ? "," : "") + p[i].hdcp;
   t += "|" + (state.selectedTee ? state.selectedTee.rating + "/" + state.selectedTee.slope : "");
+  t += "|" + (halvesStrokes(state) ? "9" : "");
   if (_hdcpCache && _hdcpCacheKey === t) return _hdcpCache;
-  const a = state.players.map((e) => e.hdcp);
-  if ("none" === e) return ((_hdcpCache = a.map(() => 0)), (_hdcpCacheKey = t), _hdcpCache);
+  return (
+    (_hdcpCache = playingHandicapsFor(Object.assign({}, state, { handicapMode: e }))),
+    (_hdcpCacheKey = t),
+    _hdcpCache
+  );
+}
+/* Rounds started before 9-hole strokes were halved carry no strokeRule, and
+   viewing one re-settles it from its card -- so the rule is stamped on the
+   round at the first tee and only rounds that carry it play the new way. A
+   saved round must keep settling exactly as it was paid. */
+const STROKE_RULE = 2;
+function halvesStrokes(r) {
+  return 9 === r.holeCount && !!r.gameOpts && r.gameOpts.strokeRule >= STROKE_RULE;
+}
+// The strokes each player gets, off the low handicapper. Pure over a round
+// object (live state or a saved round) so cross-round stats can net a card the
+// same way the money did.
+function playingHandicapsFor(r) {
+  const e = r.handicapMode || "full",
+    a = (r.players || []).map((p) => +p.hdcp || 0);
+  if (!a.length) return [];
+  if ("none" === e) return a.map(() => 0);
   let s = [...a];
   if ("80pct" === e) s = a.map((e) => 0.8 * e);
-  else if ("course" === e && state.selectedTee?.rating && state.selectedTee?.slope) {
-    const n = state.pars.reduce((e, t) => e + t, 0);
-    s = a.map((e) => e * (state.selectedTee.slope / 113) + (state.selectedTee.rating - n));
+  else if ("course" === e && r.selectedTee?.rating && r.selectedTee?.slope) {
+    const n = (r.pars || []).reduce((e, t) => e + t, 0);
+    s = a.map((e) => e * (r.selectedTee.slope / 113) + (r.selectedTee.rating - n));
   }
+  // A nine is played off half a course handicap (WHS), so halve before the
+  // field is zeroed and rounded -- a 13 vs scratch gets 7 strokes, not 13.
+  halvesStrokes(r) && (s = s.map((v) => v / 2));
   const n = Math.min(...s);
-  return ((_hdcpCache = s.map((e) => Math.round(e - n))), (_hdcpCacheKey = t), _hdcpCache);
+  return s.map((e) => Math.round(e - n));
 }
 function invalidateHdcpCache() {
   ((_hdcpCache = null), (_hdcpCacheKey = ""));
 }
+/* A nine's stroke indexes are still the 18-hole ones (the front nine is
+   usually the odd ones), so a half handicap would never reach a hole indexed
+   past 9 on it. Rank the nine's own holes 1..9 by index instead and allocate
+   strokes against that. Ties keep card order, so hand-entered duplicates
+   still give every hole a distinct rank. */
+let _nineRankSrc = null,
+  _nineRanks = null;
+function nineRanks(hdcps) {
+  if (
+    _nineRanks &&
+    _nineRankSrc &&
+    _nineRankSrc.length === 9 &&
+    _nineRankSrc.every((v, i) => v === hdcps[i])
+  )
+    return _nineRanks;
+  const order = [0, 1, 2, 3, 4, 5, 6, 7, 8].sort(
+      (x, y) => (+hdcps[x] || 99) - (+hdcps[y] || 99) || x - y,
+    ),
+    ranks = [];
+  order.forEach((h, i) => (ranks[h] = i + 1));
+  return ((_nineRankSrc = hdcps.slice(0, 9)), (_nineRanks = ranks));
+}
+function strokesOnHoleFor(r, hc, h) {
+  const hd = r.hdcps || [];
+  if (halvesStrokes(r)) {
+    const k = nineRanks(hd)[h];
+    return null == k ? 0 : hc >= 9 + k ? 2 : hc >= k ? 1 : 0;
+  }
+  const a = hd[h];
+  return hc >= 18 + a ? 2 : hc >= a ? 1 : 0;
+}
 function getStrokesOnHole(e, t) {
-  const a = state.hdcps[t];
-  return e >= 18 + a ? 2 : e >= a ? 1 : 0;
+  return strokesOnHoleFor(state, e, t);
 }
 /* Every format settles by walking holes and asking for a net score, and the
    money replay repeats that walk once per completed hole, so the same few
@@ -11361,7 +11448,7 @@ function startRound() {
     : new Set(e).size === e.length
       ? vegasSetupValid() && nassauSetupValid() && sixesSetupValid() && bankerSetupValid()
         ? ((state.course = document.getElementById("course-name").value || "Round"),
-          (state.gameOpts = readGameOpts()),
+          (state.gameOpts = Object.assign(readGameOpts(), { strokeRule: STROKE_RULE })),
           (state.sideBets = readSideBets()),
           saveProfiles(),
           (state.scores = {}),
@@ -11404,14 +11491,14 @@ function renderStrokeSummary() {
   if ("none" === a)
     return void (e.innerHTML =
       '<div class="summary-toggle">Playing Scratch — No Strokes Given <span class="toggle-arrow"><i data-ico="down"></i></span></div>');
-  let l = `<div class="summary-toggle">Stroke Summary <span class="toggle-arrow"><i data-ico="down"></i></span></div><div class="summary-body">\n    <div class="summary-meta">Low handicap: <strong>${esc(o)} (${n < 0 ? "+" + Math.abs(n) : n})</strong> — plays scratch${"80pct" === a ? " · 80% applied" : ""}</div>\n    <div class="summary-players">`;
+  let l = `<div class="summary-toggle">Stroke Summary <span class="toggle-arrow"><i data-ico="down"></i></span></div><div class="summary-body">\n    <div class="summary-meta">Low handicap: <strong>${esc(o)} (${n < 0 ? "+" + Math.abs(n) : n})</strong> — plays scratch${"80pct" === a ? " · 80% applied" : ""}${halvesStrokes(state) ? " · half strokes over nine" : ""}</div>\n    <div class="summary-players">`;
   (state.players.forEach((e, a) => {
     const s = t[a],
       n = (e.hdcp < 0 ? Math.abs(e.hdcp) : e.hdcp, []),
       o = [];
     for (let e = 0; e < maxHole(); e++) {
       const t = getStrokesOnHole(s, e);
-      2 === t ? o.push(e + 1) : 1 === t && n.push(e + 1);
+      2 === t ? o.push(hLbl(e)) : 1 === t && n.push(hLbl(e));
     }
     l += `<div class="summary-player">\n      <div class="summary-player-top">\n        ${avatarHTML(e, 10)}\n        <span class="summary-name">${esc(e.name)}</span>\n        <span class="summary-hdcp">${0 === s ? "Scratch" : `<strong>${s}</strong> strokes`}</span>\n      </div>\n      ${s > 0 ? `<div class="summary-holes">\n        ${n.length ? `<span class="stroke-dot-label">● Holes:</span> ${n.join(", ")}` : ""}\n        ${o.length ? `<span class="stroke-dot-label double">●● Holes:</span> ${o.join(", ")}` : ""}\n      </div>` : ""}\n    </div>`;
   }),
@@ -13215,20 +13302,38 @@ function sideBetActive(key) {
 function anySideBetActive() {
   return Object.keys(SIDE_BET_DEFAULTS).some(sideBetActive);
 }
-function sideBetMoney() {
-  const out = state.players.map(() => 0);
+// Each active side bet's own result, keyed as in SIDE_BET_DEFAULTS.
+function sideBetParts() {
+  const out = {};
   if (sideBetActive("skins")) {
     const sb = state.sideBets.skins;
-    calcSkinsMoney({ skinVal: +sb.val || 0, carry: !!sb.carry }).forEach((v, i) => (out[i] += v));
+    out.skins = calcSkinsMoney({ skinVal: +sb.val || 0, carry: !!sb.carry });
   }
   if (sideBetActive("snake")) {
     const sb = state.sideBets.snake;
-    calcSnakeMoney({ potVal: +sb.val || 0 }).forEach((v, i) => (out[i] += v));
+    out.snake = calcSnakeMoney({ potVal: +sb.val || 0 });
   }
   if (sideBetActive("junk")) {
     const sb = state.sideBets.junk;
-    calcBonusMoney({ val: +sb.val || 0, cats: JUNK_CATS }).forEach((v, i) => (out[i] += v));
+    out.junk = calcBonusMoney({ val: +sb.val || 0, cats: JUNK_CATS });
   }
+  return out;
+}
+function sideBetMoney() {
+  const out = state.players.map(() => 0),
+    parts = sideBetParts();
+  Object.keys(parts).forEach((k) => parts[k].forEach((v, i) => (out[i] += v)));
+  return out;
+}
+/* What each bet in the round paid, so the season can say which games make you
+   money and which ones bleed it. The main game is keyed by its type, each side
+   bet as "side:<key>"; values are rounded to the cent like the round's nets. */
+function moneyBreakdown() {
+  const c = (a) => a.map((v) => Math.round(100 * (v || 0)) / 100),
+    out = {},
+    parts = sideBetParts();
+  out[state.gameType || "none"] = c(mainGameMoney());
+  Object.keys(parts).forEach((k) => (out["side:" + k] = c(parts[k])));
   return out;
 }
 function mainGameMoney() {
@@ -14402,7 +14507,7 @@ function strokesData() {
       doubles = [];
     for (let k = 0; k < maxHole(); k++) {
       const s = getStrokesOnHole(c, k);
-      2 === s ? doubles.push(k + 1) : 1 === s && singles.push(k + 1);
+      2 === s ? doubles.push(hLbl(k)) : 1 === s && singles.push(hLbl(k));
     }
     return { player: p, name: p.name, h: c, singles, doubles };
   });
@@ -14420,7 +14525,9 @@ function showStrokes() {
   const hc = state.players.map((e) => e.hdcp),
     low = Math.min(...hc),
     lowName = state.players[hc.indexOf(low)]?.name || "",
-    note = "80pct" === mode ? " · 80% handicap" : "course" === mode ? " · course handicap" : "";
+    note =
+      ("80pct" === mode ? " · 80% handicap" : "course" === mode ? " · course handicap" : "") +
+      (halvesStrokes(state) ? " · half strokes over nine" : "");
   let s = `<div class="strokes-meta"><strong>${esc(lowName)}</strong> plays scratch (off the low man)${note}. Everyone else gets strokes on their hardest-rated holes.</div><div class="strokes-players">`;
   strokesData().forEach((d) => {
     s += `<div class="strokes-player"><div class="strokes-player-top">${avatarHTML(d.player, 12)}<span class="strokes-name">${esc(d.name)}</span><span class="strokes-count">${d.h > 0 ? d.h + " stroke" + (d.h > 1 ? "s" : "") : "Scratch"}</span></div>`;
@@ -15793,6 +15900,7 @@ function saveFinishedRound(e, t) {
     ((a[state.roundId].finished = !0),
     (a[state.roundId].money = e),
     (a[state.roundId].debts = t),
+    (a[state.roundId].moneyBy = moneyBreakdown()),
     (a[state.roundId].finishedDate = new Date().toISOString()),
     (a[state.roundId].updatedAt = Date.now()),
     safeSetItem("golfRounds", JSON.stringify(a))),
@@ -16983,6 +17091,90 @@ function myHandicapCardHTML() {
     "</div>"
   );
 }
+const _mc = (v) => (v > 0.005 ? "match-up" : v < -0.005 ? "match-dn" : "");
+// Which bets make you money and which ones bleed it, best first.
+function byGameHTML(me) {
+  const list = gameBreakdownFor(me);
+  if (!list.length) return "";
+  return (
+    '<div class="section-head"><h2>By game</h2></div><div class="card">' +
+    list
+      .map(
+        (g) =>
+          '<div class="season-row"><span class="season-name">' +
+          esc(g.label) +
+          '</span><span class="season-rounds">' +
+          g.rounds +
+          'R</span><span class="season-money ' +
+          _mc(g.money) +
+          '">' +
+          fmtMoney(g.money) +
+          "</span></div>",
+      )
+      .join("") +
+    "</div>"
+  );
+}
+/* One row per course, opening onto what each hole has cost you on average
+   (strokes over par, by real hole number). A <details> needs no handler. */
+function courseHistoryHTML(me) {
+  const list = courseHistoryFor(me);
+  if (!list.length) return "";
+  const sg = (v) =>
+    null == v ? "—" : Math.abs(v) < 0.05 ? "E" : (v > 0 ? "+" : "") + v.toFixed(1);
+  return (
+    '<div class="section-head"><h2>Your courses</h2></div><div class="card">' +
+    list
+      .map(
+        (c) =>
+          '<details class="course-hist"><summary class="season-row"><span class="season-name">' +
+          esc(c.name) +
+          '</span><span class="season-rounds">' +
+          c.rounds +
+          "R · " +
+          sg(c.avgVsPar) +
+          " /" +
+          c.avgPer +
+          '</span><span class="season-money ' +
+          _mc(c.money) +
+          '">' +
+          fmtMoney(c.money) +
+          "</span></summary>" +
+          '<div class="hint course-hist-best">' +
+          [
+            null != c.best ? 'Best 18: <b class="num">' + c.best + "</b>" : "",
+            null != c.best9 ? 'Best 9: <b class="num">' + c.best9 + "</b>" : "",
+          ]
+            .filter(Boolean)
+            .join(" · ") +
+          "</div>" +
+          '<div class="course-holes">' +
+          c.holes
+            .map(
+              (h) =>
+                '<div class="course-hole ' +
+                (h.avg < -0.05 ? "ch-under" : h.avg > 0.05 ? "ch-over" : "") +
+                '" title="Hole ' +
+                h.hole +
+                ", par " +
+                h.par +
+                ", " +
+                h.n +
+                " time" +
+                (1 === h.n ? "" : "s") +
+                '"><span class="ch-no">' +
+                h.hole +
+                '</span><span class="ch-avg num">' +
+                sg(h.avg) +
+                "</span></div>",
+            )
+            .join("") +
+          "</div></details>",
+      )
+      .join("") +
+    "</div>"
+  );
+}
 function renderYou() {
   const el = document.getElementById("you-content");
   if (!el) return;
@@ -17093,23 +17285,7 @@ function renderYou() {
           "</div>"
         : '<div class="hint">Win a round to earn your first trophy.</div>';
     }
-    const bg = bestGameFor(me);
-    bg &&
-      "none" !== bg.game &&
-      (h +=
-        '<div class="section-head"><h2>Best game</h2></div>' +
-        '<div class="card row-between"><div><div class="bg-name">' +
-        esc(GAME_NAMES[bg.game] || bg.game) +
-        '</div><div class="hint">' +
-        bg.rounds +
-        " round" +
-        (1 === bg.rounds ? "" : "s") +
-        "</div></div>" +
-        '<div class="bg-amt ' +
-        (bg.money > 0.005 ? "match-up" : bg.money < -0.005 ? "match-dn" : "") +
-        '">' +
-        fmtMoney(bg.money) +
-        "</div></div>");
+    h += byGameHTML(me) + courseHistoryHTML(me);
   }
   h +=
     '<button class="btn secondary" style="width:100%;margin-top:16px" data-act="showSettings()">Settings</button>';
@@ -17400,20 +17576,108 @@ function computeHandicapIndex(name, rounds) {
     rounds: diffs.length,
   };
 }
-function bestGameFor(name, rounds) {
+const SIDE_BET_NAMES = { skins: "Skins", snake: "Snake", junk: "Junk" };
+function betLabel(k) {
+  return 0 === k.indexOf("side:")
+    ? (SIDE_BET_NAMES[k.slice(5)] || k.slice(5)) + " · side bet"
+    : GAME_NAMES[k] || k;
+}
+/* Your money split by bet across the season. Rounds finished since the split
+   was recorded carry moneyBy (main game and each side bet apart); older rounds
+   only know their total, which goes to the round's main game as it always did. */
+function gameBreakdownFor(name, rounds) {
   const by = {};
   (rounds || getAllRounds())
-    .filter((r) => r.finished && r.money)
+    .filter((r) => r.finished && Array.isArray(r.money))
     .forEach((r) => {
       const i = (r.players || []).findIndex((p) => p.name === name);
       if (i < 0) return;
-      const g = r.gameType || "none";
-      (by[g] || (by[g] = { game: g, money: 0, rounds: 0 }),
-        (by[g].money += r.money[i] || 0),
-        by[g].rounds++);
+      const mb = r.moneyBy && "object" == typeof r.moneyBy ? r.moneyBy : {},
+        parts = Object.keys(mb)
+          .filter((k) => Array.isArray(mb[k]) && Number.isFinite(mb[k][i]))
+          .map((k) => [k, mb[k][i]]);
+      (parts.length ? parts : [[r.gameType || "none", r.money[i] || 0]]).forEach(([k, v]) => {
+        if ("none" === k) return;
+        const g = by[k] || (by[k] = { key: k, label: betLabel(k), money: 0, rounds: 0 });
+        ((g.money += v), g.rounds++);
+      });
     });
-  const list = Object.values(by).sort((a, b) => b.money - a.money);
-  return list.length ? list[0] : null;
+  return Object.values(by).sort((a, b) => b.money - a.money);
+}
+// A round's length: what it was set up for, else however many pars it carries.
+function roundLength(r) {
+  return r.holeCount || (r.pars || []).length;
+}
+// Strokes over par scaled to a round of `per` holes. Nines and eighteens only
+// compare once they are on the same footing.
+function perRound(diff, holes, per) {
+  return holes > 0 ? (diff / holes) * per : null;
+}
+/* Every course you have finished a round on: how often, how you score there,
+   your money there, and what each hole has cost you on average. Holes are
+   keyed by their real number, so a back nine lands on 10-18. */
+function courseHistoryFor(name, rounds) {
+  const by = {};
+  (rounds || getAllRounds())
+    .filter((r) => r.finished && r.scores && Array.isArray(r.pars))
+    .forEach((r) => {
+      const i = (r.players || []).findIndex((p) => p.name === name),
+        nm = String(r.course || "").trim();
+      if (i < 0 || !nm) return;
+      const L = Math.min(roundLength(r), r.pars.length),
+        start = 9 === L ? r.holeStart || 0 : 0,
+        sc = r.scores[i] || {},
+        key = nm.toLowerCase(),
+        c =
+          by[key] ||
+          (by[key] = {
+            name: nm,
+            rounds: 0,
+            money: 0,
+            holes: 0,
+            diff: 0,
+            long: !1,
+            best: 1 / 0,
+            best9: 1 / 0,
+            last: 0,
+            perHole: {},
+          });
+      let g = 0,
+        n = 0;
+      for (let h = 0; h < L; h++) {
+        const v = sc[h];
+        if (null == v) continue;
+        const d = v - r.pars[h],
+          hn = start + h + 1,
+          ph = c.perHole[hn] || (c.perHole[hn] = { hole: hn, par: r.pars[h], n: 0, diff: 0 });
+        ((g += v), n++, (c.diff += d), c.holes++, ph.n++, (ph.diff += d));
+      }
+      if (!n) return;
+      (c.rounds++,
+        Array.isArray(r.money) && (c.money += r.money[i] || 0),
+        n > 9 && (c.long = !0),
+        n === L &&
+          (18 === L
+            ? (c.best = Math.min(c.best, g))
+            : 9 === L && (c.best9 = Math.min(c.best9, g))));
+      const t = new Date(r.finishedDate || r.date).getTime();
+      isNaN(t) || (c.last = Math.max(c.last, t));
+    });
+  return Object.values(by)
+    .map((c) => ({
+      name: c.name,
+      rounds: c.rounds,
+      money: c.money,
+      avgPer: c.long ? 18 : 9,
+      avgVsPar: perRound(c.diff, c.holes, c.long ? 18 : 9),
+      best: c.best === 1 / 0 ? null : c.best,
+      best9: c.best9 === 1 / 0 ? null : c.best9,
+      last: c.last,
+      holes: Object.values(c.perHole)
+        .sort((a, b) => a.hole - b.hole)
+        .map((h) => ({ hole: h.hole, par: h.par, n: h.n, avg: h.diff / h.n })),
+    }))
+    .sort((a, b) => b.rounds - a.rounds || b.last - a.last);
 }
 function trophiesFor(name, rounds) {
   const rs = (rounds || getAllRounds()).filter((r) => r.finished),
@@ -17438,65 +17702,86 @@ function trophiesFor(name, rounds) {
   bestStreak >= 3 && out.push({ ico: ico("flame"), label: bestStreak + "-round heater" });
   best.v > 0 && out.push({ ico: ico("trophy"), label: "Best take " + fmtMoney(best.v) });
   rs.length >= 10 && out.push({ ico: ico("flag"), label: rs.length + " rounds" });
-  stats && null != stats.best && out.push({ ico: ico("target"), label: "Low round " + stats.best });
+  stats &&
+    (null != stats.best
+      ? out.push({ ico: ico("target"), label: "Low round " + stats.best })
+      : null != stats.best9 && out.push({ ico: ico("target"), label: "Low nine " + stats.best9 }));
   return out;
 }
+/* Gross and net, per player, across finished rounds.
+   - best / best9: the low gross for a complete 18 / complete 9. A nine's 42
+     is not a better round than an eighteen's 78, and a card abandoned after
+     six holes is not a round at all.
+   - scoringAvgVsPar / netAvgVsPar: strokes over par per 18 holes (per 9 for a
+     player who has only ever played nines), so mixed lengths average fairly.
+   - net: the same hole tallies after the strokes the round was played off,
+     netted with the round's own handicap rules. */
 function computeScoringStats(e) {
-  const t = {};
+  const t = {},
+    bucket = () => ({ eagles: 0, birdies: 0, pars: 0, bogeys: 0, doublePlus: 0 }),
+    tally = (b, n) =>
+      n <= -2
+        ? b.eagles++
+        : -1 === n
+          ? b.birdies++
+          : 0 === n
+            ? b.pars++
+            : 1 === n
+              ? b.bogeys++
+              : b.doublePlus++;
   e.forEach((e) => {
     const a = e.scores || {},
-      s = e.pars || [];
+      s = e.pars || [],
+      L = Math.min(roundLength(e), s.length),
+      hc = playingHandicapsFor(e);
     (e.players || []).forEach((n, o) => {
       t[n.name] ||
-        (t[n.name] = {
+        (t[n.name] = Object.assign(bucket(), {
           rounds: 0,
           totalDiff: 0,
+          netDiff: 0,
           holesPlayed: 0,
+          long: !1,
           best: 1 / 0,
-          eagles: 0,
-          birdies: 0,
-          pars: 0,
-          bogeys: 0,
-          doublePlus: 0,
+          best9: 1 / 0,
+          net: bucket(),
           color: n.color,
           trend: [],
-        });
+        }));
       const l = t[n.name];
       let r = 0,
         i = 0,
         c = 0;
-      for (let t = 0; t < s.length; t++) {
-        const e = a[o]?.[t];
-        if (null == e) continue;
-        const n = e - s[t];
-        ((r += e),
-          (i += s[t]),
-          c++,
-          n <= -2
-            ? l.eagles++
-            : -1 === n
-              ? l.birdies++
-              : 0 === n
-                ? l.pars++
-                : 1 === n
-                  ? l.bogeys++
-                  : l.doublePlus++);
+      for (let t = 0; t < L; t++) {
+        const e2 = a[o]?.[t];
+        if (null == e2) continue;
+        const d = e2 - s[t],
+          nd = d - strokesOnHoleFor(e, hc[o] || 0, t);
+        ((r += e2), (i += s[t]), c++, (l.netDiff += nd), tally(l, d), tally(l.net, nd));
       }
       c > 0 &&
         (l.rounds++,
         (l.totalDiff += r - i),
         (l.holesPlayed += c),
-        (l.best = Math.min(l.best, r)),
+        c > 9 && (l.long = !0),
+        c === L &&
+          (18 === L ? (l.best = Math.min(l.best, r)) : 9 === L && (l.best9 = Math.min(l.best9, r))),
         l.trend.push(r - i));
     });
   });
   return Object.entries(t)
-    .map(([e, t]) => ({
-      name: e,
-      ...t,
-      scoringAvgVsPar: t.rounds > 0 ? t.totalDiff / t.rounds : null,
-      best: t.best === 1 / 0 ? null : t.best,
-    }))
+    .map(([e, t]) => {
+      const per = t.long ? 18 : 9;
+      return {
+        name: e,
+        ...t,
+        avgPer: per,
+        scoringAvgVsPar: perRound(t.totalDiff, t.holesPlayed, per),
+        netAvgVsPar: perRound(t.netDiff, t.holesPlayed, per),
+        best: t.best === 1 / 0 ? null : t.best,
+        best9: t.best9 === 1 / 0 ? null : t.best9,
+      };
+    })
     .sort((e, t) => (e.scoringAvgVsPar ?? 1 / 0) - (t.scoringAvgVsPar ?? 1 / 0));
 }
 function renderScoringStats() {
@@ -17507,12 +17792,26 @@ function renderScoringStats() {
   const a = computeScoringStats(t);
   let s = '<div class="season-stats-card"><div class="season-title">Scoring Stats</div>';
   (a.forEach((t) => {
-    const n =
-        null == t.scoringAvgVsPar
-          ? "—"
-          : (t.scoringAvgVsPar >= 0 ? "+" : "") + t.scoringAvgVsPar.toFixed(1),
-      o = null == t.best ? "—" : t.best,
-      l = t.bogeys + t.doublePlus;
+    const sg = (v) => (null == v ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1)),
+      pill = (v, k) =>
+        '<span class="stat-pill"><strong>' + v + "</strong><small>" + k + "</small></span>",
+      /* Gross and net side by side: the money settles net, so the net line is
+         the one that says who is actually playing well off their number. */
+      gross =
+        pill(sg(t.scoringAvgVsPar), "Avg /" + t.avgPer) +
+        (null != t.best
+          ? pill(t.best, "Best 18")
+          : null != t.best9
+            ? pill(t.best9, "Best 9")
+            : pill("—", "Best")) +
+        pill(t.eagles, "Eagles") +
+        pill(t.birdies, "Birdies") +
+        pill(t.pars, "Pars") +
+        pill(t.bogeys + t.doublePlus, "Bogeys+"),
+      net =
+        pill(sg(t.netAvgVsPar), "Net /" + t.avgPer) +
+        pill(t.net.eagles + t.net.birdies, "Net birdies+") +
+        pill(t.net.pars, "Net pars");
     s +=
       '<div class="scoring-stat-card">' +
       '<div class="scoring-stat-head">' +
@@ -17523,24 +17822,10 @@ function renderScoringStats() {
       t.rounds +
       "R</span></div>" +
       '<div class="scoring-stat-pills">' +
-      '<span class="stat-pill"><strong>' +
-      n +
-      "</strong><small>Avg</small></span>" +
-      '<span class="stat-pill"><strong>' +
-      o +
-      "</strong><small>Best</small></span>" +
-      '<span class="stat-pill"><strong>' +
-      t.eagles +
-      "</strong><small>Eagles</small></span>" +
-      '<span class="stat-pill"><strong>' +
-      t.birdies +
-      "</strong><small>Birdies</small></span>" +
-      '<span class="stat-pill"><strong>' +
-      t.pars +
-      "</strong><small>Pars</small></span>" +
-      '<span class="stat-pill"><strong>' +
-      l +
-      "</strong><small>Bogeys+</small></span>" +
+      gross +
+      "</div>" +
+      '<div class="scoring-stat-pills scoring-net">' +
+      net +
       "</div>" +
       (t.trend.length
         ? '<div class="scoring-trend">' +

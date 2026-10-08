@@ -93,7 +93,7 @@ function startRound() {
     : new Set(e).size === e.length
       ? vegasSetupValid() && nassauSetupValid() && sixesSetupValid() && bankerSetupValid()
         ? ((state.course = document.getElementById("course-name").value || "Round"),
-          (state.gameOpts = readGameOpts()),
+          (state.gameOpts = Object.assign(readGameOpts(), { strokeRule: STROKE_RULE })),
           (state.sideBets = readSideBets()),
           saveProfiles(),
           (state.scores = {}),
@@ -136,14 +136,14 @@ function renderStrokeSummary() {
   if ("none" === a)
     return void (e.innerHTML =
       '<div class="summary-toggle">Playing Scratch — No Strokes Given <span class="toggle-arrow"><i data-ico="down"></i></span></div>');
-  let l = `<div class="summary-toggle">Stroke Summary <span class="toggle-arrow"><i data-ico="down"></i></span></div><div class="summary-body">\n    <div class="summary-meta">Low handicap: <strong>${esc(o)} (${n < 0 ? "+" + Math.abs(n) : n})</strong> — plays scratch${"80pct" === a ? " · 80% applied" : ""}</div>\n    <div class="summary-players">`;
+  let l = `<div class="summary-toggle">Stroke Summary <span class="toggle-arrow"><i data-ico="down"></i></span></div><div class="summary-body">\n    <div class="summary-meta">Low handicap: <strong>${esc(o)} (${n < 0 ? "+" + Math.abs(n) : n})</strong> — plays scratch${"80pct" === a ? " · 80% applied" : ""}${halvesStrokes(state) ? " · half strokes over nine" : ""}</div>\n    <div class="summary-players">`;
   (state.players.forEach((e, a) => {
     const s = t[a],
       n = (e.hdcp < 0 ? Math.abs(e.hdcp) : e.hdcp, []),
       o = [];
     for (let e = 0; e < maxHole(); e++) {
       const t = getStrokesOnHole(s, e);
-      2 === t ? o.push(e + 1) : 1 === t && n.push(e + 1);
+      2 === t ? o.push(hLbl(e)) : 1 === t && n.push(hLbl(e));
     }
     l += `<div class="summary-player">\n      <div class="summary-player-top">\n        ${avatarHTML(e, 10)}\n        <span class="summary-name">${esc(e.name)}</span>\n        <span class="summary-hdcp">${0 === s ? "Scratch" : `<strong>${s}</strong> strokes`}</span>\n      </div>\n      ${s > 0 ? `<div class="summary-holes">\n        ${n.length ? `<span class="stroke-dot-label">● Holes:</span> ${n.join(", ")}` : ""}\n        ${o.length ? `<span class="stroke-dot-label double">●● Holes:</span> ${o.join(", ")}` : ""}\n      </div>` : ""}\n    </div>`;
   }),

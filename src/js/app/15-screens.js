@@ -960,6 +960,90 @@ function myHandicapCardHTML() {
     "</div>"
   );
 }
+const _mc = (v) => (v > 0.005 ? "match-up" : v < -0.005 ? "match-dn" : "");
+// Which bets make you money and which ones bleed it, best first.
+function byGameHTML(me) {
+  const list = gameBreakdownFor(me);
+  if (!list.length) return "";
+  return (
+    '<div class="section-head"><h2>By game</h2></div><div class="card">' +
+    list
+      .map(
+        (g) =>
+          '<div class="season-row"><span class="season-name">' +
+          esc(g.label) +
+          '</span><span class="season-rounds">' +
+          g.rounds +
+          'R</span><span class="season-money ' +
+          _mc(g.money) +
+          '">' +
+          fmtMoney(g.money) +
+          "</span></div>",
+      )
+      .join("") +
+    "</div>"
+  );
+}
+/* One row per course, opening onto what each hole has cost you on average
+   (strokes over par, by real hole number). A <details> needs no handler. */
+function courseHistoryHTML(me) {
+  const list = courseHistoryFor(me);
+  if (!list.length) return "";
+  const sg = (v) =>
+    null == v ? "—" : Math.abs(v) < 0.05 ? "E" : (v > 0 ? "+" : "") + v.toFixed(1);
+  return (
+    '<div class="section-head"><h2>Your courses</h2></div><div class="card">' +
+    list
+      .map(
+        (c) =>
+          '<details class="course-hist"><summary class="season-row"><span class="season-name">' +
+          esc(c.name) +
+          '</span><span class="season-rounds">' +
+          c.rounds +
+          "R · " +
+          sg(c.avgVsPar) +
+          " /" +
+          c.avgPer +
+          '</span><span class="season-money ' +
+          _mc(c.money) +
+          '">' +
+          fmtMoney(c.money) +
+          "</span></summary>" +
+          '<div class="hint course-hist-best">' +
+          [
+            null != c.best ? 'Best 18: <b class="num">' + c.best + "</b>" : "",
+            null != c.best9 ? 'Best 9: <b class="num">' + c.best9 + "</b>" : "",
+          ]
+            .filter(Boolean)
+            .join(" · ") +
+          "</div>" +
+          '<div class="course-holes">' +
+          c.holes
+            .map(
+              (h) =>
+                '<div class="course-hole ' +
+                (h.avg < -0.05 ? "ch-under" : h.avg > 0.05 ? "ch-over" : "") +
+                '" title="Hole ' +
+                h.hole +
+                ", par " +
+                h.par +
+                ", " +
+                h.n +
+                " time" +
+                (1 === h.n ? "" : "s") +
+                '"><span class="ch-no">' +
+                h.hole +
+                '</span><span class="ch-avg num">' +
+                sg(h.avg) +
+                "</span></div>",
+            )
+            .join("") +
+          "</div></details>",
+      )
+      .join("") +
+    "</div>"
+  );
+}
 function renderYou() {
   const el = document.getElementById("you-content");
   if (!el) return;
@@ -1070,23 +1154,7 @@ function renderYou() {
           "</div>"
         : '<div class="hint">Win a round to earn your first trophy.</div>';
     }
-    const bg = bestGameFor(me);
-    bg &&
-      "none" !== bg.game &&
-      (h +=
-        '<div class="section-head"><h2>Best game</h2></div>' +
-        '<div class="card row-between"><div><div class="bg-name">' +
-        esc(GAME_NAMES[bg.game] || bg.game) +
-        '</div><div class="hint">' +
-        bg.rounds +
-        " round" +
-        (1 === bg.rounds ? "" : "s") +
-        "</div></div>" +
-        '<div class="bg-amt ' +
-        (bg.money > 0.005 ? "match-up" : bg.money < -0.005 ? "match-dn" : "") +
-        '">' +
-        fmtMoney(bg.money) +
-        "</div></div>");
+    h += byGameHTML(me) + courseHistoryHTML(me);
   }
   h +=
     '<button class="btn secondary" style="width:100%;margin-top:16px" data-act="showSettings()">Settings</button>';
