@@ -332,6 +332,27 @@ const onServer = await joiner.p.evaluate(async (code) => {
 }, CODE);
 ok(onServer[0] === 4 && onServer[1] === 6, "and both are on the server", JSON.stringify(onServer));
 
+// Once is not enough to see the race. A snapshot carrying the other phone's
+// score could hold an older updatedAt than the last one this phone had seen,
+// and a staleness check threw it away -- the server had both scores, one phone
+// went on showing a blank. It lost 5 to 8 of 40 tries, and about one full run
+// in ten of the single try above. Twenty tries catch it nearly every time.
+{
+  let stuck = [];
+  for (let k = 0; k < 20; k++) {
+    const h = 6 + (k % 12), hv = 3 + (k % 5), jv = 4 + (k % 4);
+    await Promise.all([
+      host.p.evaluate(({ h, v }) => { state.scores[0][h] = v; saveCurrentRound(); }, { h, v: hv }),
+      joiner.p.evaluate(({ h, v }) => { state.scores[1][h] = v; saveCurrentRound(); }, { h, v: jv }),
+    ]);
+    const both = ({ h, hv, jv }) => state.scores[0]?.[h] === hv && state.scores[1]?.[h] === jv;
+    const onHost = await host.p.waitForFunction(both, { h, hv, jv }, { timeout: 8000 }).then(() => true).catch(() => false);
+    const onJoiner = await joiner.p.waitForFunction(both, { h, hv, jv }, { timeout: 8000 }).then(() => true).catch(() => false);
+    (onHost && onJoiner) || stuck.push(`try ${k}: host ${onHost}, joiner ${onJoiner}`);
+  }
+  ok(!stuck.length, "twenty simultaneous entries each reach both phones", stuck.join("; "));
+}
+
 // --------------------------------------------------------------------------
 section("Each scorer can see who else is on which hole");
 // Scores merge cell by cell now, but two people entering the same hole still

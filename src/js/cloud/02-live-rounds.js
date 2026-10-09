@@ -1,5 +1,4 @@
 let liveUnsubscribe = null;
-let _lastLiveUpdateMs = 0;
 function goLiveTap() {
   if (isSpectator) return;
   currentUser
@@ -328,19 +327,21 @@ async function joinLiveRound() {
    follow the host, which is the whole point of watching. */
 function subscribeLiveUpdates(e) {
   (liveUnsubscribe && liveUnsubscribe(),
-    (_lastLiveUpdateMs = 0),
     (liveUnsubscribe = db
       .collection("liveRounds")
       .doc(e)
       .onSnapshot((e) => {
         if (!e.exists) return;
         const t = e.data();
-        /* Presence rides its own writes, which leave updatedAt alone, so it is
-           read before the staleness check below throws the snapshot away. */
-        _livePresence = t.presence || {};
-        const a = t.updatedAt && t.updatedAt.toMillis ? t.updatedAt.toMillis() : 0;
-        if (a && a <= _lastLiveUpdateMs) return void renderPresence();
-        (a && (_lastLiveUpdateMs = a),
+        /* Every snapshot is applied. This used to skip any whose updatedAt was
+           not newer than the last one seen, to drop "stale" updates -- but a
+           single document's snapshots already arrive in order, and updatedAt is
+           whichever write stamped it last, not the newest. When two phones
+           scored in the same moment, the snapshot carrying the other phone's
+           score could hold the older stamp and was thrown away, so one phone
+           went on missing a score the server had until some later write
+           happened to arrive. Measured: 5 to 8 of 40 simultaneous entries. */
+        ((_livePresence = t.presence || {}),
           (state.scores = t.scores || {}),
           (state.wolfHoles = t.wolfHoles || {}),
           (state.wolfBreakouts = t.wolfBreakouts || {}),
