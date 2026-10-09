@@ -8313,22 +8313,30 @@ body.confirm-bar-open #app {
 }
 
 /* Stroke dots on the scorecard: top-right of the score box, as on paper.
-   Drawn rather than typed, so two of them still fit a 26px box at any font. */
+   Drawn rather than typed, and sized off the cell's own text (about a third
+   of a digit), so they stay a mark beside the score rather than a second
+   thing to read -- on a phone, on paper, in the shared image. A row that
+   carries strokes gets a strip of padding above the number for them to sit
+   in, so two dots over an 11 never touch it. */
+.scorecard-tbl tr.has-strokes td {
+  padding-top: calc(var(--sp-1) + 0.5em);
+}
 .scorecard-tbl td.has-stroke {
   position: relative;
 }
 .sc-dots {
   display: inline-flex;
-  gap: var(--sp-1);
+  gap: 0.2em;
 }
 .scorecard-tbl .sc-dots {
   position: absolute;
   top: var(--sp-1);
   right: var(--sp-1);
+  line-height: 0;
 }
 .sc-dots i {
-  width: 5px;
-  height: 5px;
+  width: 0.34em;
+  height: 0.34em;
   border-radius: var(--radius-pill);
   background: var(--gold-t);
 }
@@ -15259,8 +15267,8 @@ function showScorecard() {
   }
   ((s += `<td class="total-col">${l + r}</td><td></td></tr>`),
     state.players.forEach((e, t) => {
-      s += `<tr><td style="white-space:nowrap">${esc(e.name)} (${a[t]})</td>`;
       const hc = a[t];
+      s += `<tr${hc > 0 ? ' class="has-strokes"' : ""}><td style="white-space:nowrap">${esc(e.name)} (${a[t]})</td>`;
       let l = 0,
         r = 0,
         i = 0;

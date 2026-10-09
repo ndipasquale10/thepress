@@ -124,8 +124,8 @@ function showScorecard() {
   }
   ((s += `<td class="total-col">${l + r}</td><td></td></tr>`),
     state.players.forEach((e, t) => {
-      s += `<tr><td style="white-space:nowrap">${esc(e.name)} (${a[t]})</td>`;
       const hc = a[t];
+      s += `<tr${hc > 0 ? ' class="has-strokes"' : ""}><td style="white-space:nowrap">${esc(e.name)} (${a[t]})</td>`;
       let l = 0,
         r = 0,
         i = 0;
