@@ -2042,6 +2042,43 @@ section("The scorecard marks every handicap stroke with a dot");
   await ctx.close();
 }
 
+// --------------------------------------------------------------------------
+section("The shared scorecard image has the whole card in it");
+// --------------------------------------------------------------------------
+{
+  const { ctx, p, errors } = await page();
+  await enterRoster(p, 4, { holes: 18 });
+  await p.waitForTimeout(200);
+  await p.evaluate(() => { selectGameType("skins"); startRound(); });
+  await p.waitForTimeout(350);
+  const shot = await p.evaluate(async () => {
+    document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden"));
+    for (let h = 0; h < maxHole(); h++) for (let i = 0; i < state.players.length; i++) state.scores[i][h] = state.pars[h] + (h % 3);
+    invalidateMoneyCache();
+    showScorecard();
+    const table = document.querySelector("#scorecard-table-wrap .scorecard-tbl"),
+      full = table.scrollWidth,
+      shown = document.getElementById("scorecard-table-wrap").clientWidth;
+    let blob = null;
+    navigator.canShare = () => false;
+    const make = URL.createObjectURL;
+    URL.createObjectURL = (b) => ((blob = b), make.call(URL, b));
+    const click = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {};
+    shareScorecard();
+    for (let i = 0; i < 150 && !blob; i++) await new Promise((r) => setTimeout(r, 100));
+    HTMLAnchorElement.prototype.click = click;
+    if (!blob) return { full, shown, w: 0 };
+    const bmp = await createImageBitmap(blob);
+    return { full, shown, w: bmp.width / 2, leftover: document.querySelectorAll("body > div[style*='max-content']").length };
+  });
+  ok(shot.full > shot.shown, "an 18-hole card is wider than the phone", JSON.stringify(shot));
+  ok(shot.w >= shot.full, "and the shared image is as wide as the whole card", JSON.stringify(shot));
+  ok(shot.leftover === 0, "with nothing left behind on the page", JSON.stringify(shot));
+  ok(errors.length === 0, "shared image: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
