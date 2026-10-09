@@ -15438,8 +15438,14 @@ function shareScorecard() {
         const t = document.createElement("div");
         const _sbg = cssVar("--card", "#fff"),
           _sink = cssVar("--ink", "#111");
+        /* Sized to the card, not the page. As a plain block it took the
+           phone's width, the 18-hole table overflowed it, and the capture
+           kept only what fit -- the image stopped around hole 9 and lost the
+           back nine, IN and the totals. Pinned top-left under the app at
+           max-content width, and captured with a window at least that wide,
+           every column is in the picture. */
         ((t.style.cssText =
-          "padding:16px;background:" +
+          "position:fixed;left:0;top:0;z-index:-1;width:max-content;padding:16px;background:" +
           _sbg +
           ";color:" +
           _sink +
@@ -15450,7 +15456,15 @@ function shareScorecard() {
             "</div>" +
             e.innerHTML),
           document.body.appendChild(t),
-          html2canvas(t, { scale: 2, backgroundColor: _sbg })
+          t.querySelectorAll("table").forEach((x) => (x.style.width = "auto")),
+          html2canvas(t, {
+            scale: 2,
+            backgroundColor: _sbg,
+            scrollX: 0,
+            scrollY: 0,
+            windowWidth: Math.max(window.innerWidth, t.scrollWidth),
+            windowHeight: Math.max(window.innerHeight, t.scrollHeight),
+          })
             .then((e) => {
               (document.body.removeChild(t),
                 e.toBlob((e) => {
