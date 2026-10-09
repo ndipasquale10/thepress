@@ -145,3 +145,32 @@
   gap: var(--sp-4);
   margin-top: var(--sp-6);
 }
+
+/* Stroke dots on the scorecard: top-right of the score box, as on paper.
+   Drawn rather than typed, so two of them still fit a 26px box at any font. */
+.scorecard-tbl td.has-stroke {
+  position: relative;
+}
+.sc-dots {
+  display: inline-flex;
+  gap: var(--sp-1);
+}
+.scorecard-tbl .sc-dots {
+  position: absolute;
+  top: var(--sp-1);
+  right: var(--sp-1);
+}
+.sc-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--gold-t);
+}
+.sc-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}

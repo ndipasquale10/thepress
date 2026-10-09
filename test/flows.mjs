@@ -1984,6 +1984,41 @@ section("The scorecard prints on its own, on the light skin");
   await ctx.close();
 }
 
+// --------------------------------------------------------------------------
+section("The scorecard marks every handicap stroke with a dot");
+// --------------------------------------------------------------------------
+{
+  const { ctx, p, errors } = await page();
+  await enterRoster(p, 4, { holes: 18 });
+  await p.waitForTimeout(200);
+  await p.evaluate(() => { selectGameType("skins"); startRound(); });
+  await p.waitForTimeout(350);
+  const sc = await p.evaluate(() => {
+    document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden"));
+    [4, 22, 12, 0].forEach((h, i) => (state.players[i].hdcp = h));
+    invalidateHdcpCache();
+    state.scores[1][0] = 5;
+    showScorecard();
+    const hc = getPlayingHandicaps(),
+      rows = [...document.querySelectorAll("#scorecard-table-wrap .scorecard-tbl")[0].tBodies[0].rows].slice(1, 5);
+    return rows.map((r, i) => {
+      let want = 0;
+      for (let h = 0; h < maxHole(); h++) want += getStrokesOnHole(hc[i], h);
+      return { hc: hc[i], dots: r.querySelectorAll(".sc-dots i").length, want,
+        doubles: r.querySelectorAll(".sc-dots i:nth-child(2)").length };
+    }).concat([{ legend: !!document.querySelector("#scorecard-table-wrap .sc-legend"),
+      said: document.querySelector("#scorecard-table-wrap td.has-stroke .sr-only")?.textContent || "",
+      cell: document.querySelectorAll("#scorecard-table-wrap .scorecard-tbl")[0].tBodies[0].rows[2].cells[1].textContent }]);
+  });
+  const meta = sc.pop();
+  ok(sc.every((r) => r.dots === r.want), "each player's dots add up to their strokes", JSON.stringify(sc));
+  ok(sc[1].doubles > 0 && sc[3].dots === 0, "a 22 gets double dots on the hardest holes, scratch gets none", JSON.stringify(sc));
+  ok(meta.legend && /stroke/.test(meta.said), "with a legend, and the stroke read out to a screen reader", JSON.stringify(meta));
+  ok(/^\d strokes?, 5$/.test(meta.cell.trim()), "the score still reads as the score", JSON.stringify(meta.cell));
+  ok(errors.length === 0, "stroke dots: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

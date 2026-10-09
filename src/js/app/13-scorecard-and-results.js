@@ -125,19 +125,18 @@ function showScorecard() {
   ((s += `<td class="total-col">${l + r}</td><td></td></tr>`),
     state.players.forEach((e, t) => {
       s += `<tr><td style="white-space:nowrap">${esc(e.name)} (${a[t]})</td>`;
+      const hc = a[t];
       let l = 0,
         r = 0,
         i = 0;
       for (let e = 0; e < n; e++) {
-        const a = state.scores[t][e],
-          n = cellClass(a, state.pars[e]);
-        ((s += `<td class="${n}">${a ?? "-"}</td>`), null != a && (l += a));
+        const a = state.scores[t][e];
+        ((s += scoreCellHTML(a, e, hc)), null != a && (l += a));
       }
       if (((s += `<td class="total-col">${l || "-"}</td>`), o)) {
         for (let e = 9; e < maxHole(); e++) {
-          const a = state.scores[t][e],
-            n = cellClass(a, state.pars[e]);
-          ((s += `<td class="${n}">${a ?? "-"}</td>`), null != a && (r += a));
+          const a = state.scores[t][e];
+          ((s += scoreCellHTML(a, e, hc)), null != a && (r += a));
         }
         s += `<td class="total-col">${r || "-"}</td>`;
       }
@@ -187,6 +186,9 @@ function showScorecard() {
         });
       })(),
     (s += "</tbody></table>"),
+    a.some((h) => h > 0) &&
+      (s +=
+        '<div class="sc-legend"><span class="sc-dots" aria-hidden="true"><i></i></span> a handicap stroke on that hole</div>'),
     (s += scorecardMoneyHTML()),
     (t.innerHTML = s),
     e.classList.remove("hidden"),
@@ -323,6 +325,30 @@ function shareScorecard() {
             }));
       })
       .catch(() => showToast("Could not load image library.", { type: "error" })));
+}
+/* A player's score box, with the dot a paper card puts in its corner for
+   each handicap stroke on that hole. The card is where people check the
+   money after the round, and without the dots a gross 5 that won a hole
+   looks like a mistake. Drawn on unplayed holes too, so the card says where
+   the strokes fall before anyone tees off. */
+function scoreCellHTML(v, h, hc) {
+  const k = getStrokesOnHole(hc, h),
+    cls = cellClass(v, state.pars[h]) + (k ? " has-stroke" : "");
+  return (
+    '<td class="' +
+    cls.trim() +
+    '">' +
+    (k
+      ? '<span class="sc-dots" aria-hidden="true">' +
+        "<i></i>".repeat(k) +
+        '</span><span class="sr-only">' +
+        k +
+        (1 === k ? " stroke, " : " strokes, ") +
+        "</span>"
+      : "") +
+    (v ?? "-") +
+    "</td>"
+  );
 }
 function cellClass(e, t) {
   if (null == e) return "";
