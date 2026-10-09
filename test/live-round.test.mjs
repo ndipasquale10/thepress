@@ -167,6 +167,7 @@ const CODE = shared.code;
 const joiner = await openApp({ uid: "guest-uid", email: "guest@example.com" });
 const joined = await joiner.p.evaluate(async (code) => {
   window.appPrompt = async () => code;
+  window.canScanCodes = () => false;
   window.confirmLeaveActiveRound = async () => true;
   await joinLiveRound();
   return true;
@@ -331,6 +332,68 @@ const onServer = await joiner.p.evaluate(async (code) => {
 }, CODE);
 ok(onServer[0] === 4 && onServer[1] === 6, "and both are on the server", JSON.stringify(onServer));
 
+// Once is not enough to see the race. A snapshot carrying the other phone's
+// score could hold an older updatedAt than the last one this phone had seen,
+// and a staleness check threw it away -- the server had both scores, one phone
+// went on showing a blank. It lost 5 to 8 of 40 tries, and about one full run
+// in ten of the single try above. Twenty tries catch it nearly every time.
+{
+  let stuck = [];
+  for (let k = 0; k < 20; k++) {
+    const h = 6 + (k % 12), hv = 3 + (k % 5), jv = 4 + (k % 4);
+    await Promise.all([
+      host.p.evaluate(({ h, v }) => { state.scores[0][h] = v; saveCurrentRound(); }, { h, v: hv }),
+      joiner.p.evaluate(({ h, v }) => { state.scores[1][h] = v; saveCurrentRound(); }, { h, v: jv }),
+    ]);
+    const both = ({ h, hv, jv }) => state.scores[0]?.[h] === hv && state.scores[1]?.[h] === jv;
+    const onHost = await host.p.waitForFunction(both, { h, hv, jv }, { timeout: 8000 }).then(() => true).catch(() => false);
+    const onJoiner = await joiner.p.waitForFunction(both, { h, hv, jv }, { timeout: 8000 }).then(() => true).catch(() => false);
+    (onHost && onJoiner) || stuck.push(`try ${k}: host ${onHost}, joiner ${onJoiner}`);
+  }
+  ok(!stuck.length, "twenty simultaneous entries each reach both phones", stuck.join("; "));
+}
+
+// --------------------------------------------------------------------------
+section("Each scorer can see who else is on which hole");
+// Scores merge cell by cell now, but two people entering the same hole still
+// had no idea the other was there until a number changed under them.
+// --------------------------------------------------------------------------
+
+await joiner.p.evaluate(() => goToHole(6));
+await host.p.evaluate(() => goToHole(6));
+const hostSeesJoiner = await host.p
+  .waitForFunction(
+    () => {
+      const el = document.getElementById("live-presence");
+      return el && !el.classList.contains("hidden") && /H7/.test(el.textContent) && /this hole too/.test(el.textContent);
+    },
+    null,
+    { timeout: 15000 }
+  )
+  .then(() => true)
+  .catch(() => false);
+ok(hostSeesJoiner, "the host sees the joiner on hole 7, and is told they share it");
+const ownEntryOnly = await host.p.evaluate(() => Object.keys(_livePresence).sort().join(","));
+ok(
+  ownEntryOnly === [host.uid, joiner.uid].sort().join(","),
+  "each phone wrote its own presence entry",
+  ownEntryOnly
+);
+const notSelf = await host.p.evaluate(() => livePresenceOthers().map((p) => p.uid).join(","));
+ok(notSelf === joiner.uid, "and the host is not listed as scoring alongside themselves", notSelf);
+const forged = await joiner.p.evaluate(async ({ code, hostUid }) => {
+  try {
+    await db
+      .collection("liveRounds")
+      .doc(code)
+      .update(new firebase.firestore.FieldPath("presence", hostUid), firebase.firestore.FieldValue.delete());
+    return "allowed";
+  } catch (e) {
+    return e.code || "denied";
+  }
+}, { code: CODE, hostUid: host.uid });
+ok(forged === "permission-denied", "the rules refuse a joiner erasing the host's presence", forged);
+
 const takeover = await joiner.p.evaluate(async ({ code, uid }) => {
   try {
     await db.collection("liveRounds").doc(code).update({ owner: uid });
@@ -374,6 +437,28 @@ if (watching) {
   ok(seen.players.length === 4, "and sees the roster", JSON.stringify(seen.players));
   ok(seen.breakout === 3, "including the Breakout", String(seen.breakout));
 
+  // The Watch screen used to draw once on the way in and never again.
+  const thruBefore = await watcher.p.evaluate(
+    () => document.querySelector("#watch-screen:not(.hidden) .watch-thru-n")?.firstChild?.textContent
+  );
+  await host.p.evaluate(() => {
+    state.scores[2][5] = 5;
+    state.scores[3][5] = 5;
+    saveCurrentRound();
+  });
+  const watchMoved = await watcher.p
+    .waitForFunction(
+      (before) => {
+        const n = document.querySelector("#watch-screen:not(.hidden) .watch-thru-n");
+        return n && n.firstChild && n.firstChild.textContent !== before;
+      },
+      thruBefore,
+      { timeout: 15000 }
+    )
+    .then(() => true)
+    .catch(() => false);
+  ok(watchMoved, "the watcher's board updates as the host scores, without a reload", `thru was ${thruBefore}`);
+
   const watcherWrite = await watcher.p.evaluate(async (code) => {
     try {
       await db.collection("liveRounds").doc(code).update({ currentHole: 17 });
@@ -392,6 +477,7 @@ section("A wrong code fails cleanly");
 const stranger = await openApp({ uid: "stranger-uid", email: "stranger@example.com" });
 const wrongCode = await stranger.p.evaluate(async () => {
   window.appPrompt = async () => "ZZZZZZ";
+  window.canScanCodes = () => false;
   window.confirmLeaveActiveRound = async () => true;
   await joinLiveRound();
   await new Promise((r) => setTimeout(r, 1500));

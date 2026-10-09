@@ -351,6 +351,7 @@ function renderHole() {
     renderPlayFeed(),
     renderHoleDots(),
     syncScoreSeg());
+  "function" == typeof pushPresence && (pushPresence(), renderPresence());
   const s = document.getElementById("hole-info");
   (_navHole && s && s.scrollIntoView({ behavior: "smooth", block: "start" }), (_navHole = !1));
 } /* Picking up is the most common thing that happens on a golf course that this
@@ -405,6 +406,13 @@ function adjScore(e, t, a) {
 let _qpPlayer = -1,
   _qpHole = -1,
   _qpHi = 0;
+const QP_REL = [
+  [-1, "Birdie"],
+  [0, "Par"],
+  [1, "Bogey"],
+  [2, "Double"],
+  [3, "Triple"],
+];
 function quickScore(e, t, hiBase) {
   if (!canMutateRound()) return;
   closeQuickPicker();
@@ -428,7 +436,18 @@ function quickScore(e, t, hiBase) {
     l.setAttribute("role", "dialog"),
     l.setAttribute("aria-modal", "true"),
     l.setAttribute("aria-label", "Score for " + (state.players[e]?.name || "player")));
-  l.innerHTML = `<div class="qp-label">${esc(state.players[e].name)} — Hole ${hLbl(t)}</div>
+  /* Golfers say "bogey", not "six". The words come first, so the commonest
+     entries are one tap with no arithmetic and read the same on a par 3 as on
+     a par 5; the numbers stay underneath for everything else. */
+  const rel = QP_REL.filter(([d]) => a + d >= 1);
+  l.innerHTML = `<div class="qp-label">${esc(state.players[e].name)} — Hole ${hLbl(t)} · Par ${a}</div>
+    <div class="qp-rel" role="group" aria-label="Score against par">${rel
+      .map(([d, w]) => {
+        const v = a + d;
+        return `<button class="qp-rel-btn ${d < 0 ? "qp-birdie" : 0 === d ? "qp-par" : 1 === d ? "qp-bogey" : "qp-double"}${v === s && !isPickedUp(e, t) ? " qp-active" : ""}" data-rel="${d}" data-act="setQuickScore(${e},${t},${v})" aria-label="${w}, ${v}"><span class="qp-rel-w">${w}</span><span class="qp-rel-n">${v}</span></button>`;
+      })
+      .join("")}</div>
+    <div class="qp-sub">Or the number</div>
     <div class="qp-grid">${n
       .map((v) => {
         const o = v - a;
@@ -441,7 +460,7 @@ function quickScore(e, t, hiBase) {
   (document.body.appendChild(scrim), document.body.appendChild(l));
   const want =
     l.querySelector(".qp-active") ||
-    l.querySelector('.qp-btn[data-score="' + a + '"]') ||
+    l.querySelector('.qp-rel-btn[data-rel="0"]') ||
     l.querySelector(".qp-btn");
   want && want.focus();
 }
@@ -601,6 +620,7 @@ async function confirmHoleScores(e) {
   (state.confirmedHoles || (state.confirmedHoles = {}),
     (state.confirmedHoles[e] = !0),
     showHoleResult(e, s),
+    announceHoleMoney(e, s),
     saveCurrentRound(),
     e < maxHole() - 1 && (state.currentHole = e + 1),
     renderHole());

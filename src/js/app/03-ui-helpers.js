@@ -104,7 +104,7 @@ document.addEventListener("keydown", (e) => {
     ("Enter" === e.key || " " === e.key) &&
     e.target &&
     e.target.matches &&
-    e.target.matches('[role="button"][tabindex="0"],[role="switch"][tabindex="0"]')
+    e.target.matches(KEY_ROLE_SEL)
   ) {
     (e.preventDefault(), e.target.click());
   }

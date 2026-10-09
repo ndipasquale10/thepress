@@ -55,8 +55,30 @@ service cloud.firestore {
           'hdcps', 'scores', 'wolfHoles', 'wolfBreakouts', 'bankerHoles',
           'bankerPresses', 'bonusPoints', 'pickedUp', 'matchPresses', 'holeCount',
           'holeStart', 'handicapMode', 'currentHole', 'owner', 'code',
-          'updatedAt'
+          'updatedAt', 'presence'
         ];
+      }
+
+      // Presence: presence.<uid> = {name, hole, at}, so the scorers can see who
+      // else is on which hole. Every scorer writes their own entry and only
+      // their own -- a joiner cannot mark someone else as present, or erase
+      // them. The host may drop the whole map, because re-publishing a round
+      // replaces the document.
+      function presenceEntryOk(p) {
+        return p is map
+            && p.keys().hasOnly(['name', 'hole', 'at'])
+            && p.name is string && p.name.size() <= 40
+            && p.hole is int && p.hole >= 0 && p.hole < 36
+            && p.at is timestamp;
+      }
+      function presenceOk() {
+        let after = request.resource.data;
+        let uid = request.auth.uid;
+        return !after.diff(resource.data).affectedKeys().hasAny(['presence'])
+            || (!('presence' in after) && resource.data.owner == uid)
+            || (after.presence is map
+                && after.presence.diff(resource.data.get('presence', {})).affectedKeys().hasOnly([uid])
+                && (!(uid in after.presence) || presenceEntryOk(after.presence[uid])));
       }
 
       function shapedLikeARound() {
@@ -117,7 +139,8 @@ service cloud.firestore {
                     && request.resource.data.code == code
                     && code.matches('^[A-Z0-9]{6}$')
                     && shapedLikeARound()
-                    && rosterCarriesNoHandles();
+                    && rosterCarriesNoHandles()
+                    && !('presence' in request.resource.data);
 
       // Anyone holding the code may keep score -- that is the point of sharing
       // it -- but they cannot take the round over or re-point its code.
@@ -125,7 +148,8 @@ service cloud.firestore {
                     && request.resource.data.owner == resource.data.owner
                     && request.resource.data.code == resource.data.code
                     && shapedLikeARound()
-                    && rosterUnchangedOrClean();
+                    && rosterUnchangedOrClean()
+                    && presenceOk();
 
       allow delete: if signedIn() && resource.data.owner == request.auth.uid;
     }

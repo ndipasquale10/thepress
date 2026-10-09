@@ -1,0 +1,207 @@
+/* The quick picker's first row: the score said the way golfers say it.
+   Birdie wears the circle and bogey the square, the same notation as the
+   number grid underneath, so the two rows read as one language. */
+.qp-rel {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+.qp-rel-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  min-height: calc(var(--tap) + var(--sp-8));
+  padding: var(--sp-3) var(--sp-1);
+  border: var(--bw-strong) solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease);
+}
+.qp-rel-btn:active {
+  transform: scale(0.94);
+}
+.qp-rel-w {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+.qp-rel-n {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+.qp-rel .qp-rel-btn.qp-birdie {
+  border-color: var(--under);
+  color: var(--under);
+  background: var(--under-surface);
+}
+.qp-rel .qp-rel-btn.qp-par {
+  border-color: var(--rule-strong);
+  background: var(--surface-2);
+}
+.qp-rel .qp-rel-btn.qp-bogey,
+.qp-rel .qp-rel-btn.qp-double {
+  border-color: var(--over);
+  color: var(--over);
+  background: var(--over-surface);
+}
+.qp-rel .qp-rel-btn.qp-active {
+  box-shadow: var(--ring);
+}
+.qp-sub {
+  margin: var(--sp-6) 0 var(--sp-4);
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* Outside landscape the column wrappers are not boxes at all. */
+.score-main,
+.score-side {
+  display: contents;
+}
+
+/* Glove mode: wind, a glove, one hand and three people waiting. Raises the
+   tap token and the controls that are sized off a literal rather than it. */
+:root[data-glove="on"] {
+  --tap: 56px;
+}
+:root[data-glove="on"] .score-counter .score-val {
+  width: var(--tap);
+  height: var(--tap);
+  font-size: var(--fs-2xl);
+}
+:root[data-glove="on"] .score-counter button {
+  width: var(--tap);
+  height: var(--tap);
+  font-size: var(--fs-2xl);
+}
+:root[data-glove="on"] .qp-grid .qp-btn {
+  width: var(--tap);
+  height: var(--tap);
+}
+:root[data-glove="on"] .qp-rel-btn {
+  min-height: calc(var(--tap) + var(--sp-10));
+}
+:root[data-glove="on"] .hole-dot {
+  width: 44px;
+  height: 44px;
+}
+:root[data-glove="on"] .player-info .player-name {
+  font-size: var(--fs-lg);
+}
+.glove-btn[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: var(--ring);
+}
+
+/* Landscape on a phone -- the cart mount. In portrait the sticky header,
+   the hole strip, the confirm bar and the tab bar together left no room for a
+   single score row. Here the tab bar becomes a rail down the left edge and
+   the scoring screen splits: scores on the left, the money and the feed on the
+   right, both always in view, so the segment control is not needed. */
+@media (orientation: landscape) and (max-height: 540px) {
+  :root {
+    --rail-w: 64px;
+  }
+  .nav-bar {
+    top: 0;
+    bottom: 0;
+    right: auto;
+    left: 0;
+    width: calc(var(--rail-w) + env(safe-area-inset-left, 0px));
+    max-width: none;
+    min-height: 0;
+    flex-direction: column;
+    justify-content: center;
+    border-radius: 0;
+    border-bottom: var(--bw) solid var(--rule);
+    border-left: none;
+    padding: var(--sp-4) var(--sp-2) var(--sp-4) calc(var(--sp-2) + env(safe-area-inset-left, 0px));
+  }
+  #app {
+    max-width: 1100px;
+    margin-left: calc(var(--rail-w) + env(safe-area-inset-left, 0px));
+    padding-bottom: var(--sp-13);
+  }
+  body.confirm-bar-open #app {
+    padding-bottom: calc(var(--tap) + var(--sp-13) + env(safe-area-inset-bottom, 0px));
+  }
+  #start-btn {
+    bottom: calc(var(--sp-6) + env(safe-area-inset-bottom, 0px));
+  }
+  .sticky-lb {
+    bottom: env(safe-area-inset-bottom, 0px);
+    left: calc(var(--rail-w) + env(safe-area-inset-left, 0px));
+  }
+  .confirm-bar {
+    bottom: 0;
+    left: calc(var(--rail-w) + env(safe-area-inset-left, 0px));
+    max-width: none;
+    padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  }
+  #scoring-screen:not(.hidden) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    column-gap: var(--sp-8);
+    align-items: start;
+  }
+  #scoring-screen > * {
+    grid-column: 1 / -1;
+  }
+  #scoring-screen > .score-main {
+    display: block;
+    grid-column: 1;
+  }
+  #scoring-screen > .score-side {
+    display: block;
+    grid-column: 2;
+  }
+  #scoring-screen #standings-ribbon {
+    margin-bottom: var(--sp-4);
+  }
+  /* Everything above the score rows gives height back. */
+  #scoring-screen .hole-dot {
+    width: 34px;
+    height: 34px;
+  }
+  #scoring-screen .ribbon-cell {
+    flex-direction: row;
+    gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+  }
+  #scoring-screen #hole-info {
+    padding: var(--sp-3) var(--sp-7);
+  }
+  #scoring-screen .hole-big {
+    font-size: var(--fs-2xl);
+  }
+  #app .round-topbar .home-btn {
+    padding: var(--sp-2) var(--sp-4);
+    margin-bottom: var(--sp-3);
+  }
+  #scoring-screen[data-seg] [data-panel="money"]:not(.hidden),
+  #scoring-screen[data-seg] [data-panel="feed"]:not(.hidden) {
+    display: block;
+  }
+  #scoring-screen #score-seg {
+    display: none;
+  }
+  #scoring-screen .hole-dots {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    margin-bottom: var(--sp-4);
+  }
+}

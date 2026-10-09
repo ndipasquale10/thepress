@@ -1777,6 +1777,213 @@ section("A popup's top clears the notch and the toolbars");
   await ctx.close();
 }
 
+// --------------------------------------------------------------------------
+section("Scoring: words first in the picker, glove mode, and the money said aloud");
+// --------------------------------------------------------------------------
+{
+  const { ctx, p, errors } = await page();
+  await enterRoster(p, 4);
+  await p.waitForTimeout(200);
+  await p.evaluate(() => { selectGameType("skins"); startRound(); });
+  await p.waitForTimeout(350);
+  await p.evaluate(() => document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden")));
+  await p.evaluate(() => quickScore(0, 0));
+  await p.waitForTimeout(150);
+  const pk = await p.evaluate(() => ({
+    words: [...document.querySelectorAll("#quick-picker .qp-rel-btn .qp-rel-w")].map((e) => e.textContent),
+    focus: document.activeElement && document.activeElement.dataset.rel,
+    par: state.pars[0],
+  }));
+  ok(pk.words.join() === "Birdie,Par,Bogey,Double,Triple", "the picker leads with birdie to triple", pk.words.join());
+  ok(pk.focus === "0", "and opens on Par", String(pk.focus));
+  await p.click('#quick-picker .qp-rel-btn[data-rel="1"]');
+  await p.waitForTimeout(150);
+  const after = await p.evaluate(() => ({ s: state.scores[0][0], next: document.querySelector("#quick-picker .qp-label")?.textContent || "" }));
+  ok(after.s === pk.par + 1, "one tap on Bogey records par + 1", `${after.s} vs par ${pk.par}`);
+  ok(/Big Dave/.test(after.next), "and moves on to the next player", after.next);
+  await p.keyboard.press("Escape");
+
+  const sz = () => p.evaluate(() => document.querySelector(".score-counter .score-val").getBoundingClientRect().width);
+  const before = await sz();
+  await p.click("#glove-btn");
+  await p.waitForTimeout(100);
+  const glove = await p.evaluate(() => ({ on: document.documentElement.dataset.glove, pressed: document.getElementById("glove-btn").getAttribute("aria-pressed"), stored: localStorage.getItem("gloveMode") }));
+  ok(glove.on === "on" && glove.pressed === "true" && glove.stored === "1", "glove mode switches on from the scoring screen", JSON.stringify(glove));
+  ok((await sz()) > before, "and the score controls grow", `${before} -> ${await sz()}`);
+  await p.click("#glove-btn");
+  ok((await p.evaluate(() => document.documentElement.dataset.glove)) === undefined, "and switches off again");
+
+  await p.evaluate(() => {
+    for (let i = 0; i < state.players.length; i++) state.scores[i][0] = i === 2 ? 3 : 5;
+    confirmHoleScores(0);
+  });
+  await p.waitForTimeout(400);
+  const said = await p.evaluate(() => document.getElementById("sr-announce").textContent);
+  ok(/^Hole 1 confirmed\. .*Tommy P up \$/.test(said), "confirming a hole says who moved money, in words", said);
+  ok(!/\$-|-\$/.test(said), "with the direction spelled out rather than a minus sign", said);
+  ok(errors.length === 0, "scoring additions: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
+// --------------------------------------------------------------------------
+section("Landscape: the cart mount shows scores beside the money");
+// --------------------------------------------------------------------------
+{
+  const { ctx, p, errors } = await page({ viewport: { width: 844, height: 390 } });
+  await enterRoster(p, 4);
+  await p.waitForTimeout(200);
+  await p.evaluate(() => { selectGameType("skins"); startRound(); });
+  await p.waitForTimeout(350);
+  await p.evaluate(() => document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden")));
+  const L = await p.evaluate(() => {
+    const r = (id) => document.getElementById(id).getBoundingClientRect();
+    const nav = document.getElementById("nav-bar").getBoundingClientRect();
+    return { inputs: r("score-inputs"), status: r("game-status"), nav, seg: getComputedStyle(document.getElementById("score-seg")).display };
+  });
+  ok(L.status.left >= L.inputs.right, "the money sits to the right of the scores", `${L.inputs.right} / ${L.status.left}`);
+  ok(L.status.width > 0, "and is visible without the segment", String(L.status.width));
+  ok(L.nav.height > L.nav.width && L.nav.left === 0, "the tab bar becomes a rail down the left", JSON.stringify(L.nav));
+  ok(L.inputs.left >= L.nav.right, "which nothing sits under", `${L.nav.right} / ${L.inputs.left}`);
+  ok(L.seg === "none", "the segment control is not needed", L.seg);
+  ok(errors.length === 0, "landscape: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
+// --------------------------------------------------------------------------
+section("Dialogs make the page behind them inert");
+// --------------------------------------------------------------------------
+{
+  const { ctx, p, errors } = await page();
+  await p.evaluate(() => document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden")));
+  await p.waitForTimeout(50);
+  ok(!(await p.evaluate(() => document.getElementById("app").inert)), "nothing is inert with no dialog open");
+  await p.evaluate(() => showSettings());
+  await p.waitForTimeout(250);
+  const open = await p.evaluate(() => ({
+    app: document.getElementById("app").inert,
+    toast: document.getElementById("app-toast").inert,
+    dialog: document.getElementById("settings-modal").inert,
+  }));
+  ok(open.app && !open.dialog, "Settings open: the app behind it is inert, the dialog is not", JSON.stringify(open));
+  ok(!open.toast, "and a toast can still be heard", JSON.stringify(open));
+  await p.evaluate(() => closeModal("settings-modal"));
+  await p.waitForTimeout(350);
+  ok(!(await p.evaluate(() => document.getElementById("app").inert)), "closing it gives the page back");
+  const roles = await p.evaluate(() => {
+    const d = document.createElement("div");
+    d.setAttribute("role", "tab");
+    d.tabIndex = 0;
+    let n = 0;
+    d.addEventListener("click", () => n++);
+    document.body.appendChild(d);
+    d.focus();
+    d.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    d.remove();
+    return n;
+  });
+  ok(roles === 1, "Enter activates a custom control whatever its role", String(roles));
+  ok(errors.length === 0, "inert: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
+// --------------------------------------------------------------------------
+section("Setup and history: same as last time, a course off the list, your courses, CSV");
+// --------------------------------------------------------------------------
+{
+  const { ctx, p, errors } = await page();
+  await p.evaluate(() => document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden")));
+  await p.evaluate(() => enterScreen("home"));
+  await p.waitForTimeout(200);
+  const last = await p.evaluate(() => {
+    const r = mostRecentRound(true);
+    return r && { course: r.course, game: r.gameType, players: r.players.map((x) => x.name), card: !!document.querySelector(".repeat-card .repeat-go") };
+  });
+  ok(last && last.card, "Home offers the last round again", JSON.stringify(last));
+  await p.click(".repeat-card .repeat-go");
+  await p.waitForTimeout(500);
+  const rep = await p.evaluate(() => ({
+    screen: _currentScreen,
+    course: state.course,
+    game: state.gameType,
+    players: state.players.map((x) => x.name),
+    blank: Object.values(state.scores).every((r) => !Object.keys(r).length),
+    fresh: state.roundId !== mostRecentRound(true).id,
+  }));
+  ok(rep.screen === "scoring", "one tap lands on the first tee", rep.screen);
+  ok(rep.course === last.course && rep.game === last.game && rep.players.join() === last.players.join(),
+    "with the same course, game and group", JSON.stringify(rep));
+  ok(rep.blank && rep.fresh, "as a new round with a clean card", JSON.stringify(rep));
+  await p.evaluate(() => enterScreen("home"));
+  await p.waitForTimeout(150);
+  ok(!(await p.evaluate(() => !!document.querySelector(".repeat-card"))), "and the offer steps aside while that round is open");
+
+  // Starting a round can open the strokes sheet; with it up, the page behind is
+  // inert and cannot be typed into -- which is the point -- so close it first.
+  await p.evaluate(() => {
+    document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden"));
+    state.started = false;
+    enterScreen("setup");
+  });
+  await p.fill("#course-search", "Zzyzx Muni");
+  await p.waitForTimeout(500);
+  const miss = await p.evaluate(() => document.querySelector("#course-results .course-typed")?.textContent || "");
+  ok(/Zzyzx Muni/.test(miss), "a search miss offers to play the course as typed", miss);
+  await p.click("#course-results .course-typed");
+  const typed = await p.evaluate(() => ({ name: document.getElementById("course-name").value, par: state.pars.reduce((a, b) => a + b, 0) }));
+  ok(typed.name === "Zzyzx Muni" && typed.par === 72, "which fills the name and a par 72", JSON.stringify(typed));
+
+  const hist = await p.evaluate(() => { enterScreen("season"); return { cards: document.querySelectorAll("#course-history .ch-card").length, me: getPrimaryPlayerName(), courses: courseHistory(getPrimaryPlayerName()).length }; });
+  ok(hist.cards > 0 && hist.cards === Math.min(8, hist.courses), "History lists your courses", JSON.stringify(hist));
+
+  const csv = await p.evaluate(() => {
+    const rows = roundsCSV().split("\r\n"),
+      fin = getAllRounds().filter((r) => r.finished),
+      want = fin.reduce((n, r) => n + r.players.length, 0);
+    return { head: rows[0], rows: rows.length - 1, want, cell: csvCell('=HYPERLINK("x")'), comma: csvCell("Pebble, CA"), num: csvCell(-4) };
+  });
+  ok(csv.head.startsWith("Date,Course,Game,Holes,Player,Handicap,Gross,To par,Money,H1"), "the CSV has a header row", csv.head);
+  ok(csv.rows === csv.want, "and one row per player per finished round", `${csv.rows} vs ${csv.want}`);
+  ok(csv.cell.startsWith(`"'=`) && csv.comma === '"Pebble, CA"' && csv.num === "-4",
+    "a formula is defused, a comma quoted, a negative number left alone", JSON.stringify(csv));
+  ok(errors.length === 0, "setup and history: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
+// --------------------------------------------------------------------------
+section("The scorecard prints on its own, on the light skin");
+// --------------------------------------------------------------------------
+{
+  const { ctx, p, errors } = await page();
+  await enterRoster(p, 4);
+  await p.waitForTimeout(200);
+  await p.evaluate(() => { selectGameType("skins"); startRound(); });
+  await p.waitForTimeout(350);
+  await p.evaluate(() => {
+    document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden"));
+    document.documentElement.dataset.theme = "broadcast";
+    window.print = () => {
+      window.dispatchEvent(new Event("beforeprint"));
+      window.__printed = { cls: document.body.classList.contains("print-scorecard"), theme: document.documentElement.dataset.theme,
+        open: !document.getElementById("scorecard-modal").classList.contains("hidden") };
+      window.dispatchEvent(new Event("afterprint"));
+    };
+    printScorecard();
+  });
+  const pr = await p.evaluate(() => ({ ...window.__printed, after: document.documentElement.dataset.theme, cls: document.body.classList.contains("print-scorecard") }));
+  ok(pr.open && pr.cls === false, "Print opens the scorecard and cleans up after", JSON.stringify(pr));
+  ok(pr.theme === "clubhouse" && pr.after === "broadcast", "printing on the light skin, then back", JSON.stringify(pr));
+  await p.emulateMedia({ media: "print" });
+  await p.evaluate(() => document.body.classList.add("print-scorecard"));
+  const vis = await p.evaluate(() => ({
+    nav: getComputedStyle(document.getElementById("nav-bar")).display,
+    scoring: getComputedStyle(document.getElementById("scoring-screen")).display,
+    card: getComputedStyle(document.querySelector("#scorecard-modal .modal-content")).opacity,
+  }));
+  ok(vis.nav === "none" && vis.scoring === "none" && vis.card === "1", "and only the card is on the page", JSON.stringify(vis));
+  ok(errors.length === 0, "print: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

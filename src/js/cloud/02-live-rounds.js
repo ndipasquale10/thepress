@@ -1,5 +1,4 @@
 let liveUnsubscribe = null;
-let _lastLiveUpdateMs = 0;
 function goLiveTap() {
   if (isSpectator) return;
   currentUser
@@ -286,11 +285,16 @@ async function joinLiveRound() {
   if (!currentUser) return void showToast("Sign in first to join a live round.", { type: "error" });
   if (!(await confirmLeaveActiveRound("a shared round"))) return;
   state.started && saveCurrentRound();
-  const entered = await appPrompt("Enter 6-character share code:", {
-    title: "Join Live Round",
-    maxLength: 6,
-    placeholder: "ABC123",
-  });
+  /* Point your phone at mine: where the browser can read a QR code, the
+     camera comes first and typing is the fallback. */
+  let entered = canScanCodes() ? await scanLiveCode() : "type";
+  if (null === entered) return;
+  "type" === entered &&
+    (entered = await appPrompt("Enter 6-character share code:", {
+      title: "Join Live Round",
+      maxLength: 6,
+      placeholder: "ABC123",
+    }));
   if (!entered) return;
   const code = normalizeLiveCode(entered);
   if (code.length !== 6)
@@ -323,16 +327,21 @@ async function joinLiveRound() {
    follow the host, which is the whole point of watching. */
 function subscribeLiveUpdates(e) {
   (liveUnsubscribe && liveUnsubscribe(),
-    (_lastLiveUpdateMs = 0),
     (liveUnsubscribe = db
       .collection("liveRounds")
       .doc(e)
       .onSnapshot((e) => {
         if (!e.exists) return;
         const t = e.data();
-        const a = t.updatedAt && t.updatedAt.toMillis ? t.updatedAt.toMillis() : 0;
-        (a && a <= _lastLiveUpdateMs) ||
-          (a && (_lastLiveUpdateMs = a),
+        /* Every snapshot is applied. This used to skip any whose updatedAt was
+           not newer than the last one seen, to drop "stale" updates -- but a
+           single document's snapshots already arrive in order, and updatedAt is
+           whichever write stamped it last, not the newest. When two phones
+           scored in the same moment, the snapshot carrying the other phone's
+           score could hold the older stamp and was thrown away, so one phone
+           went on missing a score the server had until some later write
+           happened to arrive. Measured: 5 to 8 of 40 simultaneous entries. */
+        ((_livePresence = t.presence || {}),
           (state.scores = t.scores || {}),
           (state.wolfHoles = t.wolfHoles || {}),
           (state.wolfBreakouts = t.wolfBreakouts || {}),
@@ -344,9 +353,107 @@ function subscribeLiveUpdates(e) {
           isSpectator && (state.currentHole = t.currentHole || 0),
           (_liveBase = cloneLive(liveProgress())),
           invalidateMoneyCache(),
-          renderHole());
+          renderHole(),
+          refreshWatchScreen());
       })));
 }
+/* The Watch screen drew itself once, on the way in, and the snapshot handler
+   only ever redrew the scoring screen behind it -- so a spectator's money board
+   sat on whatever it said when they opened the link. */
+function refreshWatchScreen() {
+  const w = document.getElementById("watch-screen");
+  w && !w.classList.contains("hidden") && renderWatch();
+}
+
+/* Presence. The snapshot replaces scores cell by cell now, so two phones no
+   longer erase each other, but nothing told you someone else was on your hole
+   until a number changed under your thumb. Each signed-in scorer keeps one
+   entry -- presence.<uid> = {name, hole, at} -- and firestore.rules lets a write
+   touch only the writer's own. It turns a data race into a social one: "Dave is
+   scoring this hole too" is something a foursome sorts out by talking. */
+let _livePresence = {},
+  _presenceHole = -1,
+  _presenceAt = 0;
+const PRESENCE_FRESH_MS = 3 * 60 * 1000;
+function presenceName() {
+  const n =
+    getPrimaryPlayerName() ||
+    String((currentUser && currentUser.displayName) || "").split(" ")[0] ||
+    "A scorer";
+  return n.slice(0, 40);
+}
+function pushPresence(force) {
+  if (!state.liveId || isSpectator || !currentUser || "undefined" == typeof db || !db) return;
+  const h = state.currentHole || 0,
+    now = Date.now();
+  if (!force && h === _presenceHole && now - _presenceAt < 60000) return;
+  ((_presenceHole = h), (_presenceAt = now));
+  const ref = db.collection("liveRounds").doc(state.liveId);
+  ref
+    .update(new firebase.firestore.FieldPath("presence", currentUser.uid), {
+      name: presenceName(),
+      hole: h,
+      at: firebase.firestore.FieldValue.serverTimestamp(),
+    })
+    .catch(() => {});
+}
+/* Others in the round, freshest first. A pending server timestamp reads as
+   null on the writer's own snapshot; it is "now" by definition. */
+function livePresenceOthers() {
+  const me = currentUser && currentUser.uid,
+    now = Date.now();
+  return Object.keys(_livePresence || {})
+    .filter((uid) => uid !== me)
+    .map((uid) => {
+      const p = _livePresence[uid] || {},
+        at = p.at && p.at.toMillis ? p.at.toMillis() : now;
+      return { uid, name: String(p.name || "Someone"), hole: Number(p.hole) || 0, at };
+    })
+    .filter((p) => now - p.at < PRESENCE_FRESH_MS)
+    .sort((a, b) => b.at - a.at);
+}
+function renderPresence() {
+  const slots = document.querySelectorAll(".live-presence");
+  if (!slots.length) return;
+  const who = state.liveId ? livePresenceOthers() : [],
+    here = isSpectator ? [] : who.filter((p) => p.hole === (state.currentHole || 0));
+  const html = who.length
+    ? '<div class="presence-row"><span class="presence-k">' +
+      (isSpectator ? "Scoring now" : "Also scoring") +
+      "</span>" +
+      who
+        .map(
+          (p) =>
+            '<span class="presence-chip' +
+            (here.includes(p) ? " same-hole" : "") +
+            '"><span class="presence-dot" aria-hidden="true"></span>' +
+            esc(p.name) +
+            " · H" +
+            hLbl(p.hole) +
+            "</span>",
+        )
+        .join("") +
+      "</div>" +
+      (here.length
+        ? '<div class="presence-warn">' +
+          esc(
+            here.map((p) => p.name).join(" and ") +
+              (1 === here.length ? " is" : " are") +
+              " on this hole too. Agree who enters which scores before confirming.",
+          ) +
+          "</div>"
+        : "")
+    : "";
+  /* Only write when it changed: the slot is polite-live, and renderHole runs
+     on every tap. */
+  slots.forEach((el) => {
+    el._presence !== html && ((el.innerHTML = html), (el._presence = html));
+    el.classList.toggle("hidden", !html);
+  });
+}
+setInterval(() => {
+  "visible" === document.visibilityState && state.liveId && (pushPresence(), renderPresence());
+}, 30000);
 function requestNotificationPermission() {
   "Notification" in window &&
     "default" === Notification.permission &&
@@ -357,4 +464,71 @@ function sendNotification(e, t) {
     "granted" === Notification.permission &&
     new Notification(e, { body: t, icon: "logo-192.png", badge: "logo-64.png" }),
     navigator.vibrate && navigator.vibrate(200));
+}
+
+/* Scan to join. The Go Live sheet shows a QR of the watch link; this reads it
+   back with BarcodeDetector, which Chrome on Android ships and Safari does not
+   -- so where it is missing the join is the typed code, exactly as before. */
+function canScanCodes() {
+  return (
+    "BarcodeDetector" in window && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+  );
+}
+/* The QR carries the watch URL (?watch=CODE); a bare code is accepted too. */
+function codeFromScan(raw) {
+  const t = String(raw || "").trim();
+  try {
+    const w = new URL(t).searchParams.get("watch");
+    if (w) return normalizeLiveCode(w);
+  } catch (e) {}
+  const c = normalizeLiveCode(t);
+  return 6 === c.length ? c : "";
+}
+/* Resolves to a code, "type" to fall back to typing, or null for cancel. */
+function scanLiveCode() {
+  return new Promise(async (resolve) => {
+    let stream = null,
+      timer = null,
+      done = !1;
+    const m = document.getElementById("scan-modal"),
+      v = document.getElementById("scan-video"),
+      msg = document.getElementById("scan-msg");
+    const finish = (val) => {
+      if (done) return;
+      ((done = !0), clearTimeout(timer));
+      stream && stream.getTracks().forEach((t) => t.stop());
+      ((v.srcObject = null), (m.onclick = null), (m.onkeydown = null));
+      (closeModal("scan-modal"), resolve(val));
+    };
+    ((document.getElementById("scan-type").onclick = () => finish("type")),
+      (document.getElementById("scan-cancel").onclick = () => finish(null)),
+      (m.onclick = (e) => e.target === m && finish(null)),
+      (m.onkeydown = (e) => "Escape" === e.key && (e.preventDefault(), finish(null))),
+      (msg.textContent = "Point the camera at the code on the host’s phone."),
+      m.classList.remove("hidden"),
+      openModalA11y("scan-modal"));
+    try {
+      const det = new BarcodeDetector({ formats: ["qr_code"] });
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+        audio: !1,
+      });
+      if (done) return void stream.getTracks().forEach((t) => t.stop());
+      ((v.srcObject = stream), await v.play());
+      const tick = async () => {
+        if (done) return;
+        try {
+          const found = await det.detect(v);
+          for (const f of found) {
+            const c = codeFromScan(f.rawValue);
+            if (c) return (haptic(), finish(c));
+          }
+        } catch (e) {}
+        timer = setTimeout(tick, 250);
+      };
+      tick();
+    } catch (e) {
+      msg.textContent = "The camera isn’t available. Type the code instead.";
+    }
+  });
 }

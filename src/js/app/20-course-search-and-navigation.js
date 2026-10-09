@@ -49,7 +49,9 @@ function searchCourses(e) {
   if (!a.length)
     return (
       (t.innerHTML =
-        '<div class="course-item loading">No matches in the built-in list — enter your course manually below.</div>'),
+        '<div class="course-item loading">Not in the course list yet.</div><button type="button" class="course-item course-typed" data-act="useTypedCourse()">Play “' +
+        esc(document.getElementById("course-search").value.trim()) +
+        "” with par 72 and fix the pars as you go</button>"),
       void t.classList.remove("hidden")
     );
   window._courseResults = a;

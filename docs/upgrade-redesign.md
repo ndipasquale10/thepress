@@ -365,7 +365,63 @@ design-system audit, and the browser flow suite.
   subset and made up 75 KB of the style block, not most of it. The rest of
   that block is the stylesheet itself.
 
-Not picked up from this plan, and still open: everything under §1, §5, §6
-and §7, relative-to-par entry, the landscape layout, the broadcast Watch
-layout, presence, the print stylesheet, the source split and the modular
-Firebase SDK.
+### Second pass: scoring, live rounds, setup and history, accessibility
+
+- **Relative-to-par entry** (§2). The quick picker leads with Birdie · Par ·
+  Bogey · Double · Triple, each showing its gross number, and opens on Par;
+  the number grid stays underneath. Done in the picker rather than on every
+  row, so the row keeps one control and a score is still two taps from the
+  card (open, word) with the auto-advance carrying you down the group.
+- **Glove mode** (§2). A toggle in the scoring actions raises `--tap` to 56px
+  and sizes the stepper, the score chip and the picker off it. Per device.
+- **Landscape scoring** (§2). Below 540px tall in landscape, the tab bar
+  becomes a rail down the left edge and the scoring screen splits: score rows
+  left, money and feed right, both always visible, so the segment hides. The
+  columns are `.score-main` / `.score-side` wrappers that are
+  `display: contents` everywhere else, so portrait is unchanged.
+- **Announce money moves** (§2). Not `aria-live` on the ribbon: it is
+  rebuilt on every tap and would read the table out on each "+". One polite
+  sentence per confirmed hole instead ("Hole 7 confirmed. Tommy P up $15 …
+  You are down $5 for the round."), with the direction in words.
+- **Presence** (§4). `presence.<uid> = {name, hole, at}` in the live round,
+  one entry per signed-in scorer. Chips on the scoring and Watch screens show
+  who else is scoring and on which hole, and a note appears when someone is
+  on yours. `firestore.rules` lets a write touch only the writer's own entry,
+  checks its shape, refuses it on create, and lets only the host drop the map
+  (re-publishing replaces the document). Presence writes leave `updatedAt`
+  alone, so the snapshot handler reads presence before its staleness check.
+- **The Watch screen refreshes** (§4, a bug found on the way). It drew once on
+  entry and the snapshot handler only redrew the hidden scoring screen, so a
+  spectator's money board never moved. It now redraws on every snapshot.
+- **Scan to join** (§4). Where `BarcodeDetector` exists, Join opens the
+  camera and reads the Go Live QR (the watch URL, or a bare code); "Type the
+  code" falls back to the prompt, which is also the only path where the API
+  is missing (Safari).
+- **Broadcast Watch layout** (§4). From 900px: board and money flow left, the
+  feed and presence right, larger type, a 1200px column.
+- **Print stylesheet** (§4). A Print button on the full scorecard prints it
+  alone, landscape, on the Clubhouse skin whatever the screen is wearing.
+- **Repeat last round** (§5). "Same as last time?" on Home: the last finished
+  round's course, tee, pars, game, options and group, one tap to the first
+  tee, with handicaps and handles from today's saved profiles.
+- **Course search that works away from the list** (§5). A miss offers to play
+  the course as typed with a par 72 to fix as you go. (Signed-in players'
+  searches already include the shared library, which is merged into saved
+  courses at sign-in.)
+- **Per-course history** (§6). "Your courses" on the Season screen: rounds,
+  best score, average per 18, money, the hole that has your number, and the
+  average against par on every hole.
+- **CSV export** (§6). One row per player per finished round, hole by hole,
+  with the money; formula-leading text is defused. In History and Settings.
+- **Modals with `inert`** (§7). One observer makes everything outside the
+  top open dialog inert (live regions and the picker's scrim excepted),
+  instead of touching each of the dozen ways a dialog opens.
+- **Keyboard delegate keyed off roles** (§7). Enter/Space now cover every
+  interactive ARIA role on a non-native element.
+- **Colour-independent money** (§7) was already true: `fmtMoney` always
+  signs the figure.
+
+Not picked up from this plan, and still open: everything under §1, the demo
+round onboarding, the setup stepper, head-to-head on Home, the IndexedDB
+move, the storage-full action, push for spectators (needs a Cloud Function
+or FCM), and the modular Firebase SDK.
