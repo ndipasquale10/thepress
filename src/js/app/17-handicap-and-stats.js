@@ -46,20 +46,108 @@ function computeHandicapIndex(name, rounds) {
     rounds: diffs.length,
   };
 }
-function bestGameFor(name, rounds) {
+const SIDE_BET_NAMES = { skins: "Skins", snake: "Snake", junk: "Junk" };
+function betLabel(k) {
+  return 0 === k.indexOf("side:")
+    ? (SIDE_BET_NAMES[k.slice(5)] || k.slice(5)) + " · side bet"
+    : GAME_NAMES[k] || k;
+}
+/* Your money split by bet across the season. Rounds finished since the split
+   was recorded carry moneyBy (main game and each side bet apart); older rounds
+   only know their total, which goes to the round's main game as it always did. */
+function gameBreakdownFor(name, rounds) {
   const by = {};
   (rounds || getAllRounds())
-    .filter((r) => r.finished && r.money)
+    .filter((r) => r.finished && Array.isArray(r.money))
     .forEach((r) => {
       const i = (r.players || []).findIndex((p) => p.name === name);
       if (i < 0) return;
-      const g = r.gameType || "none";
-      (by[g] || (by[g] = { game: g, money: 0, rounds: 0 }),
-        (by[g].money += r.money[i] || 0),
-        by[g].rounds++);
+      const mb = r.moneyBy && "object" == typeof r.moneyBy ? r.moneyBy : {},
+        parts = Object.keys(mb)
+          .filter((k) => Array.isArray(mb[k]) && Number.isFinite(mb[k][i]))
+          .map((k) => [k, mb[k][i]]);
+      (parts.length ? parts : [[r.gameType || "none", r.money[i] || 0]]).forEach(([k, v]) => {
+        if ("none" === k) return;
+        const g = by[k] || (by[k] = { key: k, label: betLabel(k), money: 0, rounds: 0 });
+        ((g.money += v), g.rounds++);
+      });
     });
-  const list = Object.values(by).sort((a, b) => b.money - a.money);
-  return list.length ? list[0] : null;
+  return Object.values(by).sort((a, b) => b.money - a.money);
+}
+// A round's length: what it was set up for, else however many pars it carries.
+function roundLength(r) {
+  return r.holeCount || (r.pars || []).length;
+}
+// Strokes over par scaled to a round of `per` holes. Nines and eighteens only
+// compare once they are on the same footing.
+function perRound(diff, holes, per) {
+  return holes > 0 ? (diff / holes) * per : null;
+}
+/* Every course you have finished a round on: how often, how you score there,
+   your money there, and what each hole has cost you on average. Holes are
+   keyed by their real number, so a back nine lands on 10-18. */
+function courseHistoryFor(name, rounds) {
+  const by = {};
+  (rounds || getAllRounds())
+    .filter((r) => r.finished && r.scores && Array.isArray(r.pars))
+    .forEach((r) => {
+      const i = (r.players || []).findIndex((p) => p.name === name),
+        nm = String(r.course || "").trim();
+      if (i < 0 || !nm) return;
+      const L = Math.min(roundLength(r), r.pars.length),
+        start = 9 === L ? r.holeStart || 0 : 0,
+        sc = r.scores[i] || {},
+        key = nm.toLowerCase(),
+        c =
+          by[key] ||
+          (by[key] = {
+            name: nm,
+            rounds: 0,
+            money: 0,
+            holes: 0,
+            diff: 0,
+            long: !1,
+            best: 1 / 0,
+            best9: 1 / 0,
+            last: 0,
+            perHole: {},
+          });
+      let g = 0,
+        n = 0;
+      for (let h = 0; h < L; h++) {
+        const v = sc[h];
+        if (null == v) continue;
+        const d = v - r.pars[h],
+          hn = start + h + 1,
+          ph = c.perHole[hn] || (c.perHole[hn] = { hole: hn, par: r.pars[h], n: 0, diff: 0 });
+        ((g += v), n++, (c.diff += d), c.holes++, ph.n++, (ph.diff += d));
+      }
+      if (!n) return;
+      (c.rounds++,
+        Array.isArray(r.money) && (c.money += r.money[i] || 0),
+        n > 9 && (c.long = !0),
+        n === L &&
+          (18 === L
+            ? (c.best = Math.min(c.best, g))
+            : 9 === L && (c.best9 = Math.min(c.best9, g))));
+      const t = new Date(r.finishedDate || r.date).getTime();
+      isNaN(t) || (c.last = Math.max(c.last, t));
+    });
+  return Object.values(by)
+    .map((c) => ({
+      name: c.name,
+      rounds: c.rounds,
+      money: c.money,
+      avgPer: c.long ? 18 : 9,
+      avgVsPar: perRound(c.diff, c.holes, c.long ? 18 : 9),
+      best: c.best === 1 / 0 ? null : c.best,
+      best9: c.best9 === 1 / 0 ? null : c.best9,
+      last: c.last,
+      holes: Object.values(c.perHole)
+        .sort((a, b) => a.hole - b.hole)
+        .map((h) => ({ hole: h.hole, par: h.par, n: h.n, avg: h.diff / h.n })),
+    }))
+    .sort((a, b) => b.rounds - a.rounds || b.last - a.last);
 }
 function trophiesFor(name, rounds) {
   const rs = (rounds || getAllRounds()).filter((r) => r.finished),
@@ -84,65 +172,86 @@ function trophiesFor(name, rounds) {
   bestStreak >= 3 && out.push({ ico: ico("flame"), label: bestStreak + "-round heater" });
   best.v > 0 && out.push({ ico: ico("trophy"), label: "Best take " + fmtMoney(best.v) });
   rs.length >= 10 && out.push({ ico: ico("flag"), label: rs.length + " rounds" });
-  stats && null != stats.best && out.push({ ico: ico("target"), label: "Low round " + stats.best });
+  stats &&
+    (null != stats.best
+      ? out.push({ ico: ico("target"), label: "Low round " + stats.best })
+      : null != stats.best9 && out.push({ ico: ico("target"), label: "Low nine " + stats.best9 }));
   return out;
 }
+/* Gross and net, per player, across finished rounds.
+   - best / best9: the low gross for a complete 18 / complete 9. A nine's 42
+     is not a better round than an eighteen's 78, and a card abandoned after
+     six holes is not a round at all.
+   - scoringAvgVsPar / netAvgVsPar: strokes over par per 18 holes (per 9 for a
+     player who has only ever played nines), so mixed lengths average fairly.
+   - net: the same hole tallies after the strokes the round was played off,
+     netted with the round's own handicap rules. */
 function computeScoringStats(e) {
-  const t = {};
+  const t = {},
+    bucket = () => ({ eagles: 0, birdies: 0, pars: 0, bogeys: 0, doublePlus: 0 }),
+    tally = (b, n) =>
+      n <= -2
+        ? b.eagles++
+        : -1 === n
+          ? b.birdies++
+          : 0 === n
+            ? b.pars++
+            : 1 === n
+              ? b.bogeys++
+              : b.doublePlus++;
   e.forEach((e) => {
     const a = e.scores || {},
-      s = e.pars || [];
+      s = e.pars || [],
+      L = Math.min(roundLength(e), s.length),
+      hc = playingHandicapsFor(e);
     (e.players || []).forEach((n, o) => {
       t[n.name] ||
-        (t[n.name] = {
+        (t[n.name] = Object.assign(bucket(), {
           rounds: 0,
           totalDiff: 0,
+          netDiff: 0,
           holesPlayed: 0,
+          long: !1,
           best: 1 / 0,
-          eagles: 0,
-          birdies: 0,
-          pars: 0,
-          bogeys: 0,
-          doublePlus: 0,
+          best9: 1 / 0,
+          net: bucket(),
           color: n.color,
           trend: [],
-        });
+        }));
       const l = t[n.name];
       let r = 0,
         i = 0,
         c = 0;
-      for (let t = 0; t < s.length; t++) {
-        const e = a[o]?.[t];
-        if (null == e) continue;
-        const n = e - s[t];
-        ((r += e),
-          (i += s[t]),
-          c++,
-          n <= -2
-            ? l.eagles++
-            : -1 === n
-              ? l.birdies++
-              : 0 === n
-                ? l.pars++
-                : 1 === n
-                  ? l.bogeys++
-                  : l.doublePlus++);
+      for (let t = 0; t < L; t++) {
+        const e2 = a[o]?.[t];
+        if (null == e2) continue;
+        const d = e2 - s[t],
+          nd = d - strokesOnHoleFor(e, hc[o] || 0, t);
+        ((r += e2), (i += s[t]), c++, (l.netDiff += nd), tally(l, d), tally(l.net, nd));
       }
       c > 0 &&
         (l.rounds++,
         (l.totalDiff += r - i),
         (l.holesPlayed += c),
-        (l.best = Math.min(l.best, r)),
+        c > 9 && (l.long = !0),
+        c === L &&
+          (18 === L ? (l.best = Math.min(l.best, r)) : 9 === L && (l.best9 = Math.min(l.best9, r))),
         l.trend.push(r - i));
     });
   });
   return Object.entries(t)
-    .map(([e, t]) => ({
-      name: e,
-      ...t,
-      scoringAvgVsPar: t.rounds > 0 ? t.totalDiff / t.rounds : null,
-      best: t.best === 1 / 0 ? null : t.best,
-    }))
+    .map(([e, t]) => {
+      const per = t.long ? 18 : 9;
+      return {
+        name: e,
+        ...t,
+        avgPer: per,
+        scoringAvgVsPar: perRound(t.totalDiff, t.holesPlayed, per),
+        netAvgVsPar: perRound(t.netDiff, t.holesPlayed, per),
+        best: t.best === 1 / 0 ? null : t.best,
+        best9: t.best9 === 1 / 0 ? null : t.best9,
+      };
+    })
     .sort((e, t) => (e.scoringAvgVsPar ?? 1 / 0) - (t.scoringAvgVsPar ?? 1 / 0));
 }
 function renderScoringStats() {
@@ -153,12 +262,26 @@ function renderScoringStats() {
   const a = computeScoringStats(t);
   let s = '<div class="season-stats-card"><div class="season-title">Scoring Stats</div>';
   (a.forEach((t) => {
-    const n =
-        null == t.scoringAvgVsPar
-          ? "—"
-          : (t.scoringAvgVsPar >= 0 ? "+" : "") + t.scoringAvgVsPar.toFixed(1),
-      o = null == t.best ? "—" : t.best,
-      l = t.bogeys + t.doublePlus;
+    const sg = (v) => (null == v ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1)),
+      pill = (v, k) =>
+        '<span class="stat-pill"><strong>' + v + "</strong><small>" + k + "</small></span>",
+      /* Gross and net side by side: the money settles net, so the net line is
+         the one that says who is actually playing well off their number. */
+      gross =
+        pill(sg(t.scoringAvgVsPar), "Avg /" + t.avgPer) +
+        (null != t.best
+          ? pill(t.best, "Best 18")
+          : null != t.best9
+            ? pill(t.best9, "Best 9")
+            : pill("—", "Best")) +
+        pill(t.eagles, "Eagles") +
+        pill(t.birdies, "Birdies") +
+        pill(t.pars, "Pars") +
+        pill(t.bogeys + t.doublePlus, "Bogeys+"),
+      net =
+        pill(sg(t.netAvgVsPar), "Net /" + t.avgPer) +
+        pill(t.net.eagles + t.net.birdies, "Net birdies+") +
+        pill(t.net.pars, "Net pars");
     s +=
       '<div class="scoring-stat-card">' +
       '<div class="scoring-stat-head">' +
@@ -169,24 +292,10 @@ function renderScoringStats() {
       t.rounds +
       "R</span></div>" +
       '<div class="scoring-stat-pills">' +
-      '<span class="stat-pill"><strong>' +
-      n +
-      "</strong><small>Avg</small></span>" +
-      '<span class="stat-pill"><strong>' +
-      o +
-      "</strong><small>Best</small></span>" +
-      '<span class="stat-pill"><strong>' +
-      t.eagles +
-      "</strong><small>Eagles</small></span>" +
-      '<span class="stat-pill"><strong>' +
-      t.birdies +
-      "</strong><small>Birdies</small></span>" +
-      '<span class="stat-pill"><strong>' +
-      t.pars +
-      "</strong><small>Pars</small></span>" +
-      '<span class="stat-pill"><strong>' +
-      l +
-      "</strong><small>Bogeys+</small></span>" +
+      gross +
+      "</div>" +
+      '<div class="scoring-stat-pills scoring-net">' +
+      net +
       "</div>" +
       (t.trend.length
         ? '<div class="scoring-trend">' +

@@ -11,7 +11,9 @@ function showStrokes() {
   const hc = state.players.map((e) => e.hdcp),
     low = Math.min(...hc),
     lowName = state.players[hc.indexOf(low)]?.name || "",
-    note = "80pct" === mode ? " · 80% handicap" : "course" === mode ? " · course handicap" : "";
+    note =
+      ("80pct" === mode ? " · 80% handicap" : "course" === mode ? " · course handicap" : "") +
+      (halvesStrokes(state) ? " · half strokes over nine" : "");
   let s = `<div class="strokes-meta"><strong>${esc(lowName)}</strong> plays scratch (off the low man)${note}. Everyone else gets strokes on their hardest-rated holes.</div><div class="strokes-players">`;
   strokesData().forEach((d) => {
     s += `<div class="strokes-player"><div class="strokes-player-top">${avatarHTML(d.player, 12)}<span class="strokes-name">${esc(d.name)}</span><span class="strokes-count">${d.h > 0 ? d.h + " stroke" + (d.h > 1 ? "s" : "") : "Scratch"}</span></div>`;

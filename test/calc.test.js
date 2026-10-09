@@ -292,15 +292,104 @@ const stats = call('computeScoringStats', fakeRounds);
 const statsA = stats.find((s) => s.name === 'A');
 const statsB = stats.find((s) => s.name === 'B');
 assertEqual(statsA.rounds, 2, 'player A played 2 rounds');
-assertEqual(statsA.best, 10, 'player A best round total is 10 (2+4+4)');
-assertEqual(statsA.scoringAvgVsPar, -1, 'player A averages -1 vs par across the 2 rounds ((0)+(-2))/2');
+assertEqual(statsA.best, null, 'a 3-hole card is neither a complete 18 nor a complete 9, so it sets no low round');
+assertEqual(statsA.scoringAvgVsPar, -3, 'player A is -2 over 6 holes: -3 per 9 (nines only, so averaged per 9)');
 assertEqual([statsA.eagles, statsA.birdies, statsA.pars, statsA.bogeys, statsA.doublePlus], [1, 1, 3, 1, 0], 'player A hole-type counts across both rounds');
-assertEqual(statsB.best, 12, 'player B best round total is 12 (4+4+4)');
-assertEqual(statsB.scoringAvgVsPar, 1.5, 'player B averages +1.5 vs par across the 2 rounds ((0)+(3))/2');
+assertEqual(statsB.best9, null, 'nor a best nine');
+assertEqual(statsB.scoringAvgVsPar, 4.5, 'player B is +3 over 6 holes: +4.5 per 9');
 assertEqual([statsB.eagles, statsB.birdies, statsB.pars, statsB.bogeys, statsB.doublePlus], [0, 0, 3, 3, 0], 'player B hole-type counts across both rounds');
 assertEqual(stats[0].name, 'A', 'stats are sorted best (lowest avg vs par) first');
 assertEqual(statsA.trend, [0, -2], 'player A trend retains each round\'s score-vs-par diff in order');
 assertEqual(statsB.trend, [0, 3], 'player B trend retains each round\'s score-vs-par diff in order');
+
+console.log('Stats: a low round is a complete 18 (or 9), averages are per 18, and net tallies use the round\'s strokes');
+{
+  const card = (vals) => Object.fromEntries(vals.map((v, i) => [i, v]));
+  const r18 = {
+    finished: true, holeCount: 18, handicapMode: 'full',
+    players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 18 }],
+    pars: Array(18).fill(4), hdcps: Array.from({ length: 18 }, (_, i) => i + 1),
+    scores: { 0: card(Array(18).fill(4)), 1: card(Array(18).fill(5)) }, // A 72 (E), B 90 (+18)
+  };
+  const r9 = {
+    finished: true, holeCount: 9, holeStart: 0, handicapMode: 'none',
+    players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 18 }],
+    pars: Array(18).fill(4), hdcps: Array.from({ length: 18 }, (_, i) => i + 1),
+    scores: { 0: card(Array(9).fill(5)), 1: card(Array(9).fill(5)) }, // both 45 (+9)
+  };
+  const quit = { ...r18, scores: { 0: card([3, 3, 3]), 1: card([5, 5, 5]) } }; // abandoned after 3
+  const st = call('computeScoringStats', [r18, r9, quit]);
+  const A = st.find((x) => x.name === 'A'), B = st.find((x) => x.name === 'B');
+  assertEqual(A.best, 72, 'the 9-hole 45 and the 3-hole 9 do not beat a complete 72 as the low round');
+  assertEqual(A.best9, 45, 'the complete nine is kept as its own low');
+  assertEqual(A.avgPer, 18, 'a player with an 18 on the books is averaged per 18');
+  assertEqual(A.scoringAvgVsPar, (6 / 30) * 18, 'A: +9 -3 over 30 holes = +3.6 per 18');
+  assertEqual([B.net.pars, B.net.bogeys], [21, 9], 'B\'s strokes turn the 18 bogeys and the abandoned card\'s 3 into net pars; the scratch nine stays gross');
+  assertEqual(B.birdies + B.pars, 0, 'gross tallies are unchanged by strokes');
+}
+
+console.log('9-hole rounds: strokes are half the handicap, spread over the nine\'s own hardest holes');
+{
+  const nine = (extra) => freshStateLiteral(Object.assign({
+    players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 13 }],
+    handicapMode: 'full', holeCount: 9, holeStart: 0,
+    hdcps: [7, 3, 15, 1, 9, 5, 17, 11, 13, 8, 4, 16, 2, 10, 6, 18, 12, 14],
+    gameOpts: { strokeRule: 2 },
+  }, extra));
+  loadState(nine());
+  assertEqual(call('getPlayingHandicaps'), [0, 7], 'a 13 vs scratch over nine gets round(6.5) = 7 strokes, not 13');
+  const strokes = Array.from({ length: 9 }, (_, h) => call('getStrokesOnHole', 7, h));
+  // front-nine indexes 7,3,15,1,9,5,17,11,13 rank 4,2,8,1,5,3,9,6,7 -> strokes where rank <= 7
+  assertEqual(strokes, [1, 1, 0, 1, 1, 1, 0, 1, 1], 'the 7 strokes land on the nine\'s 7 lowest stroke indexes, one each');
+  assertEqual(strokes.reduce((a, b) => a + b, 0), 7, 'and every stroke is used');
+  loadState(nine({ players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 30 }] }));
+  const two = Array.from({ length: 9 }, (_, h) => call('getStrokesOnHole', 15, h));
+  assertEqual(two.reduce((a, b) => a + b, 0), 15, 'past nine strokes, the hardest holes get a second one');
+  assertEqual(two[3], 2, 'the nine\'s number-one index (hole 4) is first to get two');
+  loadState(nine({ hdcps: [5, 5, 5, 1, 2, 3, 4, 6, 7] }));
+  assertEqual(Array.from({ length: 9 }, (_, h) => call('getStrokesOnHole', 1, h)), [0, 0, 0, 1, 0, 0, 0, 0, 0], 'hand-entered 1..9 ranks work too');
+  loadState(nine({ handicapMode: 'course', selectedTee: { rating: 72.6, slope: 142 } }));
+  assertEqual(call('getPlayingHandicaps'), [0, 8], 'course mode halves the course handicap (13*142/113 = 16.3 -> 8.2 -> 8)');
+  loadState(nine({ gameOpts: {} }));
+  assertEqual(call('getPlayingHandicaps'), [0, 13], 'a round saved before the rule keeps settling as it was paid');
+  loadState(nine({ holeCount: 18 }));
+  assertEqual(call('getPlayingHandicaps'), [0, 13], 'an 18-hole round is untouched by the rule');
+}
+
+console.log('By game: each bet\'s money is recorded at finish and summed across rounds');
+{
+  loadState(freshStateLiteral({
+    players: [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 0 }],
+    gameType: 'match', gameOpts: { holeVal: 2 }, holeCount: 3,
+    sideBets: { skins: { on: true, val: 1, carry: false }, snake: { on: false, val: 5 }, junk: { on: false, val: 2 } },
+    scores: scoresFor([[3, 4, 5], [4, 4, 4]]),
+  }));
+  const mb = call('moneyBreakdown'), total = call('calcMoney');
+  assertEqual(Object.keys(mb).sort(), ['match', 'side:skins'], 'the main game and each active side bet are kept apart');
+  assertEqual([0, 1].map((i) => mb.match[i] + mb['side:skins'][i]), total, 'and the parts add back up to the round\'s money');
+  const rounds = [
+    { finished: true, gameType: 'match', players: [{ name: 'A' }, { name: 'B' }], money: [3, -3], moneyBy: { match: [2, -2], 'side:skins': [1, -1] } },
+    { finished: true, gameType: 'wolf', players: [{ name: 'B' }, { name: 'A' }], money: [5, -5] }, // older round: no split
+    { finished: true, gameType: 'none', players: [{ name: 'A' }], money: [0] },
+  ];
+  const g = call('gameBreakdownFor', 'A', rounds).map((x) => [x.key, x.money, x.rounds]);
+  assertEqual(g, [['match', 2, 1], ['side:skins', 1, 1], ['wolf', -5, 1]], 'older rounds book their total to the main game; no-bet rounds are left out');
+  vm.runInContext('state.sideBets = defaultSideBets()', context); // later tests assume no side bets
+}
+
+console.log('Course history: per course, with holes numbered as played (a back nine is 10-18)');
+{
+  const card = (vals) => Object.fromEntries(vals.map((v, i) => [i, v]));
+  const rounds = [
+    { finished: true, course: 'Pine Hill', holeCount: 9, holeStart: 9, players: [{ name: 'A' }], pars: Array(9).fill(4), scores: { 0: card([5, 4, 4, 4, 4, 4, 4, 4, 4]) }, money: [4], date: '2026-05-01' },
+    { finished: true, course: 'pine hill ', holeCount: 9, holeStart: 9, players: [{ name: 'A' }], pars: Array(9).fill(4), scores: { 0: card([3, 4, 4, 4, 4, 4, 4, 4, 4]) }, money: [-1], date: '2026-05-08' },
+    { finished: true, course: 'Oak', holeCount: 9, players: [{ name: 'B' }], pars: Array(9).fill(4), scores: { 0: card(Array(9).fill(4)) }, money: [0] },
+  ];
+  const ch = call('courseHistoryFor', 'A', rounds);
+  assertEqual(ch.length, 1, 'only courses you played, with names matched loosely');
+  assertEqual([ch[0].rounds, ch[0].money, ch[0].best9, ch[0].avgVsPar], [2, 3, 35, 0], 'rounds, money, low nine and average there');
+  assertEqual([ch[0].holes[0].hole, ch[0].holes[0].avg, ch[0].holes.length], [10, 0, 9], 'the first hole of a back nine is hole 10, and a 5 then a 3 average to par');
+}
 
 console.log('Wolf: "Lone Wolf" button label reflects gameOpts.lone2x, not hardcoded (Bug 6)');
 const hasConditionalLabel = /Lone Wolf \(\$\{\s*state\.gameOpts\.lone2x\s*\?\s*"2×"\s*:\s*"1×"\s*\}\)/.test(html);
