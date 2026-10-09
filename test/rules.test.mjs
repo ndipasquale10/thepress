@@ -12,6 +12,8 @@
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import assert from "node:assert/strict";
+import firebase from "firebase/compat/app";
+import "firebase/compat/firestore";
 import {
   initializeTestEnvironment,
   assertFails,
@@ -251,6 +253,49 @@ test("liveRounds: scores can be written one entry at a time", async () => {
   await seedRound({ scores: { 0: { 0: 4 } } });
   await assertSucceeds(
     guest().collection("liveRounds").doc(CODE).update({ "scores.1.0": 5, "wolfHoles.0": { wolf: 0 } })
+  );
+});
+
+// Presence: each scorer marks only themselves as on a hole.
+// The test contexts are compat Firestore instances, so the field helpers are too.
+const { FieldPath, FieldValue } = firebase.firestore;
+const presenceOf = (db, uid, entry) =>
+  db.collection("liveRounds").doc(CODE).update(
+    new FieldPath("presence", uid),
+    entry === undefined ? FieldValue.delete() : entry
+  );
+const here = (hole = 3) => ({ name: "Pat", hole, at: FieldValue.serverTimestamp() });
+
+test("liveRounds presence: a scorer marks their own hole, and clears it", async () => {
+  await seedRound();
+  await assertSucceeds(presenceOf(guest(), "guest-uid", here()));
+  await assertSucceeds(presenceOf(guest(), "guest-uid", here(7)));
+  await assertSucceeds(presenceOf(guest(), "guest-uid", undefined));
+});
+
+test("liveRounds presence: nobody can mark or erase someone else", async () => {
+  await seedRound({ presence: { "host-uid": { name: "Nick", hole: 1, at: new Date() } } });
+  await assertFails(presenceOf(guest(), "host-uid", here()));
+  await assertFails(presenceOf(guest(), "host-uid", undefined));
+  await assertFails(presenceOf(guest(), "someone-else", here()));
+});
+
+test("liveRounds presence: an entry must be a name, a hole and a time", async () => {
+  await seedRound();
+  await assertFails(presenceOf(guest(), "guest-uid", { name: "Pat", hole: 3 }));
+  await assertFails(presenceOf(guest(), "guest-uid", { ...here(), venmo: "@pat" }));
+  await assertFails(presenceOf(guest(), "guest-uid", { ...here(), name: "x".repeat(41) }));
+  await assertFails(presenceOf(guest(), "guest-uid", { ...here(), hole: "3" }));
+  await assertFails(presenceOf(anon(), "guest-uid", here()));
+});
+
+test("liveRounds presence: only the host's re-publish may drop the map, and none is created with one", async () => {
+  await seedRound({ presence: { "guest-uid": { name: "Pat", hole: 1, at: new Date() } } });
+  await assertFails(guest().collection("liveRounds").doc(CODE).set(roundDoc()));
+  await assertSucceeds(host_().collection("liveRounds").doc(CODE).set(roundDoc()));
+  await testEnv.clearFirestore();
+  await assertFails(
+    host_().collection("liveRounds").doc(CODE).set(roundDoc({ presence: { "guest-uid": here() } }))
   );
 });
 

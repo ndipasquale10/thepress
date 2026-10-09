@@ -114,13 +114,17 @@
       <div id="season-stats"></div>
       <div id="season-extras"></div>
       <div id="scoring-stats"></div>
+      <div id="course-history"></div>
       <div id="history-empty" class="empty-state hidden">
         <div class="es-icon" aria-hidden="true"><i data-ico="flag"></i></div>
         <div class="es-title">No rounds yet</div>
         <div class="es-body">Finish a round and it lands here with the scorecard and the money.</div>
         <button class="btn primary" data-act="showScreen('setup')">Start your first round</button>
       </div>
-      <button class="btn secondary" data-act="exportAllData()" style="width:100%;margin-top:12px">Export All Data (Backup)</button>
+      <div class="export-row">
+        <button class="btn secondary" data-act="exportAllData()">Export All Data (Backup)</button>
+        <button class="btn secondary" data-act="exportCSV()">Export CSV</button>
+      </div>
     </div>
 
     <!-- Setup Screen (course + players) -->
@@ -270,6 +274,7 @@
         <button id="next-hole" class="btn small" aria-label="Next hole"><i data-ico="right"></i></button>
       </div>
       <div id="spectator-banner" class="spectator-banner hidden" role="status"><i data-ico="eye"></i> Watching live — read-only</div>
+      <div id="live-presence" class="live-presence hidden" role="status" aria-live="polite"></div>
       <div class="hole-dots" id="hole-dots"></div>
       <div id="standings-ribbon" class="hidden"></div>
       <div id="stroke-summary" class="card collapsible collapsed hidden" data-act="toggleCollapsed(this)" role="button" tabindex="0" aria-label="Handicap strokes summary"></div>
@@ -281,13 +286,18 @@
         <button type="button" class="hole-toggle-btn seg-btn" role="tab" aria-selected="false" tabindex="-1" data-seg="money" data-act="setScoreSeg('money')">Money<span id="seg-money-sub" class="seg-sub"></span></button>
         <button type="button" class="hole-toggle-btn seg-btn" role="tab" aria-selected="false" tabindex="-1" data-seg="feed" data-act="setScoreSeg('feed')">Feed</button>
       </div>
-      <div id="hole-info" class="card" data-panel="scores"></div>
-      <div id="score-inputs" class="card" data-panel="scores"></div>
-      <div id="hole-preview" class="card hidden" data-panel="scores"></div>
-      <div id="game-status" class="card" data-panel="money"></div>
-      <div id="hole-money-log" class="card" data-panel="money"></div>
-      <div id="play-feed" class="card hidden" data-panel="feed"></div>
-      <div id="feed-empty" class="card seg-empty hidden" data-panel="feed">The feed fills in as holes are settled.</div>
+      <!-- Two columns in landscape; display:contents everywhere else. -->
+      <div class="score-main">
+        <div id="hole-info" class="card" data-panel="scores"></div>
+        <div id="score-inputs" class="card" data-panel="scores"></div>
+        <div id="hole-preview" class="card hidden" data-panel="scores"></div>
+      </div>
+      <div class="score-side">
+        <div id="game-status" class="card" data-panel="money"></div>
+        <div id="hole-money-log" class="card" data-panel="money"></div>
+        <div id="play-feed" class="card hidden" data-panel="feed"></div>
+        <div id="feed-empty" class="card seg-empty hidden" data-panel="feed">The feed fills in as holes are settled.</div>
+      </div>
 
       <div class="scoring-actions">
         <button id="undo-btn" class="btn secondary hidden" data-act="doUndo()">Undo</button>
@@ -295,6 +305,7 @@
         <button id="scorecard-btn" class="btn secondary">Scorecard</button>
         <button id="standings-btn" class="btn secondary">Standings</button>
         <button id="edit-round-btn" class="btn secondary" data-act="showEditRound()">Edit</button>
+        <button id="glove-btn" class="btn secondary glove-btn" aria-pressed="false" data-act="toggleGlove()">Glove mode</button>
       </div>
       <button id="finish-btn" class="btn secondary large" data-act="finishRound()" style="margin-top:8px">Finish Round</button>
     </div>
@@ -344,7 +355,10 @@
         <button class="modal-close" aria-label="Close" data-act="closeModal('scorecard-modal')"><i data-ico="close"></i></button>
         <h2>Full Scorecard</h2>
         <div id="scorecard-table-wrap"></div>
-        <button class="btn primary" data-act="shareScorecard()" style="width:100%;margin-top:12px">Share Scorecard</button>
+        <div class="sc-actions">
+          <button class="btn primary" data-act="shareScorecard()">Share Scorecard</button>
+          <button class="btn secondary" data-act="printScorecard()">Print</button>
+        </div>
       </div>
     </div>
 
@@ -381,6 +395,19 @@
     </div>
   </div>
 
+  <!-- Scan a live round's QR code -->
+  <div id="scan-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="scan-title" tabindex="-1">
+    <div class="modal-content scan-sheet">
+      <h2 id="scan-title">Join Live Round</h2>
+      <div class="scan-frame"><video id="scan-video" playsinline muted aria-hidden="true"></video></div>
+      <p id="scan-msg" class="hint" role="status"></p>
+      <div class="app-dialog-actions">
+        <button id="scan-cancel" class="btn secondary" type="button">Cancel</button>
+        <button id="scan-type" class="btn primary" type="button">Type the code</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Onboarding Modal -->
   <div id="onboarding-modal" class="modal hidden" role="dialog" aria-modal="true" tabindex="-1">
     <div class="modal-content" style="text-align:center">
@@ -413,5 +440,6 @@
 <div id="storage-warn-toast" class="storage-warn-toast hidden" role="status" aria-live="polite">Couldn't save — your device storage may be full. Tap to dismiss.</div>
 <div id="offline-chip" class="offline-chip hidden" role="status" aria-live="polite"><span class="offline-dot" aria-hidden="true"></span>Offline · scores still saving</div>
 <div id="app-toast" class="app-toast" role="status" aria-live="polite"></div>
+<div id="sr-announce" class="sr-only" role="status" aria-live="polite"></div>
 <script data-src="js/app"></script><script data-src="js/cloud"></script>
 </body></html>

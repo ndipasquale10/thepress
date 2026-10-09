@@ -1,0 +1,107 @@
+/* Presence: who else is scoring, and on which hole. */
+.live-presence {
+  margin-bottom: var(--sp-6);
+}
+.presence-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.presence-k {
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.presence-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-4);
+  border: var(--bw) solid var(--rule);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--ink);
+}
+.presence-dot {
+  width: var(--sp-3);
+  height: var(--sp-3);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+.presence-chip.same-hole {
+  border-color: var(--warn-solid);
+  box-shadow: var(--ring);
+}
+.presence-warn {
+  margin-top: var(--sp-3);
+  padding: var(--sp-4) var(--sp-6);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: var(--bw) solid var(--warn-solid);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* The scanner. */
+.scan-frame {
+  position: relative;
+  aspect-ratio: 1;
+  margin: var(--sp-6) 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--ink);
+}
+.scan-frame video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.scan-frame::after {
+  content: "";
+  position: absolute;
+  inset: 18%;
+  border: var(--bw-strong) solid var(--surface);
+  border-radius: var(--radius);
+  opacity: 0.8;
+}
+
+/* The Watch screen on a laptop or a TV in the clubhouse. Below 900px the
+   columns are one stack, as before. */
+.watch-cols {
+  display: block;
+}
+@media (min-width: 900px) {
+  body.watch-mode #app {
+    max-width: 1200px;
+  }
+  body.watch-mode .watch-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: var(--sp-10);
+    align-items: start;
+  }
+  body.watch-mode .watch-side {
+    position: sticky;
+    top: var(--sp-8);
+  }
+  body.watch-mode .watch-course {
+    font-size: var(--fs-4xl);
+  }
+  body.watch-mode .lb-row {
+    padding-top: var(--sp-6);
+    padding-bottom: var(--sp-6);
+  }
+  body.watch-mode .lb-name,
+  body.watch-mode .lb-amt {
+    font-size: var(--fs-2xl);
+  }
+  body.watch-mode .presence-chip {
+    font-size: var(--fs-sm);
+  }
+}

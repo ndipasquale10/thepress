@@ -7767,6 +7767,550 @@ body.confirm-bar-open #app {
 .live-sheet .app-dialog-actions {
   margin-top: 0;
 }
+/* The quick picker's first row: the score said the way golfers say it.
+   Birdie wears the circle and bogey the square, the same notation as the
+   number grid underneath, so the two rows read as one language. */
+.qp-rel {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+.qp-rel-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  min-height: calc(var(--tap) + var(--sp-8));
+  padding: var(--sp-3) var(--sp-1);
+  border: var(--bw-strong) solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease);
+}
+.qp-rel-btn:active {
+  transform: scale(0.94);
+}
+.qp-rel-w {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+.qp-rel-n {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+.qp-rel .qp-rel-btn.qp-birdie {
+  border-color: var(--under);
+  color: var(--under);
+  background: var(--under-surface);
+}
+.qp-rel .qp-rel-btn.qp-par {
+  border-color: var(--rule-strong);
+  background: var(--surface-2);
+}
+.qp-rel .qp-rel-btn.qp-bogey,
+.qp-rel .qp-rel-btn.qp-double {
+  border-color: var(--over);
+  color: var(--over);
+  background: var(--over-surface);
+}
+.qp-rel .qp-rel-btn.qp-active {
+  box-shadow: var(--ring);
+}
+.qp-sub {
+  margin: var(--sp-6) 0 var(--sp-4);
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* Outside landscape the column wrappers are not boxes at all. */
+.score-main,
+.score-side {
+  display: contents;
+}
+
+/* Glove mode: wind, a glove, one hand and three people waiting. Raises the
+   tap token and the controls that are sized off a literal rather than it. */
+:root[data-glove="on"] {
+  --tap: 56px;
+}
+:root[data-glove="on"] .score-counter .score-val {
+  width: var(--tap);
+  height: var(--tap);
+  font-size: var(--fs-2xl);
+}
+:root[data-glove="on"] .score-counter button {
+  width: var(--tap);
+  height: var(--tap);
+  font-size: var(--fs-2xl);
+}
+:root[data-glove="on"] .qp-grid .qp-btn {
+  width: var(--tap);
+  height: var(--tap);
+}
+:root[data-glove="on"] .qp-rel-btn {
+  min-height: calc(var(--tap) + var(--sp-10));
+}
+:root[data-glove="on"] .hole-dot {
+  width: 44px;
+  height: 44px;
+}
+:root[data-glove="on"] .player-info .player-name {
+  font-size: var(--fs-lg);
+}
+.glove-btn[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: var(--ring);
+}
+
+/* Landscape on a phone -- the cart mount. In portrait the sticky header,
+   the hole strip, the confirm bar and the tab bar together left no room for a
+   single score row. Here the tab bar becomes a rail down the left edge and
+   the scoring screen splits: scores on the left, the money and the feed on the
+   right, both always in view, so the segment control is not needed. */
+@media (orientation: landscape) and (max-height: 540px) {
+  :root {
+    --rail-w: 64px;
+  }
+  .nav-bar {
+    top: 0;
+    bottom: 0;
+    right: auto;
+    left: 0;
+    width: calc(var(--rail-w) + env(safe-area-inset-left, 0px));
+    max-width: none;
+    min-height: 0;
+    flex-direction: column;
+    justify-content: center;
+    border-radius: 0;
+    border-bottom: var(--bw) solid var(--rule);
+    border-left: none;
+    padding: var(--sp-4) var(--sp-2) var(--sp-4) calc(var(--sp-2) + env(safe-area-inset-left, 0px));
+  }
+  #app {
+    max-width: 1100px;
+    margin-left: calc(var(--rail-w) + env(safe-area-inset-left, 0px));
+    padding-bottom: var(--sp-13);
+  }
+  body.confirm-bar-open #app {
+    padding-bottom: calc(var(--tap) + var(--sp-13) + env(safe-area-inset-bottom, 0px));
+  }
+  #start-btn {
+    bottom: calc(var(--sp-6) + env(safe-area-inset-bottom, 0px));
+  }
+  .sticky-lb {
+    bottom: env(safe-area-inset-bottom, 0px);
+    left: calc(var(--rail-w) + env(safe-area-inset-left, 0px));
+  }
+  .confirm-bar {
+    bottom: 0;
+    left: calc(var(--rail-w) + env(safe-area-inset-left, 0px));
+    max-width: none;
+    padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  }
+  #scoring-screen:not(.hidden) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    column-gap: var(--sp-8);
+    align-items: start;
+  }
+  #scoring-screen > * {
+    grid-column: 1 / -1;
+  }
+  #scoring-screen > .score-main {
+    display: block;
+    grid-column: 1;
+  }
+  #scoring-screen > .score-side {
+    display: block;
+    grid-column: 2;
+  }
+  #scoring-screen #standings-ribbon {
+    margin-bottom: var(--sp-4);
+  }
+  /* Everything above the score rows gives height back. */
+  #scoring-screen .hole-dot {
+    width: 34px;
+    height: 34px;
+  }
+  #scoring-screen .ribbon-cell {
+    flex-direction: row;
+    gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+  }
+  #scoring-screen #hole-info {
+    padding: var(--sp-3) var(--sp-7);
+  }
+  #scoring-screen .hole-big {
+    font-size: var(--fs-2xl);
+  }
+  #app .round-topbar .home-btn {
+    padding: var(--sp-2) var(--sp-4);
+    margin-bottom: var(--sp-3);
+  }
+  #scoring-screen[data-seg] [data-panel="money"]:not(.hidden),
+  #scoring-screen[data-seg] [data-panel="feed"]:not(.hidden) {
+    display: block;
+  }
+  #scoring-screen #score-seg {
+    display: none;
+  }
+  #scoring-screen .hole-dots {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    margin-bottom: var(--sp-4);
+  }
+}
+.sc-actions {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--sp-4);
+  margin-top: var(--sp-6);
+}
+
+/* Paper. Nothing interactive survives, the page is the scorecard and not a
+   phone screenshot of it, and the light skin is forced from beforeprint so a
+   Broadcast phone does not print a black page. */
+@media print {
+  @page {
+    size: landscape;
+    margin: 12mm;
+  }
+  body {
+    position: static !important;
+    padding: 0;
+    background: var(--surface);
+  }
+  .nav-bar,
+  .confirm-bar,
+  .round-topbar,
+  #auth-bar,
+  #app > header,
+  .sticky-lb,
+  .app-toast,
+  .error-toast,
+  .offline-chip,
+  .storage-warn-toast,
+  .modal-close,
+  .qp-scrim,
+  #quick-picker {
+    display: none !important;
+  }
+  #app {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  /* Printing the scorecard prints only the scorecard. */
+  body.print-scorecard #app > :not(#scorecard-modal),
+  body.print-scorecard > :not(#app):not(script) {
+    display: none !important;
+  }
+  body.print-scorecard #scorecard-modal,
+  body.print-scorecard #scorecard-modal .modal-content {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  body.print-scorecard #scorecard-modal {
+    position: static;
+    display: block;
+    background: none;
+    backdrop-filter: none;
+  }
+  body.print-scorecard #scorecard-modal .modal-content {
+    max-width: none;
+    max-height: none;
+    overflow: visible;
+    box-shadow: none;
+    padding: 0;
+  }
+  body.print-scorecard #scorecard-modal .sc-actions {
+    display: none;
+  }
+  #scorecard-table-wrap {
+    overflow: visible;
+  }
+  .scorecard-tbl {
+    width: 100%;
+    font-size: var(--fs-xs);
+  }
+  .scorecard-tbl th:first-child,
+  .scorecard-tbl td:first-child {
+    position: static;
+  }
+  .card {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+}
+/* Presence: who else is scoring, and on which hole. */
+.live-presence {
+  margin-bottom: var(--sp-6);
+}
+.presence-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.presence-k {
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.presence-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-4);
+  border: var(--bw) solid var(--rule);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--ink);
+}
+.presence-dot {
+  width: var(--sp-3);
+  height: var(--sp-3);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+.presence-chip.same-hole {
+  border-color: var(--warn-solid);
+  box-shadow: var(--ring);
+}
+.presence-warn {
+  margin-top: var(--sp-3);
+  padding: var(--sp-4) var(--sp-6);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: var(--bw) solid var(--warn-solid);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* The scanner. */
+.scan-frame {
+  position: relative;
+  aspect-ratio: 1;
+  margin: var(--sp-6) 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--ink);
+}
+.scan-frame video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.scan-frame::after {
+  content: "";
+  position: absolute;
+  inset: 18%;
+  border: var(--bw-strong) solid var(--surface);
+  border-radius: var(--radius);
+  opacity: 0.8;
+}
+
+/* The Watch screen on a laptop or a TV in the clubhouse. Below 900px the
+   columns are one stack, as before. */
+.watch-cols {
+  display: block;
+}
+@media (min-width: 900px) {
+  body.watch-mode #app {
+    max-width: 1200px;
+  }
+  body.watch-mode .watch-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: var(--sp-10);
+    align-items: start;
+  }
+  body.watch-mode .watch-side {
+    position: sticky;
+    top: var(--sp-8);
+  }
+  body.watch-mode .watch-course {
+    font-size: var(--fs-4xl);
+  }
+  body.watch-mode .lb-row {
+    padding-top: var(--sp-6);
+    padding-bottom: var(--sp-6);
+  }
+  body.watch-mode .lb-name,
+  body.watch-mode .lb-amt {
+    font-size: var(--fs-2xl);
+  }
+  body.watch-mode .presence-chip {
+    font-size: var(--fs-sm);
+  }
+}
+/* "Same as last time?" on Home. */
+.repeat-card {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-bottom: var(--sp-7);
+  padding: var(--sp-7) var(--sp-8);
+  background: var(--card);
+  border: var(--bw) solid var(--rule);
+  border-left: var(--bw-strong) solid var(--accent);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.repeat-text {
+  flex: 1;
+  min-width: 0;
+}
+.repeat-k {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.repeat-course {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.repeat-meta {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.repeat-go {
+  flex: 0 0 auto;
+  min-height: var(--tap);
+}
+
+/* The course-search escape hatch. */
+.course-item.course-typed {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--accent);
+  text-align: center;
+}
+
+/* Your courses. */
+.ch-card {
+  margin-bottom: var(--sp-6);
+}
+.ch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-6);
+  min-height: var(--tap);
+  cursor: pointer;
+  list-style: none;
+}
+.ch-head::-webkit-details-marker {
+  display: none;
+}
+.ch-head::after {
+  content: "";
+  flex: 0 0 auto;
+  width: var(--sp-6);
+  height: var(--sp-6);
+  background: var(--muted);
+  -webkit-mask: var(--ico-chevron) center/contain no-repeat;
+  mask: var(--ico-chevron) center/contain no-repeat;
+  transition: transform var(--dur-fast) var(--ease);
+}
+.ch-card[open] .ch-head::after {
+  transform: rotate(180deg);
+}
+.ch-name {
+  flex: 1;
+  font-weight: 700;
+  color: var(--ink);
+}
+.ch-money {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.ch-line {
+  margin: var(--sp-5) 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.ch-line b {
+  color: var(--ink);
+}
+.ch-grid {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+.ch-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--sp-2) 0;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.ch-cell small {
+  font-size: var(--fs-3xs);
+  font-weight: 600;
+  color: var(--muted);
+}
+.ch-cell.under {
+  background: var(--under-surface);
+  color: var(--under);
+}
+.ch-cell.over {
+  background: var(--over-surface);
+  color: var(--over);
+}
+.ch-cell.over2 {
+  background: var(--over-surface);
+  color: var(--over);
+  box-shadow: inset 0 0 0 var(--bw-strong) var(--over);
+}
+
+.export-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+  margin-top: var(--sp-6);
+}
 </style></head><body>
 <!-- The Firebase SDK is NOT a blocking script tag any more. As three plain
      script-src tags at the top of the body (spelled out rather than written
@@ -7920,13 +8464,17 @@ function ensureFirebase() {
       <div id="season-stats"></div>
       <div id="season-extras"></div>
       <div id="scoring-stats"></div>
+      <div id="course-history"></div>
       <div id="history-empty" class="empty-state hidden">
         <div class="es-icon" aria-hidden="true"><i data-ico="flag"></i></div>
         <div class="es-title">No rounds yet</div>
         <div class="es-body">Finish a round and it lands here with the scorecard and the money.</div>
         <button class="btn primary" data-act="showScreen('setup')">Start your first round</button>
       </div>
-      <button class="btn secondary" data-act="exportAllData()" style="width:100%;margin-top:12px">Export All Data (Backup)</button>
+      <div class="export-row">
+        <button class="btn secondary" data-act="exportAllData()">Export All Data (Backup)</button>
+        <button class="btn secondary" data-act="exportCSV()">Export CSV</button>
+      </div>
     </div>
 
     <!-- Setup Screen (course + players) -->
@@ -8076,6 +8624,7 @@ function ensureFirebase() {
         <button id="next-hole" class="btn small" aria-label="Next hole"><i data-ico="right"></i></button>
       </div>
       <div id="spectator-banner" class="spectator-banner hidden" role="status"><i data-ico="eye"></i> Watching live — read-only</div>
+      <div id="live-presence" class="live-presence hidden" role="status" aria-live="polite"></div>
       <div class="hole-dots" id="hole-dots"></div>
       <div id="standings-ribbon" class="hidden"></div>
       <div id="stroke-summary" class="card collapsible collapsed hidden" data-act="toggleCollapsed(this)" role="button" tabindex="0" aria-label="Handicap strokes summary"></div>
@@ -8087,13 +8636,18 @@ function ensureFirebase() {
         <button type="button" class="hole-toggle-btn seg-btn" role="tab" aria-selected="false" tabindex="-1" data-seg="money" data-act="setScoreSeg('money')">Money<span id="seg-money-sub" class="seg-sub"></span></button>
         <button type="button" class="hole-toggle-btn seg-btn" role="tab" aria-selected="false" tabindex="-1" data-seg="feed" data-act="setScoreSeg('feed')">Feed</button>
       </div>
-      <div id="hole-info" class="card" data-panel="scores"></div>
-      <div id="score-inputs" class="card" data-panel="scores"></div>
-      <div id="hole-preview" class="card hidden" data-panel="scores"></div>
-      <div id="game-status" class="card" data-panel="money"></div>
-      <div id="hole-money-log" class="card" data-panel="money"></div>
-      <div id="play-feed" class="card hidden" data-panel="feed"></div>
-      <div id="feed-empty" class="card seg-empty hidden" data-panel="feed">The feed fills in as holes are settled.</div>
+      <!-- Two columns in landscape; display:contents everywhere else. -->
+      <div class="score-main">
+        <div id="hole-info" class="card" data-panel="scores"></div>
+        <div id="score-inputs" class="card" data-panel="scores"></div>
+        <div id="hole-preview" class="card hidden" data-panel="scores"></div>
+      </div>
+      <div class="score-side">
+        <div id="game-status" class="card" data-panel="money"></div>
+        <div id="hole-money-log" class="card" data-panel="money"></div>
+        <div id="play-feed" class="card hidden" data-panel="feed"></div>
+        <div id="feed-empty" class="card seg-empty hidden" data-panel="feed">The feed fills in as holes are settled.</div>
+      </div>
 
       <div class="scoring-actions">
         <button id="undo-btn" class="btn secondary hidden" data-act="doUndo()">Undo</button>
@@ -8101,6 +8655,7 @@ function ensureFirebase() {
         <button id="scorecard-btn" class="btn secondary">Scorecard</button>
         <button id="standings-btn" class="btn secondary">Standings</button>
         <button id="edit-round-btn" class="btn secondary" data-act="showEditRound()">Edit</button>
+        <button id="glove-btn" class="btn secondary glove-btn" aria-pressed="false" data-act="toggleGlove()">Glove mode</button>
       </div>
       <button id="finish-btn" class="btn secondary large" data-act="finishRound()" style="margin-top:8px">Finish Round</button>
     </div>
@@ -8150,7 +8705,10 @@ function ensureFirebase() {
         <button class="modal-close" aria-label="Close" data-act="closeModal('scorecard-modal')"><i data-ico="close"></i></button>
         <h2>Full Scorecard</h2>
         <div id="scorecard-table-wrap"></div>
-        <button class="btn primary" data-act="shareScorecard()" style="width:100%;margin-top:12px">Share Scorecard</button>
+        <div class="sc-actions">
+          <button class="btn primary" data-act="shareScorecard()">Share Scorecard</button>
+          <button class="btn secondary" data-act="printScorecard()">Print</button>
+        </div>
       </div>
     </div>
 
@@ -8187,6 +8745,19 @@ function ensureFirebase() {
     </div>
   </div>
 
+  <!-- Scan a live round's QR code -->
+  <div id="scan-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="scan-title" tabindex="-1">
+    <div class="modal-content scan-sheet">
+      <h2 id="scan-title">Join Live Round</h2>
+      <div class="scan-frame"><video id="scan-video" playsinline muted aria-hidden="true"></video></div>
+      <p id="scan-msg" class="hint" role="status"></p>
+      <div class="app-dialog-actions">
+        <button id="scan-cancel" class="btn secondary" type="button">Cancel</button>
+        <button id="scan-type" class="btn primary" type="button">Type the code</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Onboarding Modal -->
   <div id="onboarding-modal" class="modal hidden" role="dialog" aria-modal="true" tabindex="-1">
     <div class="modal-content" style="text-align:center">
@@ -8219,6 +8790,7 @@ function ensureFirebase() {
 <div id="storage-warn-toast" class="storage-warn-toast hidden" role="status" aria-live="polite">Couldn't save — your device storage may be full. Tap to dismiss.</div>
 <div id="offline-chip" class="offline-chip hidden" role="status" aria-live="polite"><span class="offline-dot" aria-hidden="true"></span>Offline · scores still saving</div>
 <div id="app-toast" class="app-toast" role="status" aria-live="polite"></div>
+<div id="sr-announce" class="sr-only" role="status" aria-live="polite"></div>
 <script>
 /* One drawn icon set. `ico(name)` returns an inline stroke SVG; static markup
    writes `<i data-ico="name">` and is hydrated once here and again for
@@ -8514,7 +9086,7 @@ document.addEventListener("keydown", (e) => {
     ("Enter" === e.key || " " === e.key) &&
     e.target &&
     e.target.matches &&
-    e.target.matches('[role="button"][tabindex="0"],[role="switch"][tabindex="0"]')
+    e.target.matches(KEY_ROLE_SEL)
   ) {
     (e.preventDefault(), e.target.click());
   }
@@ -11858,6 +12430,7 @@ function renderHole() {
     renderPlayFeed(),
     renderHoleDots(),
     syncScoreSeg());
+  "function" == typeof pushPresence && (pushPresence(), renderPresence());
   const s = document.getElementById("hole-info");
   (_navHole && s && s.scrollIntoView({ behavior: "smooth", block: "start" }), (_navHole = !1));
 } /* Picking up is the most common thing that happens on a golf course that this
@@ -11912,6 +12485,13 @@ function adjScore(e, t, a) {
 let _qpPlayer = -1,
   _qpHole = -1,
   _qpHi = 0;
+const QP_REL = [
+  [-1, "Birdie"],
+  [0, "Par"],
+  [1, "Bogey"],
+  [2, "Double"],
+  [3, "Triple"],
+];
 function quickScore(e, t, hiBase) {
   if (!canMutateRound()) return;
   closeQuickPicker();
@@ -11935,7 +12515,18 @@ function quickScore(e, t, hiBase) {
     l.setAttribute("role", "dialog"),
     l.setAttribute("aria-modal", "true"),
     l.setAttribute("aria-label", "Score for " + (state.players[e]?.name || "player")));
-  l.innerHTML = `<div class="qp-label">${esc(state.players[e].name)} — Hole ${hLbl(t)}</div>
+  /* Golfers say "bogey", not "six". The words come first, so the commonest
+     entries are one tap with no arithmetic and read the same on a par 3 as on
+     a par 5; the numbers stay underneath for everything else. */
+  const rel = QP_REL.filter(([d]) => a + d >= 1);
+  l.innerHTML = `<div class="qp-label">${esc(state.players[e].name)} — Hole ${hLbl(t)} · Par ${a}</div>
+    <div class="qp-rel" role="group" aria-label="Score against par">${rel
+      .map(([d, w]) => {
+        const v = a + d;
+        return `<button class="qp-rel-btn ${d < 0 ? "qp-birdie" : 0 === d ? "qp-par" : 1 === d ? "qp-bogey" : "qp-double"}${v === s && !isPickedUp(e, t) ? " qp-active" : ""}" data-rel="${d}" data-act="setQuickScore(${e},${t},${v})" aria-label="${w}, ${v}"><span class="qp-rel-w">${w}</span><span class="qp-rel-n">${v}</span></button>`;
+      })
+      .join("")}</div>
+    <div class="qp-sub">Or the number</div>
     <div class="qp-grid">${n
       .map((v) => {
         const o = v - a;
@@ -11948,7 +12539,7 @@ function quickScore(e, t, hiBase) {
   (document.body.appendChild(scrim), document.body.appendChild(l));
   const want =
     l.querySelector(".qp-active") ||
-    l.querySelector('.qp-btn[data-score="' + a + '"]') ||
+    l.querySelector('.qp-rel-btn[data-rel="0"]') ||
     l.querySelector(".qp-btn");
   want && want.focus();
 }
@@ -12108,6 +12699,7 @@ async function confirmHoleScores(e) {
   (state.confirmedHoles || (state.confirmedHoles = {}),
     (state.confirmedHoles[e] = !0),
     showHoleResult(e, s),
+    announceHoleMoney(e, s),
     saveCurrentRound(),
     e < maxHole() - 1 && (state.currentHole = e + 1),
     renderHole());
@@ -16571,7 +17163,7 @@ function renderHome() {
     ));
   const chrono = rounds.slice().sort((a, b) => _rTime(a) - _rTime(b)),
     lastR = chrono[chrono.length - 1];
-  let h = "",
+  let h = repeatCardHTML(),
     series = null;
   if (mine) {
     const winPct = mine.rounds ? Math.round((100 * mine.wins) / mine.rounds) : 0;
@@ -16843,7 +17435,10 @@ function renderWatch() {
     "<span>/" +
     maxHole() +
     "</span></div></div></div>";
-  h += '<div class="section-head"><h2>Money board</h2></div><div class="lb-card">';
+  /* Two columns from 900px: the board and the flow on the left, the feed on
+     the right. A laptop in the clubhouse becomes the leaderboard. */
+  h +=
+    '<div class="watch-cols"><div class="watch-main"><div class="section-head"><h2>Money board</h2></div><div class="lb-card">';
   idx.forEach((i, pos) => {
     const v = money[i];
     h +=
@@ -16861,7 +17456,8 @@ function renderWatch() {
   });
   h += "</div>";
   h += moneyFlowHTML("watch-flow-chart");
-  h += '<div id="watch-feed"></div>';
+  h +=
+    '</div><div class="watch-side"><div class="live-presence hidden" role="status" aria-live="polite"></div><div id="watch-feed"></div></div></div>';
   const link = watchLinkURL();
   link &&
     (h +=
@@ -16878,6 +17474,7 @@ function renderWatch() {
     feed.innerHTML = src.innerHTML;
     feed.className = src.innerHTML ? "card watch-feed-card sc-collapsible" : "";
   }
+  "function" == typeof renderPresence && renderPresence();
   requestAnimationFrame(() => drawMoneyFlow(document.getElementById("watch-flow-chart")));
 }
 function copyWatchLink() {
@@ -17374,7 +17971,8 @@ function renderHistory() {
     .join("")),
     renderSeasonStats(),
     renderSeasonExtras(),
-    renderScoringStats());
+    renderScoringStats(),
+    renderCourseHistory());
 }
 function updateNavCounts() {
   const e = getAllRounds(),
@@ -18160,7 +18758,7 @@ function showSettings(focus) {
       <div class="settings-row"><span>You’re playing as<small style="display:block;font-size:0.72rem;color:var(--muted);font-weight:500">${primaryPlayerIsGuess() ? "Guessed from your round history — pick yourself so every “your” total is really yours." : "Every “your” total in the app is read off this name."}</small></span><select id="settings-me" aria-label="Which player are you" data-change="setPrimaryPlayer(this.value)">${primaryPlayerOptionsHTML()}</select></div>
       ${myProfileName() ? `<div class="settings-row"><span>Your handicap<small class="my-hdcp-state" style="display:block;font-size:0.72rem;color:var(--muted);font-weight:500">${null == myHandicap() ? MY_HDCP_UNSET : MY_HDCP_SET}</small></span>${myHdcpFieldHTML("")}</div>` : ""}
     </div>
-    <div class="settings-label">Round Defaults</div><div class="settings-section">\n      <div class="settings-row skin-row"><span>Skin <small style="display:block;font-size:0.72rem;color:var(--muted);font-weight:500">Clubhouse is the scorecard, Broadcast the odds board, Sunlight for when the screen is fighting the sun.</small></span><div class="skin-picker" role="radiogroup" aria-label="Skin">${SKINS.map((k) => `<button type="button" class="skin-opt${activeSkin() === k ? " active" : ""}" role="radio" aria-checked="${activeSkin() === k ? "true" : "false"}" data-act="pickSkin('${k}',this)"><span class="skin-swatch" data-skin="${k}" aria-hidden="true"></span><span class="skin-name">${k.charAt(0).toUpperCase() + k.slice(1)}</span><span class="skin-desc">${SKIN_DESC[k]}</span></button>`).join("")}</div></div>\n      ${wakeLockSupported() ? `<div class="settings-row" data-act="toggleKeepAwake(this)" role="switch" tabindex="0" aria-checked="${keepAwakeEnabled() ? "true" : "false"}"><span>Keep Screen Awake <small style="display:block;font-size:0.72rem;color:var(--muted);font-weight:500">Holds the screen on while a round is open, so you are not unlocking the phone on every tee.</small></span><span class="ui-switch${keepAwakeEnabled() ? " on" : ""}" aria-hidden="true"><span class="ui-switch-knob"></span></span></div>` : ""}\n      <div class="settings-row"><span>Default Game</span><select id="settings-game" data-change="saveDefaultGame(this.value)">${["none", "wolf", "nassau", "skins", "match", "stableford", "bingo", "dots", "vegas", "snake", "sixes", "banker"].map((e) => '<option value="' + e + '"' + (localStorage.getItem("defaultGame") === e || (!localStorage.getItem("defaultGame") && "wolf" === e) ? " selected" : "") + ">" + (GAME_NAMES[e] || e) + "</option>").join("")}</select></div>\n      <div class="settings-row"><span>Default Holes</span><div class="hole-toggle settings-holes-toggle" role="group" aria-label="Default holes"><button class="hole-toggle-btn ${"18" === localStorage.getItem("defaultHoles") ? "" : "active"}" data-act="pickDefaultHoles('9',this)">9</button><button class="hole-toggle-btn ${"18" === localStorage.getItem("defaultHoles") ? "active" : ""}" data-act="pickDefaultHoles('18',this)">18</button></div></div>\n    </div>\n    <div class="settings-label">Legal</div><div class="settings-section">\n      <div class="settings-row" data-act="showLegal('privacy')" role="button" tabindex="0"><span>Privacy Policy</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="showLegal('terms')" role="button" tabindex="0"><span>Terms of Service</span><span><i data-ico="right"></i></span></div>\n    </div>\n    <div class="settings-label">Help &amp; Data</div><div class="settings-section">\n      <div class="settings-row" data-act="showGuide()" role="button" tabindex="0"><span>How to Play &amp; Features</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="showOnboarding()" role="button" tabindex="0"><span>Quick Tour</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="exportAllData()" role="button" tabindex="0"><span>Export Data</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="openImportPicker()" role="button" tabindex="0"><span>Import Data</span><span><i data-ico="right"></i></span></div><input type="file" id="import-file-input" accept="application/json" class="hidden" data-change="handleImportFile(event)">\n    </div>\n    ${
+    <div class="settings-label">Round Defaults</div><div class="settings-section">\n      <div class="settings-row skin-row"><span>Skin <small style="display:block;font-size:0.72rem;color:var(--muted);font-weight:500">Clubhouse is the scorecard, Broadcast the odds board, Sunlight for when the screen is fighting the sun.</small></span><div class="skin-picker" role="radiogroup" aria-label="Skin">${SKINS.map((k) => `<button type="button" class="skin-opt${activeSkin() === k ? " active" : ""}" role="radio" aria-checked="${activeSkin() === k ? "true" : "false"}" data-act="pickSkin('${k}',this)"><span class="skin-swatch" data-skin="${k}" aria-hidden="true"></span><span class="skin-name">${k.charAt(0).toUpperCase() + k.slice(1)}</span><span class="skin-desc">${SKIN_DESC[k]}</span></button>`).join("")}</div></div>\n      ${wakeLockSupported() ? `<div class="settings-row" data-act="toggleKeepAwake(this)" role="switch" tabindex="0" aria-checked="${keepAwakeEnabled() ? "true" : "false"}"><span>Keep Screen Awake <small style="display:block;font-size:0.72rem;color:var(--muted);font-weight:500">Holds the screen on while a round is open, so you are not unlocking the phone on every tee.</small></span><span class="ui-switch${keepAwakeEnabled() ? " on" : ""}" aria-hidden="true"><span class="ui-switch-knob"></span></span></div>` : ""}\n      <div class="settings-row"><span>Default Game</span><select id="settings-game" data-change="saveDefaultGame(this.value)">${["none", "wolf", "nassau", "skins", "match", "stableford", "bingo", "dots", "vegas", "snake", "sixes", "banker"].map((e) => '<option value="' + e + '"' + (localStorage.getItem("defaultGame") === e || (!localStorage.getItem("defaultGame") && "wolf" === e) ? " selected" : "") + ">" + (GAME_NAMES[e] || e) + "</option>").join("")}</select></div>\n      <div class="settings-row"><span>Default Holes</span><div class="hole-toggle settings-holes-toggle" role="group" aria-label="Default holes"><button class="hole-toggle-btn ${"18" === localStorage.getItem("defaultHoles") ? "" : "active"}" data-act="pickDefaultHoles('9',this)">9</button><button class="hole-toggle-btn ${"18" === localStorage.getItem("defaultHoles") ? "active" : ""}" data-act="pickDefaultHoles('18',this)">18</button></div></div>\n    </div>\n    <div class="settings-label">Legal</div><div class="settings-section">\n      <div class="settings-row" data-act="showLegal('privacy')" role="button" tabindex="0"><span>Privacy Policy</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="showLegal('terms')" role="button" tabindex="0"><span>Terms of Service</span><span><i data-ico="right"></i></span></div>\n    </div>\n    <div class="settings-label">Help &amp; Data</div><div class="settings-section">\n      <div class="settings-row" data-act="showGuide()" role="button" tabindex="0"><span>How to Play &amp; Features</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="showOnboarding()" role="button" tabindex="0"><span>Quick Tour</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="exportAllData()" role="button" tabindex="0"><span>Export Data</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="exportCSV()" role="button" tabindex="0"><span>Export Rounds as CSV</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="openImportPicker()" role="button" tabindex="0"><span>Import Data</span><span><i data-ico="right"></i></span></div><input type="file" id="import-file-input" accept="application/json" class="hidden" data-change="handleImportFile(event)">\n    </div>\n    ${
       window.__PRESS_DEMO__
         ? `<div class="settings-label">Demo</div><div class="settings-section">
       <div class="settings-row" data-act="loadDemoSeason()" role="button" tabindex="0"><span>Load demo season</span><span><i data-ico="right"></i></span></div>
@@ -18423,7 +19021,9 @@ function searchCourses(e) {
   if (!a.length)
     return (
       (t.innerHTML =
-        '<div class="course-item loading">No matches in the built-in list — enter your course manually below.</div>'),
+        '<div class="course-item loading">Not in the course list yet.</div><button type="button" class="course-item course-typed" data-act="useTypedCourse()">Play “' +
+        esc(document.getElementById("course-search").value.trim()) +
+        "” with par 72 and fix the pars as you go</button>"),
       void t.classList.remove("hidden")
     );
   window._courseResults = a;
@@ -18553,6 +19153,442 @@ document.addEventListener("DOMContentLoaded", () => {
       enterScreen("home", { noPush: !0 });
     }));
 });
+/* Glove mode. Bigger score controls, switched on from the scoring screen
+   itself -- the moment you need it is with a glove on and a club in the other
+   hand, not in Settings before the round. Stored per device. */
+function gloveOn() {
+  try {
+    return "1" === localStorage.getItem("gloveMode");
+  } catch (e) {
+    return !1;
+  }
+}
+function applyGlove() {
+  const on = gloveOn();
+  on
+    ? (document.documentElement.dataset.glove = "on")
+    : delete document.documentElement.dataset.glove;
+  const b = document.getElementById("glove-btn");
+  b && b.setAttribute("aria-pressed", on ? "true" : "false");
+}
+function toggleGlove() {
+  const on = !gloveOn();
+  (safeSetItem("gloveMode", on ? "1" : "0"), applyGlove(), haptic());
+  showToast(on ? "Glove mode on: bigger score buttons" : "Glove mode off");
+}
+applyGlove();
+
+/* Confirming a hole moves real money, and said so only visually: the
+   result card is a dialog that closes itself, and the ribbon redraws on every
+   tap, so marking it live would read the whole table out on each "+". One
+   polite sentence per confirmed hole instead, with the sign in words so it
+   does not depend on the colour. */
+function announce(msg) {
+  const r = document.getElementById("sr-announce");
+  if (!r) return;
+  r.textContent = "";
+  /* A fresh node, a tick later: screen readers skip a live region whose text
+     is set to what it already was. */
+  setTimeout(() => {
+    r.textContent = msg;
+  }, 60);
+}
+function moneyWords(v) {
+  const c = Math.round(100 * v) / 100;
+  if (Math.abs(c) < 0.005) return "even";
+  const a = Math.abs(c),
+    s = Number.isInteger(a) ? String(a) : a.toFixed(2);
+  return (c > 0 ? "up $" : "down $") + s;
+}
+function announceHoleMoney(hole, deltas) {
+  if ("none" === state.gameType && !anySideBetActive()) return;
+  const moved = state.players
+    .map((p, i) => ({ name: p.name, d: deltas[i] }))
+    .filter((x) => Math.abs(x.d) >= 0.005);
+  const total = calcMoney(),
+    me = myRosterIdx();
+  let msg =
+    "Hole " +
+    hLbl(hole) +
+    " confirmed. " +
+    (moved.length
+      ? moved.map((x) => x.name + " " + moneyWords(x.d)).join(", ") + " on the hole."
+      : "No money changed hands.");
+  state.players[me] && (msg += " You are " + moneyWords(total[me]) + " for the round.");
+  announce(msg);
+}
+/* Everything behind an open dialog is inert.
+
+   The dialogs set aria-modal and trap Tab by hand, but a screen reader's
+   virtual cursor, a switch device and a swipe all walk straight past a Tab
+   trap into the page underneath -- and on the scoring screen that page is a
+   column of "+" buttons that change money. `inert` is the platform's answer:
+   it takes the background out of the accessibility tree and out of pointer
+   and focus handling at once.
+
+   There are a dozen ways a dialog opens here (a class removed, a node
+   appended, the picker, the hole result), so rather than touch each of them
+   this watches for the result: whichever dialog is open and last in the
+   document is the top one, and every element outside its ancestor chain is
+   made inert. Live regions are left alone so a toast can still be heard, and
+   so is the picker's scrim, because the tap that dismisses the picker lands
+   on it. */
+const _inerted = new Set();
+let _inertTop = null;
+function topDialog() {
+  const open = [
+    ...document.querySelectorAll(".modal:not(.hidden):not(.closing), #quick-picker"),
+  ].filter((m) => m.isConnected);
+  return open.length ? open[open.length - 1] : null;
+}
+function _inertSkip(el) {
+  return (
+    "SCRIPT" === el.tagName ||
+    "STYLE" === el.tagName ||
+    el.hasAttribute("aria-live") ||
+    el.classList.contains("qp-scrim")
+  );
+}
+function syncInert() {
+  const top = topDialog();
+  if (top === _inertTop && (top ? _inerted.size > 0 : 0 === _inerted.size)) return;
+  _inertTop = top;
+  _inerted.forEach((el) => el.removeAttribute("inert"));
+  _inerted.clear();
+  if (!top) return;
+  for (let n = top; n && n !== document.body && n.parentElement; n = n.parentElement)
+    for (const sib of n.parentElement.children)
+      sib === n ||
+        _inertSkip(sib) ||
+        sib.hasAttribute("inert") ||
+        (sib.setAttribute("inert", ""), _inerted.add(sib));
+}
+"inert" in HTMLElement.prototype &&
+  "function" == typeof MutationObserver &&
+  new MutationObserver(syncInert).observe(document.body, {
+    subtree: !0,
+    childList: !0,
+    attributes: !0,
+    attributeFilter: ["class"],
+  });
+
+/* Enter and Space on the custom controls. The delegate matched
+   role="button" exactly, so role="switch" had to be added by hand when the
+   wake-lock row arrived, and the next role would have silently lost the
+   keyboard. Native controls handle their own keys and are left out. */
+const KEY_ROLES = ["button", "switch", "checkbox", "radio", "tab", "menuitem", "option", "link"];
+const KEY_ROLE_SEL = KEY_ROLES.map(
+  (r) => `[role="${r}"][tabindex="0"]:not(button):not(a[href]):not(input):not(select)`,
+).join(",");
+
+/* The full scorecard is the one thing people want on paper -- for the
+   clubhouse board or the league binder. Print it alone, on the light skin
+   whatever the screen is wearing, at the width of the page. */
+let _printSkin = null;
+function printScorecard() {
+  const m = document.getElementById("scorecard-modal");
+  (m && m.classList.contains("hidden") && showScorecard(),
+    document.body.classList.add("print-scorecard"),
+    window.print());
+}
+window.addEventListener("beforeprint", () => {
+  _printSkin = document.documentElement.dataset.theme || null;
+  document.documentElement.dataset.theme = "clubhouse";
+});
+window.addEventListener("afterprint", () => {
+  (_printSkin && (document.documentElement.dataset.theme = _printSkin),
+    (_printSkin = null),
+    document.body.classList.remove("print-scorecard"));
+});
+/* "Same as last time?" -- the commonest setup is the same course, the same
+   four people and the same game as last Saturday. "Add last group" made the
+   roster one tap; this makes the whole round one tap, straight to the first
+   tee. Handicaps come from each player's saved profile, not the old round, so
+   a number changed since then is the one used. */
+function repeatableRound() {
+  /* Not while a round is open on this phone; an older unfinished round has its
+     own resume card and does not stop a new one. */
+  if (state.started) return null;
+  const r = mostRecentRound(!0);
+  return r && (r.players || []).length && r.pars && r.pars.length ? r : null;
+}
+function repeatCardHTML() {
+  const r = repeatableRound();
+  if (!r) return "";
+  const names = (r.players || []).map((p) => esc(String(p.name || "").split(" ")[0])).join(", ");
+  return (
+    '<div class="repeat-card"><div class="repeat-text"><div class="repeat-k">Same as last time?</div>' +
+    '<div class="repeat-course">' +
+    esc(r.course || "Round") +
+    "</div>" +
+    '<div class="repeat-meta">' +
+    esc(GAME_NAMES[r.gameType] || r.gameType || "") +
+    " · " +
+    (r.holeCount || 18) +
+    " holes · " +
+    names +
+    "</div></div>" +
+    '<button class="btn primary repeat-go" data-act="repeatLastRound()">Tee off</button></div>'
+  );
+}
+function repeatLastRound() {
+  const r = repeatableRound();
+  if (!r) return void showToast("Nothing to repeat yet.", { type: "info" });
+  const copy = (v) => (null == v ? v : JSON.parse(JSON.stringify(v))),
+    key = (n) =>
+      String(n || "")
+        .trim()
+        .toLowerCase(),
+    profs = getSavedProfiles();
+  ((state.players = r.players.map((p) => {
+    const saved = profs.find((q) => key(q.name) === key(p.name)),
+      o = { ...copy(p) };
+    if (saved) {
+      null != saved.hdcp && isFinite(saved.hdcp) && (o.hdcp = saved.hdcp);
+      ["venmo", "cashapp", "paypal"].forEach((k) => (o[k] = saved[k] || o[k] || ""));
+    }
+    return o;
+  })),
+    (state.course = r.course || "Round"),
+    (state.selectedTee = copy(r.selectedTee) || null),
+    (state.pars = copy(r.pars)),
+    (state.hdcps = copy(r.hdcps)),
+    (state.holeCount = r.holeCount || 18),
+    (state.holeStart = r.holeStart || 0),
+    (state.gameType = r.gameType || "none"),
+    (state.gameOpts = copy(r.gameOpts) || {}),
+    (state.sideBets = Object.assign(defaultSideBets(), copy(r.sideBets) || {})),
+    (state.handicapMode = r.handicapMode),
+    (state.pairings = copy(r.pairings)),
+    (state.liveId = state.liveCode = state.liveOwner = null),
+    (state.pickedUp = {}),
+    (state.scores = {}),
+    (state.bonusPoints = {}));
+  (state.players.forEach((p, i) => {
+    ((state.scores[i] = {}), (state.bonusPoints[i] = {}));
+  }),
+    (state.wolfHoles = {}),
+    (state.wolfBreakouts = {}),
+    (state.bankerHoles = {}),
+    (state.bankerPresses = {}),
+    (state.confirmedHoles = {}),
+    (state.pairingsLocked = !1),
+    (state.matchPresses = []),
+    (state.currentHole = 0),
+    (state.started = !0),
+    (state.roundId = generateRoundId()),
+    (state.roundDate = new Date().toISOString()));
+  const cn = document.getElementById("course-name");
+  (cn && (cn.value = state.course),
+    invalidateHdcpCache(),
+    invalidateMoneyCache(),
+    enterScreen("scoring"),
+    saveCurrentRound(),
+    renderStrokeSummary(),
+    renderHole(),
+    haptic(),
+    showToast("Same game as last time. Change anything from Edit.", { type: "success" }),
+    maybeShowStrokesAtStart());
+}
+
+/* When search misses, the round should not stall on the first screen. Take
+   the name as typed, fill a standard par 72, and let the pars be fixed on the
+   card -- they are editable below, and on every hole. */
+function useTypedCourse() {
+  const s = document.getElementById("course-search"),
+    typed = (s && s.value.trim()) || "";
+  if (!typed) return;
+  clearCourse();
+  ((document.getElementById("course-name").value = typed),
+    (s.value = ""),
+    document.getElementById("course-results").classList.add("hidden"),
+    showToast("Par " + state.pars.reduce((a, b) => a + b, 0) + " filled in. Fix any hole below."));
+}
+
+/* Your courses: where you play, how you score there, and which hole has your
+   number. Read from the phone owner's card in every finished round. */
+function courseHistory(me) {
+  const by = {},
+    k = (s) =>
+      String(s || "")
+        .trim()
+        .toLowerCase();
+  getAllRounds()
+    .filter((r) => r.finished && r.scores && Array.isArray(r.pars))
+    .forEach((r) => {
+      const i = (r.players || []).findIndex((p) => k(p.name) === k(me));
+      if (i < 0 || !k(r.course) || "round" === k(r.course)) return;
+      const c = (by[k(r.course)] = by[k(r.course)] || {
+          name: r.course,
+          rounds: 0,
+          money: 0,
+          best18: null,
+          best9: null,
+          sumVsPar: 0,
+          holesPlayed: 0,
+          hole: {},
+          last: 0,
+        }),
+        n = r.holeCount || r.pars.length,
+        row = r.scores[i] || {};
+      ((c.rounds += 1),
+        (c.money += (Array.isArray(r.money) && r.money[i]) || 0),
+        (c.last = Math.max(c.last, _rTime(r))));
+      let gross = 0,
+        all = !0;
+      for (let h = 0; h < n; h++) {
+        const v = row[h],
+          par = r.pars[h];
+        if (null == v || !isFinite(v) || !par) {
+          all = !1;
+          continue;
+        }
+        const num = h + (r.holeStart || 0) + 1,
+          slot = (c.hole[num] = c.hole[num] || { n: 0, sum: 0, par });
+        ((slot.n += 1),
+          (slot.sum += v - par),
+          (gross += v),
+          (c.sumVsPar += v - par),
+          (c.holesPlayed += 1));
+      }
+      all &&
+        (18 === n
+          ? (c.best18 = null == c.best18 ? gross : Math.min(c.best18, gross))
+          : 9 === n && (c.best9 = null == c.best9 ? gross : Math.min(c.best9, gross)));
+    });
+  return Object.values(by).sort((a, b) => b.rounds - a.rounds || b.last - a.last);
+}
+function renderCourseHistory() {
+  const el = document.getElementById("course-history");
+  if (!el) return;
+  const me = getPrimaryPlayerName(),
+    list = me ? courseHistory(me) : [];
+  if (!list.length) return void (el.innerHTML = "");
+  const sg = (v) => (Math.abs(v) < 0.05 ? "E" : (v > 0 ? "+" : "−") + Math.abs(v).toFixed(1));
+  el.innerHTML =
+    '<div class="section-head"><h2>Your courses</h2><span class="hint">as ' +
+    esc(me) +
+    "</span></div>" +
+    list
+      .slice(0, 8)
+      .map((c) => {
+        const holes = Object.keys(c.hole)
+            .map(Number)
+            .sort((a, b) => a - b)
+            .map((h) => ({ h, avg: c.hole[h].sum / c.hole[h].n, par: c.hole[h].par })),
+          worst = holes.reduce((a, b) => (!a || b.avg > a.avg ? b : a), null),
+          best = holes.reduce((a, b) => (!a || b.avg < a.avg ? b : a), null),
+          per18 = c.holesPlayed ? (18 * c.sumVsPar) / c.holesPlayed : 0;
+        return (
+          '<details class="card ch-card"><summary class="ch-head"><span class="ch-name">' +
+          esc(c.name) +
+          '</span><span class="ch-money ' +
+          (c.money > 0.005 ? "match-up" : c.money < -0.005 ? "match-dn" : "") +
+          '">' +
+          fmtMoney(c.money) +
+          "</span></summary>" +
+          '<div class="scoring-stat-pills">' +
+          '<span class="stat-pill"><strong>' +
+          c.rounds +
+          "</strong><small>Rounds</small></span>" +
+          '<span class="stat-pill"><strong>' +
+          (null != c.best18 ? c.best18 : null != c.best9 ? c.best9 : "—") +
+          "</strong><small>" +
+          (null == c.best18 && null != c.best9 ? "Best 9" : "Best 18") +
+          "</small></span>" +
+          '<span class="stat-pill"><strong>' +
+          sg(per18) +
+          "</strong><small>Avg /18</small></span></div>" +
+          (worst && worst !== best
+            ? '<div class="ch-line">Has your number: <b>Hole ' +
+              worst.h +
+              "</b> (par " +
+              worst.par +
+              ", " +
+              sg(worst.avg) +
+              ") · Your best: <b>Hole " +
+              best.h +
+              "</b> (" +
+              sg(best.avg) +
+              ")</div>"
+            : "") +
+          '<div class="ch-grid" role="list" aria-label="Average against par, by hole">' +
+          holes
+            .map(
+              (x) =>
+                '<span class="ch-cell ' +
+                (x.avg <= -0.05 ? "under" : x.avg >= 0.95 ? "over2" : x.avg >= 0.05 ? "over" : "") +
+                '" role="listitem"><small>' +
+                x.h +
+                "</small>" +
+                sg(x.avg) +
+                "</span>",
+            )
+            .join("") +
+          "</div></details>"
+        );
+      })
+      .join("");
+}
+
+/* CSV for the people who keep the spreadsheet. One row per player per
+   finished round, hole by hole, with the money. */
+function csvCell(v) {
+  const s = null == v ? "" : String(v);
+  /* A leading = + - @ is a formula to a spreadsheet; a course or a name is
+     not, so it is made inert with a quote. */
+  const safe = /^[=+\-@]/.test(s) && isNaN(Number(s)) ? "'" + s : s;
+  return /[",\n\r]/.test(safe) ? '"' + safe.replace(/"/g, '""') + '"' : safe;
+}
+function roundsCSV() {
+  const rounds = getAllRounds()
+      .filter((r) => r.finished)
+      .sort((a, b) => _rTime(a) - _rTime(b)),
+    maxH = rounds.reduce((m, r) => Math.max(m, r.holeCount || (r.pars || []).length || 0), 0),
+    head = ["Date", "Course", "Game", "Holes", "Player", "Handicap", "Gross", "To par", "Money"];
+  for (let h = 1; h <= maxH; h++) head.push("H" + h);
+  const rows = [head];
+  rounds.forEach((r) => {
+    const n = r.holeCount || (r.pars || []).length,
+      date = String(r.finishedDate || r.date || "").slice(0, 10);
+    (r.players || []).forEach((p, i) => {
+      const row = (r.scores && r.scores[i]) || {},
+        cells = [];
+      let gross = 0,
+        par = 0;
+      for (let h = 0; h < maxH; h++) {
+        const v = h < n ? row[h] : null;
+        (cells.push(null == v ? "" : v),
+          null != v && ((gross += v), (par += (r.pars && r.pars[h]) || 0)));
+      }
+      rows.push(
+        [
+          date,
+          r.course || "",
+          GAME_NAMES[r.gameType] || r.gameType || "",
+          n,
+          p.name,
+          null == p.hdcp ? "" : p.hdcp,
+          gross || "",
+          gross ? gross - par : "",
+          Array.isArray(r.money) ? (Math.round(100 * (r.money[i] || 0)) / 100).toFixed(2) : "",
+        ].concat(cells),
+      );
+    });
+  });
+  return rows.map((r) => r.map(csvCell).join(",")).join("\r\n");
+}
+function exportCSV() {
+  if (!getAllRounds().some((r) => r.finished))
+    return void showToast("Finish a round first.", { type: "info" });
+  const blob = new Blob(["﻿" + roundsCSV()], { type: "text/csv;charset=utf-8" }),
+    link = document.createElement("a");
+  ((link.download = "thepress-rounds-" + new Date().toISOString().slice(0, 10) + ".csv"),
+    (link.href = URL.createObjectURL(blob)),
+    link.click(),
+    setTimeout(() => URL.revokeObjectURL(link.href), 1e3),
+    showToast("Rounds exported as CSV.", { type: "success" }));
+}
 </script><script>
 let currentUser = null;
 async function signInWithGoogle(e) {
@@ -19096,11 +20132,16 @@ async function joinLiveRound() {
   if (!currentUser) return void showToast("Sign in first to join a live round.", { type: "error" });
   if (!(await confirmLeaveActiveRound("a shared round"))) return;
   state.started && saveCurrentRound();
-  const entered = await appPrompt("Enter 6-character share code:", {
-    title: "Join Live Round",
-    maxLength: 6,
-    placeholder: "ABC123",
-  });
+  /* Point your phone at mine: where the browser can read a QR code, the
+     camera comes first and typing is the fallback. */
+  let entered = canScanCodes() ? await scanLiveCode() : "type";
+  if (null === entered) return;
+  "type" === entered &&
+    (entered = await appPrompt("Enter 6-character share code:", {
+      title: "Join Live Round",
+      maxLength: 6,
+      placeholder: "ABC123",
+    }));
   if (!entered) return;
   const code = normalizeLiveCode(entered);
   if (code.length !== 6)
@@ -19140,9 +20181,12 @@ function subscribeLiveUpdates(e) {
       .onSnapshot((e) => {
         if (!e.exists) return;
         const t = e.data();
+        /* Presence rides its own writes, which leave updatedAt alone, so it is
+           read before the staleness check below throws the snapshot away. */
+        _livePresence = t.presence || {};
         const a = t.updatedAt && t.updatedAt.toMillis ? t.updatedAt.toMillis() : 0;
-        (a && a <= _lastLiveUpdateMs) ||
-          (a && (_lastLiveUpdateMs = a),
+        if (a && a <= _lastLiveUpdateMs) return void renderPresence();
+        (a && (_lastLiveUpdateMs = a),
           (state.scores = t.scores || {}),
           (state.wolfHoles = t.wolfHoles || {}),
           (state.wolfBreakouts = t.wolfBreakouts || {}),
@@ -19154,9 +20198,107 @@ function subscribeLiveUpdates(e) {
           isSpectator && (state.currentHole = t.currentHole || 0),
           (_liveBase = cloneLive(liveProgress())),
           invalidateMoneyCache(),
-          renderHole());
+          renderHole(),
+          refreshWatchScreen());
       })));
 }
+/* The Watch screen drew itself once, on the way in, and the snapshot handler
+   only ever redrew the scoring screen behind it -- so a spectator's money board
+   sat on whatever it said when they opened the link. */
+function refreshWatchScreen() {
+  const w = document.getElementById("watch-screen");
+  w && !w.classList.contains("hidden") && renderWatch();
+}
+
+/* Presence. The snapshot replaces scores cell by cell now, so two phones no
+   longer erase each other, but nothing told you someone else was on your hole
+   until a number changed under your thumb. Each signed-in scorer keeps one
+   entry -- presence.<uid> = {name, hole, at} -- and firestore.rules lets a write
+   touch only the writer's own. It turns a data race into a social one: "Dave is
+   scoring this hole too" is something a foursome sorts out by talking. */
+let _livePresence = {},
+  _presenceHole = -1,
+  _presenceAt = 0;
+const PRESENCE_FRESH_MS = 3 * 60 * 1000;
+function presenceName() {
+  const n =
+    getPrimaryPlayerName() ||
+    String((currentUser && currentUser.displayName) || "").split(" ")[0] ||
+    "A scorer";
+  return n.slice(0, 40);
+}
+function pushPresence(force) {
+  if (!state.liveId || isSpectator || !currentUser || "undefined" == typeof db || !db) return;
+  const h = state.currentHole || 0,
+    now = Date.now();
+  if (!force && h === _presenceHole && now - _presenceAt < 60000) return;
+  ((_presenceHole = h), (_presenceAt = now));
+  const ref = db.collection("liveRounds").doc(state.liveId);
+  ref
+    .update(new firebase.firestore.FieldPath("presence", currentUser.uid), {
+      name: presenceName(),
+      hole: h,
+      at: firebase.firestore.FieldValue.serverTimestamp(),
+    })
+    .catch(() => {});
+}
+/* Others in the round, freshest first. A pending server timestamp reads as
+   null on the writer's own snapshot; it is "now" by definition. */
+function livePresenceOthers() {
+  const me = currentUser && currentUser.uid,
+    now = Date.now();
+  return Object.keys(_livePresence || {})
+    .filter((uid) => uid !== me)
+    .map((uid) => {
+      const p = _livePresence[uid] || {},
+        at = p.at && p.at.toMillis ? p.at.toMillis() : now;
+      return { uid, name: String(p.name || "Someone"), hole: Number(p.hole) || 0, at };
+    })
+    .filter((p) => now - p.at < PRESENCE_FRESH_MS)
+    .sort((a, b) => b.at - a.at);
+}
+function renderPresence() {
+  const slots = document.querySelectorAll(".live-presence");
+  if (!slots.length) return;
+  const who = state.liveId ? livePresenceOthers() : [],
+    here = isSpectator ? [] : who.filter((p) => p.hole === (state.currentHole || 0));
+  const html = who.length
+    ? '<div class="presence-row"><span class="presence-k">' +
+      (isSpectator ? "Scoring now" : "Also scoring") +
+      "</span>" +
+      who
+        .map(
+          (p) =>
+            '<span class="presence-chip' +
+            (here.includes(p) ? " same-hole" : "") +
+            '"><span class="presence-dot" aria-hidden="true"></span>' +
+            esc(p.name) +
+            " · H" +
+            hLbl(p.hole) +
+            "</span>",
+        )
+        .join("") +
+      "</div>" +
+      (here.length
+        ? '<div class="presence-warn">' +
+          esc(
+            here.map((p) => p.name).join(" and ") +
+              (1 === here.length ? " is" : " are") +
+              " on this hole too. Agree who enters which scores before confirming.",
+          ) +
+          "</div>"
+        : "")
+    : "";
+  /* Only write when it changed: the slot is polite-live, and renderHole runs
+     on every tap. */
+  slots.forEach((el) => {
+    el._presence !== html && ((el.innerHTML = html), (el._presence = html));
+    el.classList.toggle("hidden", !html);
+  });
+}
+setInterval(() => {
+  "visible" === document.visibilityState && state.liveId && (pushPresence(), renderPresence());
+}, 30000);
 function requestNotificationPermission() {
   "Notification" in window &&
     "default" === Notification.permission &&
@@ -19167,6 +20309,73 @@ function sendNotification(e, t) {
     "granted" === Notification.permission &&
     new Notification(e, { body: t, icon: "logo-192.png", badge: "logo-64.png" }),
     navigator.vibrate && navigator.vibrate(200));
+}
+
+/* Scan to join. The Go Live sheet shows a QR of the watch link; this reads it
+   back with BarcodeDetector, which Chrome on Android ships and Safari does not
+   -- so where it is missing the join is the typed code, exactly as before. */
+function canScanCodes() {
+  return (
+    "BarcodeDetector" in window && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+  );
+}
+/* The QR carries the watch URL (?watch=CODE); a bare code is accepted too. */
+function codeFromScan(raw) {
+  const t = String(raw || "").trim();
+  try {
+    const w = new URL(t).searchParams.get("watch");
+    if (w) return normalizeLiveCode(w);
+  } catch (e) {}
+  const c = normalizeLiveCode(t);
+  return 6 === c.length ? c : "";
+}
+/* Resolves to a code, "type" to fall back to typing, or null for cancel. */
+function scanLiveCode() {
+  return new Promise(async (resolve) => {
+    let stream = null,
+      timer = null,
+      done = !1;
+    const m = document.getElementById("scan-modal"),
+      v = document.getElementById("scan-video"),
+      msg = document.getElementById("scan-msg");
+    const finish = (val) => {
+      if (done) return;
+      ((done = !0), clearTimeout(timer));
+      stream && stream.getTracks().forEach((t) => t.stop());
+      ((v.srcObject = null), (m.onclick = null), (m.onkeydown = null));
+      (closeModal("scan-modal"), resolve(val));
+    };
+    ((document.getElementById("scan-type").onclick = () => finish("type")),
+      (document.getElementById("scan-cancel").onclick = () => finish(null)),
+      (m.onclick = (e) => e.target === m && finish(null)),
+      (m.onkeydown = (e) => "Escape" === e.key && (e.preventDefault(), finish(null))),
+      (msg.textContent = "Point the camera at the code on the host’s phone."),
+      m.classList.remove("hidden"),
+      openModalA11y("scan-modal"));
+    try {
+      const det = new BarcodeDetector({ formats: ["qr_code"] });
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+        audio: !1,
+      });
+      if (done) return void stream.getTracks().forEach((t) => t.stop());
+      ((v.srcObject = stream), await v.play());
+      const tick = async () => {
+        if (done) return;
+        try {
+          const found = await det.detect(v);
+          for (const f of found) {
+            const c = codeFromScan(f.rawValue);
+            if (c) return (haptic(), finish(c));
+          }
+        } catch (e) {}
+        timer = setTimeout(tick, 250);
+      };
+      tick();
+    } catch (e) {
+      msg.textContent = "The camera isn’t available. Type the code instead.";
+    }
+  });
 }
 </script>
 </body></html>

@@ -440,7 +440,7 @@ function renderHome() {
     ));
   const chrono = rounds.slice().sort((a, b) => _rTime(a) - _rTime(b)),
     lastR = chrono[chrono.length - 1];
-  let h = "",
+  let h = repeatCardHTML(),
     series = null;
   if (mine) {
     const winPct = mine.rounds ? Math.round((100 * mine.wins) / mine.rounds) : 0;
@@ -712,7 +712,10 @@ function renderWatch() {
     "<span>/" +
     maxHole() +
     "</span></div></div></div>";
-  h += '<div class="section-head"><h2>Money board</h2></div><div class="lb-card">';
+  /* Two columns from 900px: the board and the flow on the left, the feed on
+     the right. A laptop in the clubhouse becomes the leaderboard. */
+  h +=
+    '<div class="watch-cols"><div class="watch-main"><div class="section-head"><h2>Money board</h2></div><div class="lb-card">';
   idx.forEach((i, pos) => {
     const v = money[i];
     h +=
@@ -730,7 +733,8 @@ function renderWatch() {
   });
   h += "</div>";
   h += moneyFlowHTML("watch-flow-chart");
-  h += '<div id="watch-feed"></div>';
+  h +=
+    '</div><div class="watch-side"><div class="live-presence hidden" role="status" aria-live="polite"></div><div id="watch-feed"></div></div></div>';
   const link = watchLinkURL();
   link &&
     (h +=
@@ -747,6 +751,7 @@ function renderWatch() {
     feed.innerHTML = src.innerHTML;
     feed.className = src.innerHTML ? "card watch-feed-card sc-collapsible" : "";
   }
+  "function" == typeof renderPresence && renderPresence();
   requestAnimationFrame(() => drawMoneyFlow(document.getElementById("watch-flow-chart")));
 }
 function copyWatchLink() {
@@ -1243,7 +1248,8 @@ function renderHistory() {
     .join("")),
     renderSeasonStats(),
     renderSeasonExtras(),
-    renderScoringStats());
+    renderScoringStats(),
+    renderCourseHistory());
 }
 function updateNavCounts() {
   const e = getAllRounds(),

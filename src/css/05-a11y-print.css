@@ -1,0 +1,83 @@
+.sc-actions {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--sp-4);
+  margin-top: var(--sp-6);
+}
+
+/* Paper. Nothing interactive survives, the page is the scorecard and not a
+   phone screenshot of it, and the light skin is forced from beforeprint so a
+   Broadcast phone does not print a black page. */
+@media print {
+  @page {
+    size: landscape;
+    margin: 12mm;
+  }
+  body {
+    position: static !important;
+    padding: 0;
+    background: var(--surface);
+  }
+  .nav-bar,
+  .confirm-bar,
+  .round-topbar,
+  #auth-bar,
+  #app > header,
+  .sticky-lb,
+  .app-toast,
+  .error-toast,
+  .offline-chip,
+  .storage-warn-toast,
+  .modal-close,
+  .qp-scrim,
+  #quick-picker {
+    display: none !important;
+  }
+  #app {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  /* Printing the scorecard prints only the scorecard. */
+  body.print-scorecard #app > :not(#scorecard-modal),
+  body.print-scorecard > :not(#app):not(script) {
+    display: none !important;
+  }
+  body.print-scorecard #scorecard-modal,
+  body.print-scorecard #scorecard-modal .modal-content {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  body.print-scorecard #scorecard-modal {
+    position: static;
+    display: block;
+    background: none;
+    backdrop-filter: none;
+  }
+  body.print-scorecard #scorecard-modal .modal-content {
+    max-width: none;
+    max-height: none;
+    overflow: visible;
+    box-shadow: none;
+    padding: 0;
+  }
+  body.print-scorecard #scorecard-modal .sc-actions {
+    display: none;
+  }
+  #scorecard-table-wrap {
+    overflow: visible;
+  }
+  .scorecard-tbl {
+    width: 100%;
+    font-size: var(--fs-xs);
+  }
+  .scorecard-tbl th:first-child,
+  .scorecard-tbl td:first-child {
+    position: static;
+  }
+  .card {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+}
