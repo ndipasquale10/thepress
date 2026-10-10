@@ -8348,6 +8348,114 @@ body.confirm-bar-open #app {
   font-size: var(--fs-2xs);
   color: var(--muted);
 }
+/* 2. A toast never covers the hole's Confirm. On the scoring screen the
+   confirm bar sits above the tab bar, so the toast sits above both. */
+body.confirm-bar-open .app-toast {
+  bottom: calc(
+    var(--sp-6) + var(--tap) + var(--sp-8) + var(--tabbar-h) + env(safe-area-inset-bottom, 0px)
+  );
+}
+
+/* 3. The hole strip, one row per nine. Nine 44px circles did not fit a phone,
+   so a nine wrapped to two uneven rows and an eighteen to three. As a grid of
+   nine the front and back nines each get a row, and the circles take the
+   column (up to the tap size). The hit-area ring is pulled in to the gap so
+   neighbouring holes do not overlap. */
+#hole-dots {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: var(--sp-2);
+  justify-items: center;
+}
+#hole-dots .hole-dot {
+  width: 100%;
+  max-width: var(--tap);
+  height: auto;
+  aspect-ratio: 1;
+}
+#hole-dots .hole-dot::after {
+  inset: calc(var(--sp-1) * -1);
+}
+
+/* 4. Glove mode is a small toggle in the round's top bar, beside Share,
+   instead of a full-width row under the card. */
+#glove-btn {
+  display: none;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  padding: var(--sp-4) var(--sp-7);
+}
+body:has(#scoring-screen:not(.hidden)) #glove-btn {
+  display: flex;
+}
+body.spectator #glove-btn {
+  display: none !important;
+}
+
+/* 5. The full header and the sign-in banner belong to Home. On the other tabs
+   they cost the top fifth of the screen on every visit; there the header keeps
+   its title and its two buttons, and nothing else. */
+body[data-screen]:not([data-screen="home"]) #auth-bar {
+  display: none;
+}
+body[data-screen]:not([data-screen="home"]) #app > header {
+  padding-top: var(--sp-3);
+  padding-bottom: var(--sp-3);
+  margin-bottom: var(--sp-5);
+  min-height: calc(40px + var(--sp-2) * 2);
+}
+body[data-screen]:not([data-screen="home"]) #app > header .header-logo,
+body[data-screen]:not([data-screen="home"]) #app > header .header-text p {
+  display: none;
+}
+body[data-screen]:not([data-screen="home"]) #app > header h1 {
+  font-size: var(--fs-xl);
+}
+/* The gear and the skin button are pinned 12px from the top for the tall
+   header; in the slim one that clipped them, so centre them instead. */
+body[data-screen]:not([data-screen="home"]) #app > header .dark-toggle,
+body[data-screen]:not([data-screen="home"]) #app > header .settings-toggle {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* 6. A chosen game folds the list to itself and its options. */
+#game-grid.folded .game-card:not(.selected) {
+  display: none;
+}
+.game-more {
+  width: 100%;
+  margin-top: var(--sp-4);
+}
+
+/* 1. The Wolf and Banker pick now lead the card; give the score rows below
+   them the same breathing room the pick used to have above it. */
+#score-inputs > .wolf-section:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+#score-inputs > .wolf-section + .score-row {
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-6);
+  border-top: var(--bw-strong) solid var(--rule);
+}
+
+@media (orientation: landscape) and (max-height: 540px) {
+  body.confirm-bar-open .app-toast {
+    bottom: calc(var(--sp-6) + var(--tap) + var(--sp-8) + env(safe-area-inset-bottom, 0px));
+  }
+  /* One row for the whole round in landscape: every hole, scrolling if need be. */
+  #hole-dots {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 34px;
+    justify-content: start;
+    overflow-x: auto;
+  }
+}
 </style></head><body>
 <!-- The Firebase SDK is NOT a blocking script tag any more. As three plain
      script-src tags at the top of the body (spelled out rather than written
@@ -8466,6 +8574,7 @@ function ensureFirebase() {
     <!-- Home button (visible during round) -->
     <div class="round-topbar">
       <div id="home-btn" class="home-btn hidden" data-act="goHome()" role="button" tabindex="0">Home</div>
+      <button id="glove-btn" class="home-btn glove-btn" aria-pressed="false" aria-label="Glove mode: bigger score buttons" data-act="toggleGlove()">Glove</button>
       <button id="live-btn" class="home-btn live-btn" aria-label="Share round live" data-act="goLiveTap()"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="1.6"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8"/></svg><span id="live-btn-label">Share</span></button>
     </div>
 
@@ -8609,6 +8718,7 @@ function ensureFirebase() {
             <option value="banker">Banker (Rotating Banker vs Field)</option>
           </select>
         </div>
+        <button type="button" id="game-more" class="btn secondary game-more hidden" aria-controls="game-grid" aria-expanded="true" data-act="toggleGameList()">Change game</button>
         <div id="game-desc" class="hint"></div>
         <div id="game-options"></div>
         <div class="form-group">
@@ -8692,7 +8802,6 @@ function ensureFirebase() {
         <button id="scorecard-btn" class="btn secondary">Scorecard</button>
         <button id="standings-btn" class="btn secondary">Standings</button>
         <button id="edit-round-btn" class="btn secondary" data-act="showEditRound()">Edit</button>
-        <button id="glove-btn" class="btn secondary glove-btn" aria-pressed="false" data-act="toggleGlove()">Glove mode</button>
       </div>
       <button id="finish-btn" class="btn secondary large" data-act="finishRound()" style="margin-top:8px">Finish Round</button>
     </div>
@@ -11361,7 +11470,34 @@ function selectGameType(g) {
     c.classList.toggle("selected", on);
     c.setAttribute("aria-checked", on ? "true" : "false");
   });
-  (haptic(), updateGameOptions(), dockGameOptions(), updateGamesSummary());
+  (haptic(), updateGameOptions(), dockGameOptions(), updateGamesSummary(), foldGameList(!0));
+}
+/* Twelve games stayed listed after one was picked, with its options parked in
+   the middle, so Start Round sat a long scroll away. Once a game is chosen the
+   list folds to that game and its options; "Change game" opens it again. */
+function foldGameList(fold) {
+  const grid = document.getElementById("game-grid"),
+    more = document.getElementById("game-more");
+  if (!grid) return;
+  const sel = grid.querySelector(".game-card.selected"),
+    on = !!fold && !!sel;
+  grid.classList.toggle("folded", on);
+  if (more) {
+    const n = grid.querySelectorAll(".game-card").length - 1;
+    more.classList.toggle("hidden", !sel);
+    more.setAttribute("aria-expanded", on ? "false" : "true");
+    more.textContent = on
+      ? "Change game \u00b7 " + n + " more"
+      : "Keep " + (GAME_NAMES[sel?.dataset.game] || "this game");
+  }
+}
+function toggleGameList() {
+  const grid = document.getElementById("game-grid");
+  if (!grid) return;
+  const opening = grid.classList.contains("folded");
+  foldGameList(!opening);
+  haptic();
+  opening && grid.querySelector(".game-card")?.focus({ preventScroll: !1 });
 }
 function wolfTeamsUneven() {
   return state.players.length >= 5 && state.players.length % 2 === 1;
@@ -12309,6 +12445,11 @@ function renderHole() {
       })
       .join("")}\n    </div>`;
   }
+  /* The Wolf picks a partner (and the Banker is set) on the tee, before
+     anyone has a score -- so those sections lead the card instead of sitting
+     under four score rows. Built here, after the rows and the hole's bonus
+     buttons, and moved to the front once complete. */
+  const _gameStart = _h.length;
   if ("wolf" === state.gameType && state.players.length >= 2)
     if (state.gameOpts.fixedPairs) {
       const t = state.players.length,
@@ -12457,6 +12598,7 @@ function renderHole() {
     bh += `</div>`;
     _h += bh;
   }
+  _h = _h.slice(_gameStart) + _h.slice(0, _gameStart);
   const n = state.players.every((t, a) => null != state.scores[a][e]),
     _confd = !!(state.confirmedHoles && state.confirmedHoles[e]) || (isSpectator && n);
   a.innerHTML = _h;
@@ -16810,7 +16952,11 @@ const SCREENS = {
     id: "games-screen",
     tab: "games",
     enter: () => {
-      (renderTheCard(), updateGameOptions(), dockGameOptions(), updateGamesSummary());
+      (renderTheCard(),
+        updateGameOptions(),
+        dockGameOptions(),
+        updateGamesSummary(),
+        foldGameList(!0));
     },
   },
   /* enter() stays out of the roster itself -- rebuilding it would trample a
@@ -16838,6 +16984,8 @@ function hideAllScreens() {
 let _currentScreen = "home";
 function enterScreen(name, opts) {
   _currentScreen = name;
+  /* The stylesheet keys the full header and the sign-in banner to Home. */
+  document.body.dataset.screen = name;
   opts = opts || {};
   const sc = SCREENS[name];
   if (!sc) return;
