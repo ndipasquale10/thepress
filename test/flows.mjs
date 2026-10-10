@@ -1777,6 +1777,11 @@ section("A popup's top clears the notch and the toolbars");
   await ctx.close();
 }
 
+// The sections below start rounds and then tap the screen at once. Starting a
+// round opens the strokes sheet on a 350 ms timer, so on a slow runner it could
+// land after the test had cleared the dialogs and cover the next tap (it did,
+// on main, over the glove button). Those sections switch the timed sheet off
+// by stubbing showStrokes before the round starts.
 // --------------------------------------------------------------------------
 section("Scoring: words first in the picker, glove mode, and the money said aloud");
 // --------------------------------------------------------------------------
@@ -1784,7 +1789,7 @@ section("Scoring: words first in the picker, glove mode, and the money said alou
   const { ctx, p, errors } = await page();
   await enterRoster(p, 4);
   await p.waitForTimeout(200);
-  await p.evaluate(() => { selectGameType("skins"); startRound(); });
+  await p.evaluate(() => { window.showStrokes = () => {}; selectGameType("skins"); startRound(); });
   await p.waitForTimeout(350);
   await p.evaluate(() => document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden")));
   await p.evaluate(() => quickScore(0, 0));
@@ -1832,7 +1837,7 @@ section("Landscape: the cart mount shows scores beside the money");
   const { ctx, p, errors } = await page({ viewport: { width: 844, height: 390 } });
   await enterRoster(p, 4);
   await p.waitForTimeout(200);
-  await p.evaluate(() => { selectGameType("skins"); startRound(); });
+  await p.evaluate(() => { window.showStrokes = () => {}; selectGameType("skins"); startRound(); });
   await p.waitForTimeout(350);
   await p.evaluate(() => document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden")));
   const L = await p.evaluate(() => {
@@ -1899,6 +1904,7 @@ section("Setup and history: same as last time, a course off the list, your cours
     return r && { course: r.course, game: r.gameType, players: r.players.map((x) => x.name), card: !!document.querySelector(".repeat-card .repeat-go") };
   });
   ok(last && last.card, "Home offers the last round again", JSON.stringify(last));
+  await p.evaluate(() => (window.showStrokes = () => {}));
   await p.click(".repeat-card .repeat-go");
   await p.waitForTimeout(500);
   const rep = await p.evaluate(() => ({
@@ -1956,7 +1962,7 @@ section("The scorecard prints on its own, on the light skin");
   const { ctx, p, errors } = await page();
   await enterRoster(p, 4);
   await p.waitForTimeout(200);
-  await p.evaluate(() => { selectGameType("skins"); startRound(); });
+  await p.evaluate(() => { window.showStrokes = () => {}; selectGameType("skins"); startRound(); });
   await p.waitForTimeout(350);
   await p.evaluate(() => {
     document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden"));
@@ -1991,7 +1997,7 @@ section("The scorecard marks every handicap stroke with a dot");
   const { ctx, p, errors } = await page();
   await enterRoster(p, 4, { holes: 18 });
   await p.waitForTimeout(200);
-  await p.evaluate(() => { selectGameType("skins"); startRound(); });
+  await p.evaluate(() => { window.showStrokes = () => {}; selectGameType("skins"); startRound(); });
   await p.waitForTimeout(350);
   const sc = await p.evaluate(() => {
     document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden"));
@@ -2049,7 +2055,7 @@ section("The shared scorecard image has the whole card in it");
   const { ctx, p, errors } = await page();
   await enterRoster(p, 4, { holes: 18 });
   await p.waitForTimeout(200);
-  await p.evaluate(() => { selectGameType("skins"); startRound(); });
+  await p.evaluate(() => { window.showStrokes = () => {}; selectGameType("skins"); startRound(); });
   await p.waitForTimeout(350);
   const shot = await p.evaluate(async () => {
     document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden"));
