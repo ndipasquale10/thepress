@@ -2085,6 +2085,68 @@ section("The shared scorecard image has the whole card in it");
   await ctx.close();
 }
 
+// --------------------------------------------------------------------------
+section("UI pass: pick first, toasts clear Confirm, one row per nine, slim header, folded games");
+// --------------------------------------------------------------------------
+{
+  const { ctx, p, errors } = await page();
+  await enterRoster(p, 4);
+  await p.waitForTimeout(200);
+  // 6. The game list folds to the chosen game; "Change game" opens it.
+  const fold = await p.evaluate(() => {
+    const vis = () => [...document.querySelectorAll("#game-grid .game-card")].filter((c) => c.offsetParent).length;
+    const a = vis();
+    document.getElementById("game-more").click();
+    const b = vis();
+    selectGameType("skins");
+    return { a, b, c: vis(), label: document.getElementById("game-more").textContent };
+  });
+  ok(fold.a === 1 && fold.c === 1, "the game list shows only the chosen game", JSON.stringify(fold));
+  ok(fold.b === 12 && /Change game · 11 more/.test(fold.label), "and Change game opens all twelve, folding again on a pick", JSON.stringify(fold));
+
+  // 5. Full header and sign-in banner on Home only.
+  const head = await p.evaluate(() => {
+    const h = () => document.querySelector("#app > header").getBoundingClientRect().height,
+      auth = () => !!document.getElementById("auth-bar").offsetParent;
+    enterScreen("home");
+    const home = { h: h(), auth: auth() };
+    enterScreen("settle");
+    const other = { h: h(), auth: auth() };
+    const g = document.querySelector("#app > header .settings-toggle").getBoundingClientRect(),
+      hb = document.querySelector("#app > header").getBoundingClientRect();
+    return { home, other, gearInside: g.top >= hb.top && g.bottom <= hb.bottom };
+  });
+  ok(head.other.h < head.home.h - 20 && !head.other.auth, "off Home the header is slim and the sign-in banner is gone", JSON.stringify(head));
+  ok(head.gearInside, "with the Settings gear whole inside it", JSON.stringify(head));
+
+  // 1-4 on a Wolf round.
+  await p.evaluate(() => { enterScreen("setup"); document.getElementById("start-btn").click(); });
+  await p.waitForTimeout(200);
+  await p.evaluate(() => { window.showStrokes = () => {}; selectGameType("wolf"); startRound(); });
+  await p.waitForTimeout(350);
+  const sc = await p.evaluate(() => {
+    document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden"));
+    const kids = [...document.getElementById("score-inputs").children].map((c) => c.className.split(" ")[0]);
+    const tops = new Set([...document.querySelectorAll("#hole-dots .hole-dot")].map((d) => Math.round(d.getBoundingClientRect().top)));
+    showToast("A message", { persistent: true });
+    return { kids, rows: tops.size, holes: maxHole() };
+  });
+  await p.waitForTimeout(400);
+  const geo = await p.evaluate(() => ({
+    toast: document.getElementById("app-toast").getBoundingClientRect().bottom,
+    confirm: document.getElementById("confirm-bar").getBoundingClientRect().top,
+    glove: (() => { const g = document.getElementById("glove-btn"); return { inTop: !!g.closest(".round-topbar"), shown: !!g.offsetParent }; })(),
+  }));
+  ok(sc.kids[0] === "wolf-section" && sc.kids.indexOf("score-row") > 0, "the Wolf pick leads the card, scores after it", sc.kids.slice(0, 3).join());
+  ok(sc.rows === Math.ceil(sc.holes / 9), "the hole strip is one row per nine", JSON.stringify(sc));
+  ok(geo.toast <= geo.confirm, "a toast sits above Confirm, not over it", JSON.stringify(geo));
+  ok(geo.glove.inTop && geo.glove.shown, "Glove is a toggle in the round's top bar", JSON.stringify(geo.glove));
+  await p.evaluate(() => enterScreen("home"));
+  ok(!(await p.evaluate(() => !!document.getElementById("glove-btn").offsetParent)), "and only there");
+  ok(errors.length === 0, "UI pass: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

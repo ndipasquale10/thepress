@@ -10,7 +10,11 @@ const SCREENS = {
     id: "games-screen",
     tab: "games",
     enter: () => {
-      (renderTheCard(), updateGameOptions(), dockGameOptions(), updateGamesSummary());
+      (renderTheCard(),
+        updateGameOptions(),
+        dockGameOptions(),
+        updateGamesSummary(),
+        foldGameList(!0));
     },
   },
   /* enter() stays out of the roster itself -- rebuilding it would trample a
@@ -38,6 +42,8 @@ function hideAllScreens() {
 let _currentScreen = "home";
 function enterScreen(name, opts) {
   _currentScreen = name;
+  /* The stylesheet keys the full header and the sign-in banner to Home. */
+  document.body.dataset.screen = name;
   opts = opts || {};
   const sc = SCREENS[name];
   if (!sc) return;

@@ -1,0 +1,108 @@
+/* 2. A toast never covers the hole's Confirm. On the scoring screen the
+   confirm bar sits above the tab bar, so the toast sits above both. */
+body.confirm-bar-open .app-toast {
+  bottom: calc(
+    var(--sp-6) + var(--tap) + var(--sp-8) + var(--tabbar-h) + env(safe-area-inset-bottom, 0px)
+  );
+}
+
+/* 3. The hole strip, one row per nine. Nine 44px circles did not fit a phone,
+   so a nine wrapped to two uneven rows and an eighteen to three. As a grid of
+   nine the front and back nines each get a row, and the circles take the
+   column (up to the tap size). The hit-area ring is pulled in to the gap so
+   neighbouring holes do not overlap. */
+#hole-dots {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: var(--sp-2);
+  justify-items: center;
+}
+#hole-dots .hole-dot {
+  width: 100%;
+  max-width: var(--tap);
+  height: auto;
+  aspect-ratio: 1;
+}
+#hole-dots .hole-dot::after {
+  inset: calc(var(--sp-1) * -1);
+}
+
+/* 4. Glove mode is a small toggle in the round's top bar, beside Share,
+   instead of a full-width row under the card. */
+#glove-btn {
+  display: none;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  padding: var(--sp-4) var(--sp-7);
+}
+body:has(#scoring-screen:not(.hidden)) #glove-btn {
+  display: flex;
+}
+body.spectator #glove-btn {
+  display: none !important;
+}
+
+/* 5. The full header and the sign-in banner belong to Home. On the other tabs
+   they cost the top fifth of the screen on every visit; there the header keeps
+   its title and its two buttons, and nothing else. */
+body[data-screen]:not([data-screen="home"]) #auth-bar {
+  display: none;
+}
+body[data-screen]:not([data-screen="home"]) #app > header {
+  padding-top: var(--sp-3);
+  padding-bottom: var(--sp-3);
+  margin-bottom: var(--sp-5);
+  min-height: calc(40px + var(--sp-2) * 2);
+}
+body[data-screen]:not([data-screen="home"]) #app > header .header-logo,
+body[data-screen]:not([data-screen="home"]) #app > header .header-text p {
+  display: none;
+}
+body[data-screen]:not([data-screen="home"]) #app > header h1 {
+  font-size: var(--fs-xl);
+}
+/* The gear and the skin button are pinned 12px from the top for the tall
+   header; in the slim one that clipped them, so centre them instead. */
+body[data-screen]:not([data-screen="home"]) #app > header .dark-toggle,
+body[data-screen]:not([data-screen="home"]) #app > header .settings-toggle {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* 6. A chosen game folds the list to itself and its options. */
+#game-grid.folded .game-card:not(.selected) {
+  display: none;
+}
+.game-more {
+  width: 100%;
+  margin-top: var(--sp-4);
+}
+
+/* 1. The Wolf and Banker pick now lead the card; give the score rows below
+   them the same breathing room the pick used to have above it. */
+#score-inputs > .wolf-section:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+#score-inputs > .wolf-section + .score-row {
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-6);
+  border-top: var(--bw-strong) solid var(--rule);
+}
+
+@media (orientation: landscape) and (max-height: 540px) {
+  body.confirm-bar-open .app-toast {
+    bottom: calc(var(--sp-6) + var(--tap) + var(--sp-8) + env(safe-area-inset-bottom, 0px));
+  }
+  /* One row for the whole round in landscape: every hole, scrolling if need be. */
+  #hole-dots {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 34px;
+    justify-content: start;
+    overflow-x: auto;
+  }
+}

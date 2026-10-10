@@ -193,6 +193,11 @@ function renderHole() {
       })
       .join("")}\n    </div>`;
   }
+  /* The Wolf picks a partner (and the Banker is set) on the tee, before
+     anyone has a score -- so those sections lead the card instead of sitting
+     under four score rows. Built here, after the rows and the hole's bonus
+     buttons, and moved to the front once complete. */
+  const _gameStart = _h.length;
   if ("wolf" === state.gameType && state.players.length >= 2)
     if (state.gameOpts.fixedPairs) {
       const t = state.players.length,
@@ -341,6 +346,7 @@ function renderHole() {
     bh += `</div>`;
     _h += bh;
   }
+  _h = _h.slice(_gameStart) + _h.slice(0, _gameStart);
   const n = state.players.every((t, a) => null != state.scores[a][e]),
     _confd = !!(state.confirmedHoles && state.confirmedHoles[e]) || (isSpectator && n);
   a.innerHTML = _h;

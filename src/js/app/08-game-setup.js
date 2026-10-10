@@ -69,7 +69,34 @@ function selectGameType(g) {
     c.classList.toggle("selected", on);
     c.setAttribute("aria-checked", on ? "true" : "false");
   });
-  (haptic(), updateGameOptions(), dockGameOptions(), updateGamesSummary());
+  (haptic(), updateGameOptions(), dockGameOptions(), updateGamesSummary(), foldGameList(!0));
+}
+/* Twelve games stayed listed after one was picked, with its options parked in
+   the middle, so Start Round sat a long scroll away. Once a game is chosen the
+   list folds to that game and its options; "Change game" opens it again. */
+function foldGameList(fold) {
+  const grid = document.getElementById("game-grid"),
+    more = document.getElementById("game-more");
+  if (!grid) return;
+  const sel = grid.querySelector(".game-card.selected"),
+    on = !!fold && !!sel;
+  grid.classList.toggle("folded", on);
+  if (more) {
+    const n = grid.querySelectorAll(".game-card").length - 1;
+    more.classList.toggle("hidden", !sel);
+    more.setAttribute("aria-expanded", on ? "false" : "true");
+    more.textContent = on
+      ? "Change game \u00b7 " + n + " more"
+      : "Keep " + (GAME_NAMES[sel?.dataset.game] || "this game");
+  }
+}
+function toggleGameList() {
+  const grid = document.getElementById("game-grid");
+  if (!grid) return;
+  const opening = grid.classList.contains("folded");
+  foldGameList(!opening);
+  haptic();
+  opening && grid.querySelector(".game-card")?.focus({ preventScroll: !1 });
 }
 function wolfTeamsUneven() {
   return state.players.length >= 5 && state.players.length % 2 === 1;
