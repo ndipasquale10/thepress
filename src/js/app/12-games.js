@@ -3,6 +3,56 @@ let _moneyCache = null,
 function invalidateMoneyCache() {
   (_moneyCacheVer++, (_moneyCache = null));
 }
+/* A stake changed mid-round (Edit Round) applies from the next hole still in
+   play; the holes already played keep paying what they were played for. The
+   values a stake had before are kept in opts.stakeHist[key] as
+   [{ until, val }], sorted by `until`: `val` is what that stake was on every
+   hole before `until` not claimed by an earlier entry. Objects rather than
+   pairs, because Firestore refuses nested arrays and the live round carries
+   gameOpts as it is. opts[key] itself is always the value in play now. */
+function stakeAt(o, key, h) {
+  const hist = o && o.stakeHist && o.stakeHist[key];
+  if (Array.isArray(hist))
+    for (let i = 0; i < hist.length; i++) if (h < hist[i].until) return hist[i].val;
+  return o ? o[key] : void 0;
+}
+// The opts with every stake that has a history resolved for hole h.
+function stakesAt(o, h) {
+  if (!o || !o.stakeHist) return o;
+  const r = Object.assign({}, o);
+  Object.keys(o.stakeHist).forEach((k) => (r[k] = stakeAt(o, k, h)));
+  return r;
+}
+// Set o[key] = v from hole `from` on, leaving the holes before it as they were.
+function setStakeFrom(o, key, v, from) {
+  const prev = o[key];
+  if (prev === v) return;
+  const hist = (o.stakeHist && o.stakeHist[key]) || [];
+  let next = [];
+  if (from > 0) {
+    next = hist.map((e) => ({ until: Math.min(e.until, from), val: e.val }));
+    next.push({ until: from, val: prev });
+    // Entries cut down to the same hole only ever answer for the first one.
+    next = next.filter((e, i) => !i || e.until > next[i - 1].until);
+  }
+  o[key] = v;
+  next.some((e) => e.val !== v)
+    ? ((o.stakeHist = o.stakeHist || {}), (o.stakeHist[key] = next))
+    : o.stakeHist &&
+      (delete o.stakeHist[key], Object.keys(o.stakeHist).length || delete o.stakeHist);
+}
+/* The first hole a stake changed now applies to: the one after the last hole
+   that is fully scored (or conceded). Not the hole on screen -- tabbing back to
+   fix hole 3 must not reprice holes 3 to 8. */
+function stakeChangeHole() {
+  let last = -1;
+  for (let h = 0; h < maxHole(); h++) {
+    const w = state.wolfHoles && state.wolfHoles[h];
+    ((w && w.conceded) || !state.players.some((p, i) => null == state.scores[i]?.[h])) &&
+      (last = h);
+  }
+  return last + 1;
+}
 const SIDE_CATS = ["3-Putt", "Greenie", "Sandy", "Barkie", "Birdie", "Eagle", "Polie"];
 const JUNK_CATS = [1, 2, 3, 4, 5, 6];
 const SIDE_BET_DEFAULTS = {
@@ -32,7 +82,11 @@ function sideBetParts() {
   const out = {};
   if (sideBetActive("skins")) {
     const sb = state.sideBets.skins;
-    out.skins = calcSkinsMoney({ skinVal: +sb.val || 0, carry: !!sb.carry });
+    out.skins = calcSkinsMoney({
+      skinVal: +sb.val || 0,
+      carry: !!sb.carry,
+      stakeHist: sb.stakeHist && { skinVal: sb.stakeHist.val },
+    });
   }
   if (sideBetActive("snake")) {
     const sb = state.sideBets.snake;
@@ -40,7 +94,7 @@ function sideBetParts() {
   }
   if (sideBetActive("junk")) {
     const sb = state.sideBets.junk;
-    out.junk = calcBonusMoney({ val: +sb.val || 0, cats: JUNK_CATS });
+    out.junk = calcBonusMoney({ val: +sb.val || 0, cats: JUNK_CATS, stakeHist: sb.stakeHist });
   }
   return out;
 }
@@ -139,7 +193,7 @@ function calcSixesMoney() {
     s.forEach((e, s) => {
       const o = s * n,
         l = 2 === s ? maxHole() - 1 : o + n - 1;
-      settleTeamSegment(o, l, e[0], e[1], a, t);
+      settleTeamSegment(o, l, e[0], e[1], stakeAt(state.gameOpts, "sixesVal", l) || a, t);
     }),
     t
   );
@@ -257,7 +311,8 @@ function calcBankerMoney() {
       let w = 0;
       bn < tn ? (w = 1) : bn > tn && (w = -1);
       if (0 === w) return;
-      const st = v * bankerMatchMult(h, ti, bteam, team);
+      const st =
+        (stakeAt(state.gameOpts, "bankerVal", h) || v) * bankerMatchMult(h, ti, bteam, team);
       bteam.forEach((p) => (out[p] += (w * st) / bteam.length));
       team.forEach((p) => (out[p] -= (w * st) / team.length));
     });
@@ -316,6 +371,12 @@ function calcNassauMoney() {
           }
         }
       }));
+  /* A bet is settled at its last hole, so it pays the stake in play there: a
+     nine already finished keeps what it was played for. */
+  s.forEach((x, i) => {
+    const k = x.isPress ? "pressVal" : 0 === i ? "front" : 1 === i ? "back" : "overall";
+    x.val = stakeAt(e, k, x.end);
+  });
   const n = e.nassauTeams && e.nassauTeamRoster && 2 === e.nassauTeamRoster.length,
     o = n ? e.nassauTeamRoster : null;
   return (
@@ -405,9 +466,9 @@ function renderNassauDetail() {
 function calcSkinsMoney(o) {
   const e = state.players.length,
     t = o || state.gameOpts,
-    a = calcSkins(t),
+    a = calcSkins(t, !0),
     s = a.reduce((e, t) => e + t, 0);
-  return state.players.map((n, o) => a[o] * t.skinVal * (e - 1) - (s - a[o]) * t.skinVal);
+  return state.players.map((n, o) => a[o] * (e - 1) - (s - a[o]));
 }
 function renderSkinsDetail() {
   const e = calcSkins(),
@@ -460,9 +521,9 @@ function calcMatchMoney() {
   }
   if ("nassau" === t.matchFormat) {
     const e = Math.min(8, maxHole() - 1);
-    (n(t.matchFront, 0, e),
-      maxHole() > 9 && n(t.matchBack, 9, maxHole() - 1),
-      maxHole() > 9 && n(t.matchOverall, 0, maxHole() - 1),
+    (n(stakeAt(t, "matchFront", e), 0, e),
+      maxHole() > 9 && n(stakeAt(t, "matchBack", maxHole() - 1), 9, maxHole() - 1),
+      maxHole() > 9 && n(stakeAt(t, "matchOverall", maxHole() - 1), 0, maxHole() - 1),
       (state._matchPresses = [
         { start: 0, end: e, val: t.matchFront, label: maxHole() > 9 ? "Front 9" : "Match" },
         ...(maxHole() > 9
@@ -473,21 +534,25 @@ function calcMatchMoney() {
           : []),
       ]));
   } else {
-    const n = [{ start: 0, end: maxHole() - 1, val: t.holeVal, label: "Main Match" }];
+    const n = [
+      { start: 0, end: maxHole() - 1, val: t.holeVal, key: "holeVal", label: "Main Match" },
+    ];
     ((state.matchPresses || []).forEach((e, a) => {
       n.push({
         start: e.start,
         end: maxHole() - 1,
         val: t.matchPressVal,
+        key: "matchPressVal",
         label: `Press #${a + 1} (${e.by}, H${hLbl(e.start)})`,
       });
     }),
       (state._matchPresses = n),
-      n.forEach((t) => {
-        for (let n = t.start; n <= t.end; n++) {
-          const o = s(n);
+      n.forEach((g) => {
+        for (let n = g.start; n <= g.end; n++) {
+          const o = s(n),
+            v = stakeAt(t, g.key, n);
           if ("win" === o.result)
-            for (let s = 0; s < e; s++) s !== o.winner && ((a[o.winner] += t.val), (a[s] -= t.val));
+            for (let s = 0; s < e; s++) s !== o.winner && ((a[o.winner] += v), (a[s] -= v));
         }
       }));
   }
@@ -632,15 +697,23 @@ function renderMatchDetail() {
     s
   );
 }
+/* Points are paid at the stake of the hole they were made on. A quota is a
+   target for the whole round, so it is measured at the stake in play now. */
 function calcStablefordMoney() {
   const r = state.gameOpts,
-    e0 = calcStableford(),
-    e = r.quotaEnabled && Array.isArray(r.quotas) ? e0.map((e, t) => e - r.quotas[t]) : e0,
-    t = r.ptVal,
-    a = state.players.length;
+    a = state.players.length,
+    e = Array(a).fill(0);
+  for (let k = 0; k < maxHole(); k++) {
+    const p = stablefordHolePoints(k),
+      v = stakeAt(r, "ptVal", k);
+    for (let i = 0; i < a; i++) e[i] += p[i] * v;
+  }
+  r.quotaEnabled &&
+    Array.isArray(r.quotas) &&
+    e.forEach((x, i) => (e[i] = x - (r.quotas[i] || 0) * r.ptVal));
   return state.players.map((s, n) => {
     let o = 0;
-    for (let s = 0; s < a; s++) n !== s && (o += (e[n] - e[s]) * t);
+    for (let s = 0; s < a; s++) n !== s && (o += e[n] - e[s]);
     return o;
   });
 }
@@ -758,17 +831,17 @@ function renderBankerDetail() {
 function calcBonusMoney(o) {
   const e = state.players.length,
     _o = o || state.gameOpts,
-    t = null != _o.val ? _o.val : "bingo" === state.gameType ? _o.ptVal : _o.dotVal,
+    k = null != _o.val ? "val" : "bingo" === state.gameType ? "ptVal" : "dotVal",
     _cats = _o.cats || null,
     a = state.players.map((e, t) => {
       let a = 0;
       for (let e = 0; e < maxHole(); e++)
-        a += _cats ? getBonusCountIn(t, e, _cats) : getBonusCount(t, e);
+        a += (_cats ? getBonusCountIn(t, e, _cats) : getBonusCount(t, e)) * stakeAt(_o, k, e);
       return a;
     });
   return state.players.map((s, n) => {
     let o = 0;
-    for (let s = 0; s < e; s++) n !== s && (o += (a[n] - a[s]) * t);
+    for (let s = 0; s < e; s++) n !== s && (o += a[n] - a[s]);
     return o;
   });
 }
@@ -857,10 +930,11 @@ function getWolfTeams(e) {
 }
 function calcWolfMoney() {
   const e = state.players.length,
-    t = state.gameOpts,
+    T = state.gameOpts,
     a = Array(e).fill(0);
   for (let s = 0; s < maxHole(); s++) {
-    const n = netRow(s);
+    const t = stakesAt(T, s),
+      n = netRow(s);
     const o = state.wolfHoles[s];
     if (!o) continue;
     if (o.conceded) {
@@ -1063,7 +1137,7 @@ function renderWolfDetail() {
     const p =
       (a.blind ? 3 : d && state.gameOpts.lone2x ? 2 : 1) *
       (m > 0 ? Math.pow(2, m) : 1) *
-      state.gameOpts.wolfVal;
+      stakeAt(state.gameOpts, "wolfVal", e);
     p > i && (i = p);
     (Math.min(...s.map((e) => t[e])) < Math.min(...c.map((e) => t[e])) &&
       (s.forEach((e) => n[e]++), d && o++),
@@ -1107,7 +1181,8 @@ function calcVegasMoney() {
   )
     return a;
   for (let e = 0; e < maxHole(); e++) {
-    const n = netRow(e);
+    const n = netRow(e),
+      v = stakeAt(t, "vegasVal", e);
     if (n.some((e) => null == e)) continue;
     const o = s.map((e) => {
       const t = n[e[0]],
@@ -1129,10 +1204,10 @@ function calcVegasMoney() {
     }
     const l = o[0] - o[1];
     (s[0].forEach((e) => {
-      a[e] -= (l * t.vegasVal) / s[0].length;
+      a[e] -= (l * v) / s[0].length;
     }),
       s[1].forEach((e) => {
-        a[e] += (l * t.vegasVal) / s[1].length;
+        a[e] += (l * v) / s[1].length;
       }));
   }
   return a;
@@ -1173,7 +1248,9 @@ function renderVegasDetail() {
     a
   );
 }
-function calcSkins(o) {
+/* Skins won by each player -- or, with `money`, what they are worth: each hole
+   carries its own stake, so a carry pays what every hole in it was played for. */
+function calcSkins(o, money) {
   o = o || state.gameOpts;
   const e = state.players.length,
     t = Array(e).fill(0);
@@ -1181,16 +1258,17 @@ function calcSkins(o) {
     hadNull = !1,
     lastLeaders = null;
   for (let e = 0; e < maxHole(); e++) {
-    const s = netRow(e);
+    const s = netRow(e),
+      u = money ? +stakeAt(o, "skinVal", e) || 0 : 1;
     if (s.some((e) => null == e)) {
-      ((hadNull = !0), (a += o.carry ? 1 : 0));
+      ((hadNull = !0), (a += o.carry ? u : 0));
       continue;
     }
     const n = Math.min(...s),
       w = s.reduce((c, v, i) => (v === n ? [...c, i] : c), []);
     1 === w.length
-      ? ((t[w[0]] += 1 + (o.carry ? a : 0)), (a = 0))
-      : ((a += o.carry ? 1 : 0), (lastLeaders = w));
+      ? ((t[w[0]] += u + (o.carry ? a : 0)), (a = 0))
+      : ((a += o.carry ? u : 0), (lastLeaders = w));
   }
   if (o.carry && a > 0 && !hadNull && lastLeaders && lastLeaders.length)
     lastLeaders.forEach((i) => {
@@ -1205,24 +1283,20 @@ function calcStableford() {
     nh = maxHole(),
     out = Array(np).fill(0);
   for (let k = 0; k < nh; k++) {
-    const row = netRow(k),
-      par = state.pars[k];
-    for (let i = 0; i < np; i++) {
-      const s = row[i];
-      if (null == s) continue;
-      const n = s - par;
-      n <= -3
-        ? (out[i] += 8)
-        : -2 === n
-          ? (out[i] += 5)
-          : -1 === n
-            ? (out[i] += 2)
-            : 0 === n
-              ? (out[i] += 0)
-              : (out[i] -= 1 === n ? 1 : 3);
-    }
+    const p = stablefordHolePoints(k);
+    for (let i = 0; i < np; i++) out[i] += p[i];
   }
   return out;
+}
+// Each player's points on one hole; 0 for a hole they have no score on.
+function stablefordHolePoints(k) {
+  const row = netRow(k),
+    par = state.pars[k];
+  return row.map((s) => {
+    if (null == s) return 0;
+    const n = s - par;
+    return n <= -3 ? 8 : -2 === n ? 5 : -1 === n ? 2 : 0 === n ? 0 : 1 === n ? -1 : -3;
+  });
 }
 function strokesData() {
   const h = getPlayingHandicaps();

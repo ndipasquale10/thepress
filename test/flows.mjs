@@ -2147,6 +2147,87 @@ section("UI pass: pick first, toasts clear Confirm, one row per nine, slim heade
   await ctx.close();
 }
 
+// --------------------------------------------------------------------------
+section("Edit Round mid-game: a new handicap strokes the round, a new stake prices what is left");
+// --------------------------------------------------------------------------
+// Through the Edit Round dialog itself, on a round three holes in.
+{
+  const { ctx, p, errors } = await page();
+  await enterRoster(p, 4);
+  await p.waitForTimeout(200);
+  await p.evaluate(() => {
+    window.showStrokes = () => {};
+    state.players.forEach((pl) => (pl.hdcp = 0));
+    selectGameType("skins");
+    startRound();
+  });
+  await p.waitForTimeout(350);
+  // Player 1 takes a skin on each of the first three holes; everyone else pars.
+  const before = await p.evaluate(() => {
+    document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden"));
+    state.gameOpts.carry = !1;
+    for (let h = 0; h < 3; h++)
+      state.players.forEach((_, i) => (state.scores[i][h] = state.pars[h] - (0 === i ? 1 : 0)));
+    state.currentHole = 3;
+    invalidateMoneyCache();
+    renderHole();
+    return { money: calcMoney(), val: state.gameOpts.skinVal, hc: getPlayingHandicaps() };
+  });
+  const edit = (fill) =>
+    p.evaluate((f) => {
+      document.querySelector('[data-act="showEditRound()"]')
+        ? document.querySelector('[data-act="showEditRound()"]').click()
+        : showEditRound();
+      const hint = document.querySelector("#edit-round-content").textContent;
+      if (f.hdcp != null) document.querySelector('#edit-round-content .er-phdcp[data-idx="1"]').value = f.hdcp;
+      if (f.stake != null) document.querySelector('#edit-round-content .er-stake[data-key="skinVal"]').value = f.stake;
+      document.querySelector('#edit-round-modal [data-act="saveEditRound()"]')
+        ? document.querySelector('#edit-round-modal [data-act="saveEditRound()"]').click()
+        : saveEditRound();
+      return hint;
+    }, fill);
+
+  const hint = await edit({ stake: before.val * 3 });
+  ok(/applies from hole 4/.test(hint), "the dialog says a new stake starts on the next hole", hint.slice(0, 160));
+  const after = await p.evaluate(() => calcMoney());
+  ok(
+    JSON.stringify(after) === JSON.stringify(before.money),
+    "tripling the stake leaves the three skins already won at the old price",
+    `before ${before.money}, after ${after}`
+  );
+  const later = await p.evaluate(() => {
+    state.players.forEach((_, i) => (state.scores[i][3] = state.pars[3] - (0 === i ? 1 : 0)));
+    invalidateMoneyCache();
+    return calcMoney();
+  });
+  ok(
+    later[0] - after[0] === before.val * 3 * 3,
+    "and the next skin pays the new stake",
+    `${after[0]} -> ${later[0]} at $${before.val * 3}`
+  );
+
+  // A handicap typed in mid-round strokes the whole round, on this screen.
+  await edit({ hdcp: "18" });
+  const strokes = await p.evaluate(() => {
+    state.currentHole = 5;
+    renderHole();
+    const ph = getPlayingHandicaps();
+    return {
+      ph,
+      perHole: Array.from({ length: maxHole() }, (_, h) => getStrokesOnHole(ph[1], h)),
+      badge: [...document.querySelectorAll(".score-row")][1]?.querySelector(".strokes-badge")?.textContent || "",
+    };
+  });
+  // A nine plays off half a handicap: an 18 is a stroke a hole either way.
+  ok(strokes.ph[1] === strokes.perHole.length && before.hc[1] === 0, "the new handicap is in play", JSON.stringify(strokes.ph));
+  ok(strokes.perHole.every((n) => n === 1), "a stroke on every hole for an 18", strokes.perHole.join(","));
+  ok(/1 stroke/.test(strokes.badge), "the scoring screen shows the stroke on the hole in play", strokes.badge);
+  const net = await p.evaluate(() => [getNetScore(1, 0), state.scores[1][0]]);
+  ok(net[0] === net[1] - 1, "and net scores take it off", JSON.stringify(net));
+  ok(errors.length === 0, "Edit Round mid-game: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
