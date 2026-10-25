@@ -583,18 +583,17 @@ function halvesStrokes(r) {
   return 9 === r.holeCount && !!r.gameOpts && r.gameOpts.strokeRule >= NINE_HALF_RULE;
 }
 /* From rule 3 every round plays off each player's course handicap: the index
-   carried to the tees they are actually playing, the way the scorecard and
-   the WHS do it --
+   carried to the round's tees, the way the scorecard and the WHS do it --
 
      course handicap = index x slope / 113 + (course rating - par)
 
    rounded, then the allowance (80%) taken off that and rounded again, then
    everyone off the low man. Before, "Full" and "80%" gave strokes off the raw
    index and only a separate "Course" option looked at the tee, so a 15 on a
-   140-slope course played as a 15 instead of the 19 they get there. The rating
-   term only matters between players on different tees (on one tee it is the
-   same for everybody and cancels off the low man), which is why each player
-   carries their own tee. A nine plays off half of it. */
+   140-slope course played as a 15 instead of the 19 they get there. The whole
+   group plays the same tees, so the rating term is the same for everybody and
+   mostly cancels off the low man; the slope is what spreads the strokes. A
+   nine plays off half of it. */
 function usesCourseHandicap(r) {
   return !!r.gameOpts && r.gameOpts.strokeRule >= COURSE_HCP_RULE;
 }
@@ -608,14 +607,13 @@ function teePar(r, t) {
   const ps = r.pars || [];
   return 18 === r.holeCount && ps.length >= 18 ? ps.slice(0, 18).reduce((a, b) => a + b, 0) : 72;
 }
-/* Every player leaves the first tee carrying the tee they play, rating, slope
-   and par included: the round's tee unless one was picked for them. It rides
-   on the roster, so a saved round and every phone in a live round stroke it
-   the same way without needing the course data. */
+/* Everyone plays the round's tees. Each player leaves the first tee carrying
+   them -- rating, slope and par -- because the roster is what a saved round and
+   every phone in a live round already share, so they all stroke the round the
+   same way without needing the course data. */
 function stampPlayerTees() {
   const t = state.selectedTee;
   state.players.forEach((p) => {
-    if (p._teeChosen && p.tee) return void (p.tee.par = p.tee.par || teePar(state, p.tee));
     t && t.rating && t.slope
       ? (p.tee = { name: t.name, rating: t.rating, slope: t.slope, par: teePar(state, t) })
       : delete p.tee;

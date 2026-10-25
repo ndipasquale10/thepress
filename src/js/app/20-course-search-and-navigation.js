@@ -76,8 +76,7 @@ function selectCourse(e) {
     s = document.getElementById("selected-course");
   /* The first tee is drawn selected, so it is the round's tee until another is
      tapped. It used to be drawn selected and left unset -- the round played
-     off no slope at all, or off the last course's tee. A tee picked for a
-     player was at another course, so it goes too. */
+     off no slope at all, or off the last course's tee. */
   ((state.selectedTee = t.tees && t.tees[0] ? courseTee(t, 0) : null),
     clearPlayerTees(),
     "function" == typeof renderPlayers && renderPlayers());
@@ -91,8 +90,9 @@ function selectCourse(e) {
 function courseTee(c, i) {
   return { ...c.tees[i], par: c.pars.reduce((a, b) => a + b, 0) };
 }
+// A roster carried over from another round drops the tees it was stamped with.
 function clearPlayerTees() {
-  (state.players || []).forEach((p) => p && (delete p.tee, delete p._teeChosen));
+  (state.players || []).forEach((p) => p && delete p.tee);
   invalidateHdcpCache();
 }
 function teeColor(e) {
@@ -118,7 +118,7 @@ function selectTee(e) {
       t.classList.toggle("active", a === e);
     }),
     (state.selectedTee = t.tees[e] ? courseTee(t, e) : null),
-    invalidateHdcpCache(),
+    clearPlayerTees(),
     "function" == typeof renderPlayers && renderPlayers(),
     applyCoursePars(),
     buildParGrid(),

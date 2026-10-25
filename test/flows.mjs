@@ -2229,12 +2229,11 @@ section("Edit Round mid-game: a new handicap strokes the round, a new stake pric
 }
 
 // --------------------------------------------------------------------------
-section("Strokes come from each player's course handicap on the tees they play");
+section("Strokes come from each player's course handicap on the group's tees");
 // --------------------------------------------------------------------------
 {
   const { ctx, p, errors } = await page();
-  // Setup, the way a group does it: pick the course, the round's tee is the
-  // first one, and one player moves up a tee.
+  // Setup, the way a group does it: pick the course, then the tees everyone plays.
   const set = await p.evaluate(() => {
     window.showStrokes = () => {};
     state.players = [
@@ -2247,34 +2246,28 @@ section("Strokes come from each player's course handicap on the tees they play")
     renderPlayers();
     searchCourses("arrowhead");
     document.querySelector("#course-results .course-item").click();
-    const c = window._selectedCourse;
-    const first = state.selectedTee && state.selectedTee.name;
-    togglePlayerEdit(1);
-    const chips = [...document.querySelectorAll('.player-card[data-pidx="1"] .ptee-chip')];
-    const white = chips.find((b) => b.textContent.trim() === "White");
-    white && white.click();
+    const c = window._selectedCourse,
+      first = state.selectedTee && state.selectedTee.name,
+      blueAt = c.tees.findIndex((t) => t.name === "Blue");
+    document.querySelectorAll(".tee-option")[blueAt].click();
     return {
-      course: c && c.name,
       first,
-      tees: c ? c.tees.map((t) => t.name) : [],
-      par: c ? c.pars.reduce((a, b) => a + b, 0) : 0,
-      black: c && c.tees.find((t) => t.name === "Black"),
-      whiteTee: c && c.tees.find((t) => t.name === "White"),
-      chips: chips.map((b) => b.textContent.trim()),
+      tees: c.tees.map((t) => t.name),
+      par: c.pars.reduce((a, b) => a + b, 0),
+      blue: c.tees[blueAt],
+      chosen: state.selectedTee && state.selectedTee.name,
+      pickers: document.querySelectorAll(".player-card .ptee-chip").length,
       chOnRow: document.querySelector('.player-card[data-pidx="0"] .roster-ch')?.textContent || "",
-      dave: JSON.parse(JSON.stringify(state.players[1].tee || null)),
     };
   });
   ok(set.first === set.tees[0], "picking a course sets its first tee as the round's tee", `${set.first} of ${set.tees}`);
-  ok(set.chips.length === set.tees.length, "each player can pick from the course's tees", set.chips.join(","));
-  ok(set.dave && set.dave.name === "White", "and Big Dave moves to the White tees", JSON.stringify(set.dave));
-  const ch = (i, t) => Math.round(i * (t.slope / 113) + (t.rating - set.par));
-  const youCh = ch(15.2, set.black), daveCh = ch(4, set.whiteTee);
+  ok(set.chosen === "Blue", "tapping a tee makes it the group's tee", set.chosen);
+  ok(set.pickers === 0, "there is no per-player tee choice: everyone plays the same tees");
+  const ch = (i) => Math.round(i * (set.blue.slope / 113) + (set.blue.rating - set.par));
+  const youCh = ch(15.2), daveCh = ch(4);
   ok(new RegExp("Course\\s*" + youCh).test(set.chOnRow), "the roster shows the course handicap beside the index", set.chOnRow);
 
-  await p.evaluate(() => {
-    document.getElementById("start-btn").click();
-  });
+  await p.evaluate(() => document.getElementById("start-btn").click());
   await p.waitForTimeout(250);
   const r = await p.evaluate(() => {
     document.getElementById("handicap-mode").value = "full";
@@ -2289,14 +2282,14 @@ section("Strokes come from each player's course handicap on the tees they play")
     };
   });
   ok(r.holes === 18, "an 18-hole round", String(r.holes));
-  ok(JSON.stringify(r.tees) === JSON.stringify(["Black", "White"]), "each player leaves the first tee carrying their tees", JSON.stringify(r.tees));
+  ok(r.tees.every((t) => t === "Blue"), "every player leaves the first tee on the group's tees", JSON.stringify(r.tees));
   ok(
-    JSON.stringify(r.ph) === JSON.stringify([youCh - Math.min(youCh, daveCh), daveCh - Math.min(youCh, daveCh)]),
+    JSON.stringify(r.ph) === JSON.stringify([youCh - daveCh, 0]),
     "strokes are the course-handicap difference, not the index difference",
     `got ${r.ph}, course ${youCh} vs ${daveCh}, index diff ${Math.round(15.2 - 4)}`
   );
-  ok(r.ph[0] !== Math.round(15.2 - 4), "which on these tees is not what the raw indexes give", `${r.ph[0]}`);
-  ok(new RegExp("Course " + youCh + " \\(Black\\)").test(r.summary) && new RegExp("Course " + daveCh + " \\(White\\)").test(r.summary), "the stroke summary shows each player's course handicap and tees", r.summary.slice(0, 300));
+  ok(r.ph[0] !== Math.round(15.2 - 4), "which on a sloped course is more than the raw indexes give", `${r.ph[0]}`);
+  ok(new RegExp("Course " + youCh + " \\(Blue\\)").test(r.summary) && new RegExp("Course " + daveCh + " \\(Blue\\)").test(r.summary), "the stroke summary shows each player's course handicap", r.summary.slice(0, 300));
   ok(errors.length === 0, "course handicap: no page errors", errors[0] || "");
   await ctx.close();
 }

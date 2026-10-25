@@ -183,7 +183,7 @@
   color: var(--muted);
 }
 
-/* Per-player tees, and the course handicap beside the index. */
+/* The course handicap beside the index. */
 .roster-ch {
   display: block;
   margin-top: var(--sp-1);
@@ -195,34 +195,8 @@
   font-size: var(--fs-2xs);
   color: var(--accent);
 }
-.ptee-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  margin-bottom: var(--sp-4);
-}
-.ptee-chip {
-  min-height: 44px;
-  padding: var(--sp-2) var(--sp-5);
-  border: var(--bw-strong) solid var(--rule);
-  border-radius: var(--radius-pill);
-  background: var(--panel);
-  color: var(--muted);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-.ptee-chip.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--btn-ink);
-}
 .summary-ch {
   display: block;
   font-size: var(--fs-2xs);
   color: var(--muted);
-}
-.ptee-label {
-  display: block;
-  margin-top: var(--sp-5);
 }

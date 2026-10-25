@@ -8349,7 +8349,7 @@ body.confirm-bar-open #app {
   color: var(--muted);
 }
 
-/* Per-player tees, and the course handicap beside the index. */
+/* The course handicap beside the index. */
 .roster-ch {
   display: block;
   margin-top: var(--sp-1);
@@ -8361,36 +8361,10 @@ body.confirm-bar-open #app {
   font-size: var(--fs-2xs);
   color: var(--accent);
 }
-.ptee-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  margin-bottom: var(--sp-4);
-}
-.ptee-chip {
-  min-height: 44px;
-  padding: var(--sp-2) var(--sp-5);
-  border: var(--bw-strong) solid var(--rule);
-  border-radius: var(--radius-pill);
-  background: var(--panel);
-  color: var(--muted);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-.ptee-chip.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--btn-ink);
-}
 .summary-ch {
   display: block;
   font-size: var(--fs-2xs);
   color: var(--muted);
-}
-.ptee-label {
-  display: block;
-  margin-top: var(--sp-5);
 }
 /* 2. A toast never covers the hole's Confirm. On the scoring screen the
    confirm bar sits above the tab bar, so the toast sits above both. */
@@ -10653,46 +10627,6 @@ function rosterCourseHcpHTML(p) {
     "</b></small>"
   );
 }
-/* Who plays which tees. Only offered when the course has more than one; the
-   round's tee is the default, so most rows never touch it. */
-function playerTeeHTML(p, a) {
-  const c = window._selectedCourse;
-  if (state.started || !c || !c.tees || c.tees.length < 2) return "";
-  const on = (p._teeChosen && p.tee && p.tee.name) || (state.selectedTee && state.selectedTee.name);
-  return (
-    '<label class="ptee-label">Tees</label><div class="ptee-row" role="group" aria-label="Tees for ' +
-    esc(p.name || "player") +
-    '">' +
-    c.tees
-      .map(
-        (t, i) =>
-          '<button type="button" class="ptee-chip' +
-          (t.name === on ? " active" : "") +
-          '" data-act="setPlayerTee(' +
-          a +
-          "," +
-          i +
-          ')" aria-pressed="' +
-          (t.name === on) +
-          '">' +
-          esc(t.name) +
-          "</button>",
-      )
-      .join("") +
-    "</div>"
-  );
-}
-function setPlayerTee(a, i) {
-  const p = state.players[a],
-    c = window._selectedCourse;
-  if (!p || !c || !c.tees || !c.tees[i] || state.started) return;
-  const t = courseTee(c, i);
-  state.selectedTee && t.name === state.selectedTee.name
-    ? (delete p.tee, delete p._teeChosen)
-    : ((p.tee = { name: t.name, rating: t.rating, slope: t.slope, par: t.par }),
-      (p._teeChosen = !0));
-  (invalidateHdcpCache(), haptic(), renderPlayers());
-}
 function renderPlayers() {
   if ("function" == typeof suggestHandicaps) {
     const n = suggestHandicaps();
@@ -10809,7 +10743,7 @@ function renderPlayers() {
     (s += "</div></div></div>"),
     (s += whoAmIPromptHTML()),
     state.players.forEach((t, a) => {
-      s += `<div class="player-card${_pEdit.has(a) ? " editing" : ""}" data-pidx="${a}"><div class="roster-line"><button type="button" class="roster-mono" data-act="openColorPicker('roster',${a})" aria-label="Change player color">${avatarHTML(t, 26)}</button><input type="text" value="${esc(t.name)}" placeholder="Player name" aria-label="Player name" data-idx="${a}" class="pname"><span class="roster-hdcp">Hdcp <b>${t.hdcp < 0 ? "+" + Math.abs(t.hdcp) : t.hdcp}</b>${rosterCourseHcpHTML(t)}</span><button class="roster-edit" data-act="togglePlayerEdit(${a})" aria-label="Edit player"><i data-ico="pencil"></i></button><button class="remove-btn" data-act="removePlayer(${a})" aria-label="Remove player"><i data-ico="close"></i></button></div><div class="player-edit"><label>Handicap Index</label><div class="hdcp-input-wrap"><button data-act="adjHdcp(${a},-1)">−</button><input type="text" inputmode="decimal" class="hdcp" value="${fmtHdcp(t.hdcp)}" maxlength="5" data-idx="${a}" aria-label="Handicap index — type + for a plus handicap"><button data-act="adjHdcp(${a},1)">+</button></div>${playerTeeHTML(t, a)}<div class="pay-block${_payOpen.has(a) ? "" : " collapsed"}" data-pidx="${a}"><div class="summary-toggle pay-toggle" data-act="togglePayFields(${a})" role="button" tabindex="0" aria-expanded="${_payOpen.has(a) ? "true" : "false"}"><span>Payment handles <small class="pay-summary">${payHandleSummary(t)}</small></span><span class="toggle-arrow"><i data-ico="down"></i></span></div><div class="pay-fields"><label class="pvenmo-label">Venmo</label><input type="text" class="pvenmo" value="${esc(t.venmo || "")}" data-idx="${a}" placeholder="@handle" aria-label="Venmo username" autocapitalize="off" autocorrect="off" spellcheck="false"><label class="pvenmo-label">Cash App</label><input type="text" class="pvenmo pcashapp" value="${esc(t.cashapp || "")}" data-idx="${a}" placeholder="$cashtag" aria-label="Cash App cashtag" autocapitalize="off" autocorrect="off" spellcheck="false"><label class="pvenmo-label">PayPal</label><input type="text" class="pvenmo ppaypal" value="${esc(t.paypal || "")}" data-idx="${a}" placeholder="paypal.me name" aria-label="PayPal.me name" autocapitalize="off" autocorrect="off" spellcheck="false"></div></div></div></div>`;
+      s += `<div class="player-card${_pEdit.has(a) ? " editing" : ""}" data-pidx="${a}"><div class="roster-line"><button type="button" class="roster-mono" data-act="openColorPicker('roster',${a})" aria-label="Change player color">${avatarHTML(t, 26)}</button><input type="text" value="${esc(t.name)}" placeholder="Player name" aria-label="Player name" data-idx="${a}" class="pname"><span class="roster-hdcp">Hdcp <b>${t.hdcp < 0 ? "+" + Math.abs(t.hdcp) : t.hdcp}</b>${rosterCourseHcpHTML(t)}</span><button class="roster-edit" data-act="togglePlayerEdit(${a})" aria-label="Edit player"><i data-ico="pencil"></i></button><button class="remove-btn" data-act="removePlayer(${a})" aria-label="Remove player"><i data-ico="close"></i></button></div><div class="player-edit"><label>Handicap Index</label><div class="hdcp-input-wrap"><button data-act="adjHdcp(${a},-1)">−</button><input type="text" inputmode="decimal" class="hdcp" value="${fmtHdcp(t.hdcp)}" maxlength="5" data-idx="${a}" aria-label="Handicap index — type + for a plus handicap"><button data-act="adjHdcp(${a},1)">+</button></div><div class="pay-block${_payOpen.has(a) ? "" : " collapsed"}" data-pidx="${a}"><div class="summary-toggle pay-toggle" data-act="togglePayFields(${a})" role="button" tabindex="0" aria-expanded="${_payOpen.has(a) ? "true" : "false"}"><span>Payment handles <small class="pay-summary">${payHandleSummary(t)}</small></span><span class="toggle-arrow"><i data-ico="down"></i></span></div><div class="pay-fields"><label class="pvenmo-label">Venmo</label><input type="text" class="pvenmo" value="${esc(t.venmo || "")}" data-idx="${a}" placeholder="@handle" aria-label="Venmo username" autocapitalize="off" autocorrect="off" spellcheck="false"><label class="pvenmo-label">Cash App</label><input type="text" class="pvenmo pcashapp" value="${esc(t.cashapp || "")}" data-idx="${a}" placeholder="$cashtag" aria-label="Cash App cashtag" autocapitalize="off" autocorrect="off" spellcheck="false"><label class="pvenmo-label">PayPal</label><input type="text" class="pvenmo ppaypal" value="${esc(t.paypal || "")}" data-idx="${a}" placeholder="paypal.me name" aria-label="PayPal.me name" autocapitalize="off" autocorrect="off" spellcheck="false"></div></div></div></div>`;
     }),
     (e.innerHTML = s),
     e.querySelectorAll(".pname").forEach((e) =>
@@ -12101,18 +12035,17 @@ function halvesStrokes(r) {
   return 9 === r.holeCount && !!r.gameOpts && r.gameOpts.strokeRule >= NINE_HALF_RULE;
 }
 /* From rule 3 every round plays off each player's course handicap: the index
-   carried to the tees they are actually playing, the way the scorecard and
-   the WHS do it --
+   carried to the round's tees, the way the scorecard and the WHS do it --
 
      course handicap = index x slope / 113 + (course rating - par)
 
    rounded, then the allowance (80%) taken off that and rounded again, then
    everyone off the low man. Before, "Full" and "80%" gave strokes off the raw
    index and only a separate "Course" option looked at the tee, so a 15 on a
-   140-slope course played as a 15 instead of the 19 they get there. The rating
-   term only matters between players on different tees (on one tee it is the
-   same for everybody and cancels off the low man), which is why each player
-   carries their own tee. A nine plays off half of it. */
+   140-slope course played as a 15 instead of the 19 they get there. The whole
+   group plays the same tees, so the rating term is the same for everybody and
+   mostly cancels off the low man; the slope is what spreads the strokes. A
+   nine plays off half of it. */
 function usesCourseHandicap(r) {
   return !!r.gameOpts && r.gameOpts.strokeRule >= COURSE_HCP_RULE;
 }
@@ -12126,14 +12059,13 @@ function teePar(r, t) {
   const ps = r.pars || [];
   return 18 === r.holeCount && ps.length >= 18 ? ps.slice(0, 18).reduce((a, b) => a + b, 0) : 72;
 }
-/* Every player leaves the first tee carrying the tee they play, rating, slope
-   and par included: the round's tee unless one was picked for them. It rides
-   on the roster, so a saved round and every phone in a live round stroke it
-   the same way without needing the course data. */
+/* Everyone plays the round's tees. Each player leaves the first tee carrying
+   them -- rating, slope and par -- because the roster is what a saved round and
+   every phone in a live round already share, so they all stroke the round the
+   same way without needing the course data. */
 function stampPlayerTees() {
   const t = state.selectedTee;
   state.players.forEach((p) => {
-    if (p._teeChosen && p.tee) return void (p.tee.par = p.tee.par || teePar(state, p.tee));
     t && t.rating && t.slope
       ? (p.tee = { name: t.name, rating: t.rating, slope: t.slope, par: teePar(state, t) })
       : delete p.tee;
@@ -19554,8 +19486,7 @@ function selectCourse(e) {
     s = document.getElementById("selected-course");
   /* The first tee is drawn selected, so it is the round's tee until another is
      tapped. It used to be drawn selected and left unset -- the round played
-     off no slope at all, or off the last course's tee. A tee picked for a
-     player was at another course, so it goes too. */
+     off no slope at all, or off the last course's tee. */
   ((state.selectedTee = t.tees && t.tees[0] ? courseTee(t, 0) : null),
     clearPlayerTees(),
     "function" == typeof renderPlayers && renderPlayers());
@@ -19569,8 +19500,9 @@ function selectCourse(e) {
 function courseTee(c, i) {
   return { ...c.tees[i], par: c.pars.reduce((a, b) => a + b, 0) };
 }
+// A roster carried over from another round drops the tees it was stamped with.
 function clearPlayerTees() {
-  (state.players || []).forEach((p) => p && (delete p.tee, delete p._teeChosen));
+  (state.players || []).forEach((p) => p && delete p.tee);
   invalidateHdcpCache();
 }
 function teeColor(e) {
@@ -19596,7 +19528,7 @@ function selectTee(e) {
       t.classList.toggle("active", a === e);
     }),
     (state.selectedTee = t.tees[e] ? courseTee(t, e) : null),
-    invalidateHdcpCache(),
+    clearPlayerTees(),
     "function" == typeof renderPlayers && renderPlayers(),
     applyCoursePars(),
     buildParGrid(),

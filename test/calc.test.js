@@ -1909,7 +1909,7 @@ console.log('Stakes: a stake changed mid-round leaves the holes already played a
 }
 
 // --- Course handicap: strokes come from each player's index on their tees ---
-console.log('Course handicap: index x slope/113 + (rating - par), per player tee, then off the low man');
+console.log('Course handicap: index x slope/113 + (rating - par) on the round tees, then off the low man');
 {
   const blue = { name: 'Blue', rating: 73.1, slope: 140, par: 72 };
   const hc = (o) => {
@@ -1919,11 +1919,6 @@ console.log('Course handicap: index x slope/113 + (rating - par), per player tee
   // 15.2 x 140/113 + 1.1 = 19.93 -> 20; scratch: 0 + 1.1 -> 1. 20 - 1 = 19.
   assertEqual(hc({ players: [{ name: 'A', hdcp: 15.2, tee: blue }, { name: 'B', hdcp: 0, tee: blue }] }), [19, 0], 'a 15.2 on a 140-slope tee gets 19, not 15');
   assertEqual(hc({ players: [{ name: 'A', hdcp: 15.2 }, { name: 'B', hdcp: 0 }], selectedTee: blue }), [19, 0], 'a player with no tee of their own plays the round\'s tee');
-  // Blue 72.4/131: 10 -> 11.59 + 0.4 = 12. White 69.8/124: 10 -> 10.97 - 2.2 = 8.77 -> 9.
-  assertEqual(hc({ players: [
-    { name: 'A', hdcp: 10, tee: { name: 'Blue', rating: 72.4, slope: 131, par: 72 } },
-    { name: 'B', hdcp: 10, tee: { name: 'White', rating: 69.8, slope: 124, par: 72 } },
-  ] }), [3, 0], 'two 10s on different tees: the one on the longer tee gets 3 strokes');
   // 80% is taken off the rounded course handicaps: 20 -> 16, 1 -> 1.
   assertEqual(hc({ handicapMode: '80pct', players: [{ name: 'A', hdcp: 15.2, tee: blue }, { name: 'B', hdcp: 0, tee: blue }] }), [15, 0], '80% comes off the course handicap');
   // A nine plays off half: 19.93/2 -> 10, 1.1/2 -> 1.
