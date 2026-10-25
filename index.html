@@ -20322,8 +20322,54 @@ function applyLiveDoc(s, code) {
     (state.holeCount = o.holeCount || 18),
     (state.holeStart = o.holeStart || 0),
     (state.handicapMode = o.handicapMode),
+    syncHandicapModeSelect(),
     (state.currentHole = o.currentHole || 0),
     (_liveBase = cloneLive(liveProgress())));
+}
+/* getPlayingHandicaps() reads the setup screen's <select> ahead of
+   state.handicapMode, so a phone whose select still says something else
+   would hand out its own strokes. Point it at the round's mode. */
+function syncHandicapModeSelect() {
+  const a = document.getElementById("handicap-mode");
+  a && state.handicapMode && (a.value = state.handicapMode);
+}
+/* Edit Round lets anyone in the round change names, handicaps and stakes
+   mid-round, and writes them to the live document. The snapshot handler only
+   took the in-play fields, so every other phone kept settling off the old
+   handicaps: the strokes changed on one card and nowhere else. Take the
+   round's setup too whenever it differs from what this phone has. Returns
+   whether anything changed. */
+function applyLiveSetup(t) {
+  let changed = !1;
+  /* Names and handicaps only, merged into this phone's own player objects so
+     the payment handles it holds (never published) stay where they are. */
+  const ps = t.players,
+    cur = state.players || [];
+  if (Array.isArray(ps) && ps.length) {
+    if (ps.length !== cur.length) ((state.players = withOwnPayHandles(ps)), (changed = !0));
+    else
+      ps.forEach((p, i) => {
+        p &&
+          (p.name !== cur[i].name || p.hdcp !== cur[i].hdcp) &&
+          ((cur[i].name = p.name), (cur[i].hdcp = p.hdcp), (changed = !0));
+      });
+  }
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  (t.gameOpts &&
+    !same(t.gameOpts, state.gameOpts) &&
+    ((state.gameOpts = t.gameOpts), (changed = !0)),
+    t.sideBets &&
+      !same(t.sideBets, state.sideBets) &&
+      ((state.sideBets = Object.assign(defaultSideBets(), t.sideBets)), (changed = !0)),
+    Array.isArray(t.hdcps) &&
+      !same(t.hdcps, state.hdcps) &&
+      ((state.hdcps = t.hdcps), (changed = !0)),
+    t.handicapMode &&
+      t.handicapMode !== state.handicapMode &&
+      ((state.handicapMode = t.handicapMode), (changed = !0)),
+    null != t.course && t.course !== state.course && ((state.course = t.course), (changed = !0)));
+  changed && (syncHandicapModeSelect(), invalidateHdcpCache());
+  return changed;
 }
 let _retryWatchCode = null;
 async function startSpectator(code) {
@@ -20456,6 +20502,7 @@ function subscribeLiveUpdates(e) {
           (state.matchPresses = t.matchPresses || []),
           isSpectator && (state.currentHole = t.currentHole || 0),
           (_liveBase = cloneLive(liveProgress())),
+          applyLiveSetup(t) && renderStrokeSummary(),
           invalidateMoneyCache(),
           renderHole(),
           refreshWatchScreen());

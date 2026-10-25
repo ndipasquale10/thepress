@@ -354,6 +354,37 @@ ok(onServer[0] === 4 && onServer[1] === 6, "and both are on the server", JSON.st
 }
 
 // --------------------------------------------------------------------------
+section("A handicap changed mid-round reaches every phone");
+// Edit Round wrote the new handicaps to the live document, but the other
+// phones only ever took scores from a snapshot -- so the strokes changed on the
+// card that made the edit and nowhere else, and the two phones settled the
+// same round for different money.
+// --------------------------------------------------------------------------
+
+const hdcpEdit = await host.p.evaluate(() => {
+  showEditRound();
+  const inp = document.querySelector('#edit-round-content .er-phdcp[data-idx="2"]');
+  inp.value = "18";
+  saveEditRound();
+  return { hdcp: state.players[2].hdcp, hc: getPlayingHandicaps(), net: getNetScore(2, 0) };
+});
+ok(hdcpEdit.hdcp === 18, "the host's edit takes", String(hdcpEdit.hdcp));
+const hdcpArrived = await joiner.p
+  .waitForFunction(() => state.players[2] && state.players[2].hdcp === 18, null, { timeout: 15000 })
+  .then(() => true)
+  .catch(() => false);
+ok(hdcpArrived, "the new handicap reaches the joiner");
+const joinerHc = await joiner.p.evaluate(() => ({ hc: getPlayingHandicaps(), net: getNetScore(2, 0) }));
+ok(
+  JSON.stringify(joinerHc.hc) === JSON.stringify(hdcpEdit.hc),
+  "both phones give the same strokes",
+  `host ${JSON.stringify(hdcpEdit.hc)}, joiner ${JSON.stringify(joinerHc.hc)}`
+);
+ok(joinerHc.net === hdcpEdit.net, "and net the scored hole the same", `host ${hdcpEdit.net}, joiner ${joinerHc.net}`);
+const handleKept = await host.p.evaluate(() => state.players[1].venmo);
+ok(handleKept === "big-dave-golf", "the host keeps the handles it never published", handleKept);
+
+// --------------------------------------------------------------------------
 section("Each scorer can see who else is on which hole");
 // Scores merge cell by cell now, but two people entering the same hole still
 // had no idea the other was there until a number changed under them.
