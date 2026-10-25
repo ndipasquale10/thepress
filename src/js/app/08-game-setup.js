@@ -558,9 +558,13 @@ function getPlayingHandicaps() {
   state.handicapMode = e;
   const p = state.players;
   let t = e + "|";
-  for (let i = 0; i < p.length; i++) t += (i ? "," : "") + p[i].hdcp;
+  for (let i = 0; i < p.length; i++) {
+    const pt = p[i].tee;
+    t += (i ? "," : "") + p[i].hdcp + (pt ? "@" + pt.rating + "/" + pt.slope + "/" + pt.par : "");
+  }
   t += "|" + (state.selectedTee ? state.selectedTee.rating + "/" + state.selectedTee.slope : "");
-  t += "|" + (halvesStrokes(state) ? "9" : "");
+  t +=
+    "|" + (halvesStrokes(state) ? "9" : "") + "|" + (state.gameOpts && state.gameOpts.strokeRule);
   if (_hdcpCache && _hdcpCacheKey === t) return _hdcpCache;
   return (
     (_hdcpCache = playingHandicapsFor(Object.assign({}, state, { handicapMode: e }))),
@@ -572,9 +576,79 @@ function getPlayingHandicaps() {
    viewing one re-settles it from its card -- so the rule is stamped on the
    round at the first tee and only rounds that carry it play the new way. A
    saved round must keep settling exactly as it was paid. */
-const STROKE_RULE = 2;
+const STROKE_RULE = 3,
+  NINE_HALF_RULE = 2,
+  COURSE_HCP_RULE = 3;
 function halvesStrokes(r) {
-  return 9 === r.holeCount && !!r.gameOpts && r.gameOpts.strokeRule >= STROKE_RULE;
+  return 9 === r.holeCount && !!r.gameOpts && r.gameOpts.strokeRule >= NINE_HALF_RULE;
+}
+/* From rule 3 every round plays off each player's course handicap: the index
+   carried to the tees they are actually playing, the way the scorecard and
+   the WHS do it --
+
+     course handicap = index x slope / 113 + (course rating - par)
+
+   rounded, then the allowance (80%) taken off that and rounded again, then
+   everyone off the low man. Before, "Full" and "80%" gave strokes off the raw
+   index and only a separate "Course" option looked at the tee, so a 15 on a
+   140-slope course played as a 15 instead of the 19 they get there. The rating
+   term only matters between players on different tees (on one tee it is the
+   same for everybody and cancels off the low man), which is why each player
+   carries their own tee. A nine plays off half of it. */
+function usesCourseHandicap(r) {
+  return !!r.gameOpts && r.gameOpts.strokeRule >= COURSE_HCP_RULE;
+}
+function teeOf(r, p) {
+  const t = (p && p.tee) || r.selectedTee;
+  return t && t.rating && t.slope ? t : null;
+}
+// The 18-hole par a tee's rating is measured against.
+function teePar(r, t) {
+  if (t && t.par) return t.par;
+  const ps = r.pars || [];
+  return 18 === r.holeCount && ps.length >= 18 ? ps.slice(0, 18).reduce((a, b) => a + b, 0) : 72;
+}
+/* Every player leaves the first tee carrying the tee they play, rating, slope
+   and par included: the round's tee unless one was picked for them. It rides
+   on the roster, so a saved round and every phone in a live round stroke it
+   the same way without needing the course data. */
+function stampPlayerTees() {
+  const t = state.selectedTee;
+  state.players.forEach((p) => {
+    if (p._teeChosen && p.tee) return void (p.tee.par = p.tee.par || teePar(state, p.tee));
+    t && t.rating && t.slope
+      ? (p.tee = { name: t.name, rating: t.rating, slope: t.slope, par: teePar(state, t) })
+      : delete p.tee;
+  });
+}
+// Each player's course handicap for this round (a nine's is half), unrounded.
+function courseHandicapExact(r, p) {
+  const i = +p.hdcp || 0,
+    t = teeOf(r, p),
+    c = t ? i * (t.slope / 113) + (t.rating - teePar(r, t)) : i;
+  return halvesStrokes(r) ? c / 2 : c;
+}
+/* "Index 15.2 · Course 19 (Blue)" -- where a player's strokes come from, so
+   the group can check it against the board. Empty on rounds that predate it. */
+function courseHcpLine(r, p) {
+  if (!usesCourseHandicap(r) || "none" === r.handicapMode) return "";
+  const t = teeOf(r, p),
+    f = (v) => (v < 0 ? "+" + Math.abs(v) : String(v)),
+    c = Math.round(courseHandicapExact(r, p));
+  return (
+    "Index " +
+    fmtHdcp(+p.hdcp || 0) +
+    (t ? " · Course " + f(c) + (t.name ? " (" + t.name + ")" : "") : " · no slope/rating") +
+    (t && halvesStrokes(r) ? ", half for the nine" : "") +
+    ("80pct" === r.handicapMode ? " · 80% = " + f(Math.round(0.8 * c)) : "")
+  );
+}
+function courseHandicapsFor(r) {
+  const pct = "80pct" === r.handicapMode;
+  return (r.players || []).map((p) => {
+    const c = Math.round(courseHandicapExact(r, p));
+    return pct ? Math.round(0.8 * c) : c;
+  });
 }
 // The strokes each player gets, off the low handicapper. Pure over a round
 // object (live state or a saved round) so cross-round stats can net a card the
@@ -584,6 +658,11 @@ function playingHandicapsFor(r) {
     a = (r.players || []).map((p) => +p.hdcp || 0);
   if (!a.length) return [];
   if ("none" === e) return a.map(() => 0);
+  if (usesCourseHandicap(r)) {
+    const c = courseHandicapsFor(Object.assign({}, r, { handicapMode: e })),
+      lo = Math.min(...c);
+    return c.map((v) => v - lo);
+  }
   let s = [...a];
   if ("80pct" === e) s = a.map((e) => 0.8 * e);
   else if ("course" === e && r.selectedTee?.rating && r.selectedTee?.slope) {

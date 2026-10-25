@@ -74,11 +74,26 @@ function selectCourse(e) {
     document.getElementById("course-results").classList.add("hidden"));
   const a = t.pars.reduce((e, t) => e + t, 0),
     s = document.getElementById("selected-course");
+  /* The first tee is drawn selected, so it is the round's tee until another is
+     tapped. It used to be drawn selected and left unset -- the round played
+     off no slope at all, or off the last course's tee. A tee picked for a
+     player was at another course, so it goes too. */
+  ((state.selectedTee = t.tees && t.tees[0] ? courseTee(t, 0) : null),
+    clearPlayerTees(),
+    "function" == typeof renderPlayers && renderPlayers());
   (s.classList.remove("hidden"),
     (s.innerHTML = `<div class="selected-course-info">\n    <div class="selected-course-name">${esc(t.name)}</div>\n    <div class="selected-course-loc">${esc(t.city)}, ${esc(t.state)} · Par ${a}</div>\n  </div>\n  <div class="tee-selector">\n    <label id="tee-select-label">Select Tees</label>\n    <div class="tee-options" id="tee-options" role="group" aria-labelledby="tee-select-label">\n      ${t.tees.map((e, t) => `\n        <div class="tee-option ${0 === t ? "active" : ""}" data-act="selectTee(${t})" data-tee="${t}" role="button" tabindex="0">\n          <div class="tee-color-bar" style="background:${teeColor(e.name)}"></div>\n          <div class="tee-details">\n            <div class="tee-name">${esc(e.name)}</div>\n            <div class="tee-stats">${e.yds.toLocaleString()} yds · ${e.rating}/${e.slope}</div>\n          </div>\n        </div>\n      `).join("")}\n    </div>\n  </div>\n  <button class="btn small secondary" data-act="clearCourse()" style="margin-top:8px;width:100%"><i data-ico="close"></i> Clear Selection</button>\n  <div class="verify-note">Verify yardage & ratings against your scorecard. Pars & handicaps are editable below.</div>`),
     applyCoursePars(),
     buildParGrid(),
     setParDetailCollapsed(!0));
+}
+// A course's tee, with the 18-hole par its rating is measured against.
+function courseTee(c, i) {
+  return { ...c.tees[i], par: c.pars.reduce((a, b) => a + b, 0) };
+}
+function clearPlayerTees() {
+  (state.players || []).forEach((p) => p && (delete p.tee, delete p._teeChosen));
+  invalidateHdcpCache();
 }
 function teeColor(e) {
   const t = e.toLowerCase();
@@ -102,7 +117,9 @@ function selectTee(e) {
     (document.querySelectorAll(".tee-option").forEach((t, a) => {
       t.classList.toggle("active", a === e);
     }),
-    (state.selectedTee = t.tees[e] ? { ...t.tees[e] } : null),
+    (state.selectedTee = t.tees[e] ? courseTee(t, e) : null),
+    invalidateHdcpCache(),
+    "function" == typeof renderPlayers && renderPlayers(),
     applyCoursePars(),
     buildParGrid(),
     setParDetailCollapsed(!0));
@@ -113,6 +130,7 @@ function clearCourse() {
     (state.pars = [...STANDARD_PARS]),
     (state.hdcps = [...STANDARD_HDCP]),
     (state.selectedTee = null),
+    clearPlayerTees(),
     invalidateHdcpCache(),
     buildParGrid(),
     setParDetailCollapsed(!1));

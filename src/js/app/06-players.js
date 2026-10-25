@@ -486,6 +486,61 @@ function togglePlayerEdit(e) {
   c ? c.classList.toggle("editing", _pEdit.has(e)) : renderPlayers();
 }
 let _hcpToastShown = !1;
+/* What the index is worth on this course, beside it: the strokes come from
+   this figure, and it is the number on the clubhouse board. Shown for 18
+   holes, the way the board shows it; a nine plays off half. */
+function rosterCourseHcpHTML(p) {
+  const t = teeOf(state, p);
+  if (!t) return "";
+  const c = Math.round((+p.hdcp || 0) * (t.slope / 113) + (t.rating - teePar(state, t)));
+  return (
+    '<small class="roster-ch" title="Course handicap from the ' +
+    esc(t.name || "selected") +
+    ' tees">Course <b>' +
+    (c < 0 ? "+" + Math.abs(c) : c) +
+    "</b></small>"
+  );
+}
+/* Who plays which tees. Only offered when the course has more than one; the
+   round's tee is the default, so most rows never touch it. */
+function playerTeeHTML(p, a) {
+  const c = window._selectedCourse;
+  if (state.started || !c || !c.tees || c.tees.length < 2) return "";
+  const on = (p._teeChosen && p.tee && p.tee.name) || (state.selectedTee && state.selectedTee.name);
+  return (
+    '<label class="ptee-label">Tees</label><div class="ptee-row" role="group" aria-label="Tees for ' +
+    esc(p.name || "player") +
+    '">' +
+    c.tees
+      .map(
+        (t, i) =>
+          '<button type="button" class="ptee-chip' +
+          (t.name === on ? " active" : "") +
+          '" data-act="setPlayerTee(' +
+          a +
+          "," +
+          i +
+          ')" aria-pressed="' +
+          (t.name === on) +
+          '">' +
+          esc(t.name) +
+          "</button>",
+      )
+      .join("") +
+    "</div>"
+  );
+}
+function setPlayerTee(a, i) {
+  const p = state.players[a],
+    c = window._selectedCourse;
+  if (!p || !c || !c.tees || !c.tees[i] || state.started) return;
+  const t = courseTee(c, i);
+  state.selectedTee && t.name === state.selectedTee.name
+    ? (delete p.tee, delete p._teeChosen)
+    : ((p.tee = { name: t.name, rating: t.rating, slope: t.slope, par: t.par }),
+      (p._teeChosen = !0));
+  (invalidateHdcpCache(), haptic(), renderPlayers());
+}
 function renderPlayers() {
   if ("function" == typeof suggestHandicaps) {
     const n = suggestHandicaps();
@@ -602,7 +657,7 @@ function renderPlayers() {
     (s += "</div></div></div>"),
     (s += whoAmIPromptHTML()),
     state.players.forEach((t, a) => {
-      s += `<div class="player-card${_pEdit.has(a) ? " editing" : ""}" data-pidx="${a}"><div class="roster-line"><button type="button" class="roster-mono" data-act="openColorPicker('roster',${a})" aria-label="Change player color">${avatarHTML(t, 26)}</button><input type="text" value="${esc(t.name)}" placeholder="Player name" aria-label="Player name" data-idx="${a}" class="pname"><span class="roster-hdcp">Hdcp <b>${t.hdcp < 0 ? "+" + Math.abs(t.hdcp) : t.hdcp}</b></span><button class="roster-edit" data-act="togglePlayerEdit(${a})" aria-label="Edit player"><i data-ico="pencil"></i></button><button class="remove-btn" data-act="removePlayer(${a})" aria-label="Remove player"><i data-ico="close"></i></button></div><div class="player-edit"><label>Handicap Index</label><div class="hdcp-input-wrap"><button data-act="adjHdcp(${a},-1)">−</button><input type="text" inputmode="decimal" class="hdcp" value="${fmtHdcp(t.hdcp)}" maxlength="5" data-idx="${a}" aria-label="Handicap index — type + for a plus handicap"><button data-act="adjHdcp(${a},1)">+</button></div><div class="pay-block${_payOpen.has(a) ? "" : " collapsed"}" data-pidx="${a}"><div class="summary-toggle pay-toggle" data-act="togglePayFields(${a})" role="button" tabindex="0" aria-expanded="${_payOpen.has(a) ? "true" : "false"}"><span>Payment handles <small class="pay-summary">${payHandleSummary(t)}</small></span><span class="toggle-arrow"><i data-ico="down"></i></span></div><div class="pay-fields"><label class="pvenmo-label">Venmo</label><input type="text" class="pvenmo" value="${esc(t.venmo || "")}" data-idx="${a}" placeholder="@handle" aria-label="Venmo username" autocapitalize="off" autocorrect="off" spellcheck="false"><label class="pvenmo-label">Cash App</label><input type="text" class="pvenmo pcashapp" value="${esc(t.cashapp || "")}" data-idx="${a}" placeholder="$cashtag" aria-label="Cash App cashtag" autocapitalize="off" autocorrect="off" spellcheck="false"><label class="pvenmo-label">PayPal</label><input type="text" class="pvenmo ppaypal" value="${esc(t.paypal || "")}" data-idx="${a}" placeholder="paypal.me name" aria-label="PayPal.me name" autocapitalize="off" autocorrect="off" spellcheck="false"></div></div></div></div>`;
+      s += `<div class="player-card${_pEdit.has(a) ? " editing" : ""}" data-pidx="${a}"><div class="roster-line"><button type="button" class="roster-mono" data-act="openColorPicker('roster',${a})" aria-label="Change player color">${avatarHTML(t, 26)}</button><input type="text" value="${esc(t.name)}" placeholder="Player name" aria-label="Player name" data-idx="${a}" class="pname"><span class="roster-hdcp">Hdcp <b>${t.hdcp < 0 ? "+" + Math.abs(t.hdcp) : t.hdcp}</b>${rosterCourseHcpHTML(t)}</span><button class="roster-edit" data-act="togglePlayerEdit(${a})" aria-label="Edit player"><i data-ico="pencil"></i></button><button class="remove-btn" data-act="removePlayer(${a})" aria-label="Remove player"><i data-ico="close"></i></button></div><div class="player-edit"><label>Handicap Index</label><div class="hdcp-input-wrap"><button data-act="adjHdcp(${a},-1)">−</button><input type="text" inputmode="decimal" class="hdcp" value="${fmtHdcp(t.hdcp)}" maxlength="5" data-idx="${a}" aria-label="Handicap index — type + for a plus handicap"><button data-act="adjHdcp(${a},1)">+</button></div>${playerTeeHTML(t, a)}<div class="pay-block${_payOpen.has(a) ? "" : " collapsed"}" data-pidx="${a}"><div class="summary-toggle pay-toggle" data-act="togglePayFields(${a})" role="button" tabindex="0" aria-expanded="${_payOpen.has(a) ? "true" : "false"}"><span>Payment handles <small class="pay-summary">${payHandleSummary(t)}</small></span><span class="toggle-arrow"><i data-ico="down"></i></span></div><div class="pay-fields"><label class="pvenmo-label">Venmo</label><input type="text" class="pvenmo" value="${esc(t.venmo || "")}" data-idx="${a}" placeholder="@handle" aria-label="Venmo username" autocapitalize="off" autocorrect="off" spellcheck="false"><label class="pvenmo-label">Cash App</label><input type="text" class="pvenmo pcashapp" value="${esc(t.cashapp || "")}" data-idx="${a}" placeholder="$cashtag" aria-label="Cash App cashtag" autocapitalize="off" autocorrect="off" spellcheck="false"><label class="pvenmo-label">PayPal</label><input type="text" class="pvenmo ppaypal" value="${esc(t.paypal || "")}" data-idx="${a}" placeholder="paypal.me name" aria-label="PayPal.me name" autocapitalize="off" autocorrect="off" spellcheck="false"></div></div></div></div>`;
     }),
     (e.innerHTML = s),
     e.querySelectorAll(".pname").forEach((e) =>

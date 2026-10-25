@@ -1908,5 +1908,38 @@ console.log('Stakes: a stake changed mid-round leaves the holes already played a
   assertEqual(call('calcMoney'), [5, -5], 'a side-bet skin keeps its $1 on the hole already played and pays $4 after');
 }
 
+// --- Course handicap: strokes come from each player's index on their tees ---
+console.log('Course handicap: index x slope/113 + (rating - par), per player tee, then off the low man');
+{
+  const blue = { name: 'Blue', rating: 73.1, slope: 140, par: 72 };
+  const hc = (o) => {
+    loadState(freshStateLiteral(Object.assign({ handicapMode: 'full', gameOpts: { strokeRule: 3 }, holeCount: 18 }, o)));
+    return call('getPlayingHandicaps');
+  };
+  // 15.2 x 140/113 + 1.1 = 19.93 -> 20; scratch: 0 + 1.1 -> 1. 20 - 1 = 19.
+  assertEqual(hc({ players: [{ name: 'A', hdcp: 15.2, tee: blue }, { name: 'B', hdcp: 0, tee: blue }] }), [19, 0], 'a 15.2 on a 140-slope tee gets 19, not 15');
+  assertEqual(hc({ players: [{ name: 'A', hdcp: 15.2 }, { name: 'B', hdcp: 0 }], selectedTee: blue }), [19, 0], 'a player with no tee of their own plays the round\'s tee');
+  // Blue 72.4/131: 10 -> 11.59 + 0.4 = 12. White 69.8/124: 10 -> 10.97 - 2.2 = 8.77 -> 9.
+  assertEqual(hc({ players: [
+    { name: 'A', hdcp: 10, tee: { name: 'Blue', rating: 72.4, slope: 131, par: 72 } },
+    { name: 'B', hdcp: 10, tee: { name: 'White', rating: 69.8, slope: 124, par: 72 } },
+  ] }), [3, 0], 'two 10s on different tees: the one on the longer tee gets 3 strokes');
+  // 80% is taken off the rounded course handicaps: 20 -> 16, 1 -> 1.
+  assertEqual(hc({ handicapMode: '80pct', players: [{ name: 'A', hdcp: 15.2, tee: blue }, { name: 'B', hdcp: 0, tee: blue }] }), [15, 0], '80% comes off the course handicap');
+  // A nine plays off half: 19.93/2 -> 10, 1.1/2 -> 1.
+  assertEqual(hc({ holeCount: 9, players: [{ name: 'A', hdcp: 15.2, tee: blue }, { name: 'B', hdcp: 0, tee: blue }] }), [9, 0], 'a nine plays off half the course handicap');
+  // A plus index: -2 x 140/113 + 1.1 = -1.38 -> -1; 15.2 -> 20. 20 - (-1) = 21.
+  assertEqual(hc({ players: [{ name: 'A', hdcp: 15.2, tee: blue }, { name: 'B', hdcp: -2, tee: blue }] }), [21, 0], 'a plus handicap gives strokes back off the course figure');
+  assertEqual(hc({ players: [{ name: 'A', hdcp: 15.2 }, { name: 'B', hdcp: 0 }] }), [15, 0], 'no slope or rating: the index is the course handicap');
+  assertEqual(hc({ handicapMode: 'none', players: [{ name: 'A', hdcp: 15.2, tee: blue }, { name: 'B', hdcp: 0, tee: blue }] }), [0, 0], 'scratch is still scratch');
+  // Rounds started under the old rule settle exactly as they were paid.
+  assertEqual(hc({ gameOpts: { strokeRule: 2 }, players: [{ name: 'A', hdcp: 15.2, tee: blue }, { name: 'B', hdcp: 0, tee: blue }] }), [15, 0], 'an older round keeps playing off the index');
+  // Strokes land on the hardest holes: 19 strokes = one on every hole, two on the 1-index.
+  const strokes = vm.runInContext('Array.from({ length: 18 }, (_, h) => getStrokesOnHole(19, h))', context);
+  assertEqual(strokes.filter((n) => n === 2).length, 1, '19 strokes: two on the hardest hole, one everywhere else');
+  loadState(freshStateLiteral({ handicapMode: 'full', gameOpts: { strokeRule: 3 }, players: [{ name: 'A', hdcp: 15.2, tee: blue }] }));
+  assertEqual(call('courseHcpLine', vm.runInContext('state', context), vm.runInContext('state.players[0]', context)), 'Index 15.2 · Course 20 (Blue)', 'the summary shows where the strokes come from');
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

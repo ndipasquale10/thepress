@@ -94,6 +94,8 @@ function startRound() {
       ? vegasSetupValid() && nassauSetupValid() && sixesSetupValid() && bankerSetupValid()
         ? ((state.course = document.getElementById("course-name").value || "Round"),
           (state.gameOpts = Object.assign(readGameOpts(), { strokeRule: STROKE_RULE })),
+          stampPlayerTees(),
+          invalidateHdcpCache(),
           (state.sideBets = readSideBets()),
           saveProfiles(),
           (state.scores = {}),
@@ -132,11 +134,12 @@ function renderStrokeSummary() {
     a = state.handicapMode,
     s = state.players.map((e) => e.hdcp),
     n = Math.min(...s),
-    o = state.players[s.indexOf(n)].name;
+    // Off the low course handicap, which on mixed tees need not be the low index.
+    o = state.players[usesCourseHandicap(state) ? t.indexOf(0) : s.indexOf(n)].name;
   if ("none" === a)
     return void (e.innerHTML =
       '<div class="summary-toggle">Playing Scratch — No Strokes Given <span class="toggle-arrow"><i data-ico="down"></i></span></div>');
-  let l = `<div class="summary-toggle">Stroke Summary <span class="toggle-arrow"><i data-ico="down"></i></span></div><div class="summary-body">\n    <div class="summary-meta">Low handicap: <strong>${esc(o)} (${n < 0 ? "+" + Math.abs(n) : n})</strong> — plays scratch${"80pct" === a ? " · 80% applied" : ""}${halvesStrokes(state) ? " · half strokes over nine" : ""}</div>\n    <div class="summary-players">`;
+  let l = `<div class="summary-toggle">Stroke Summary <span class="toggle-arrow"><i data-ico="down"></i></span></div><div class="summary-body">\n    <div class="summary-meta">Low handicap: <strong>${esc(o)}${usesCourseHandicap(state) ? "" : ` (${n < 0 ? "+" + Math.abs(n) : n})`}</strong> — plays scratch${usesCourseHandicap(state) ? " · course handicaps" : ""}${"80pct" === a ? " · 80% applied" : ""}${halvesStrokes(state) ? " · half strokes over nine" : ""}</div>\n    <div class="summary-players">`;
   (state.players.forEach((e, a) => {
     const s = t[a],
       n = (e.hdcp < 0 ? Math.abs(e.hdcp) : e.hdcp, []),
@@ -145,7 +148,7 @@ function renderStrokeSummary() {
       const t = getStrokesOnHole(s, e);
       2 === t ? o.push(hLbl(e)) : 1 === t && n.push(hLbl(e));
     }
-    l += `<div class="summary-player">\n      <div class="summary-player-top">\n        ${avatarHTML(e, 10)}\n        <span class="summary-name">${esc(e.name)}</span>\n        <span class="summary-hdcp">${0 === s ? "Scratch" : `<strong>${s}</strong> strokes`}</span>\n      </div>\n      ${s > 0 ? `<div class="summary-holes">\n        ${n.length ? `<span class="stroke-dot-label">● Holes:</span> ${n.join(", ")}` : ""}\n        ${o.length ? `<span class="stroke-dot-label double">●● Holes:</span> ${o.join(", ")}` : ""}\n      </div>` : ""}\n    </div>`;
+    l += `<div class="summary-player">\n      <div class="summary-player-top">\n        ${avatarHTML(e, 10)}\n        <span class="summary-name">${esc(e.name)}</span>\n        <span class="summary-hdcp">${0 === s ? "Scratch" : `<strong>${s}</strong> strokes`}</span>\n      </div>\n      ${courseHcpLine(state, e) ? `<span class="summary-ch">${esc(courseHcpLine(state, e))}</span>` : ""}\n      ${s > 0 ? `<div class="summary-holes">\n        ${n.length ? `<span class="stroke-dot-label">● Holes:</span> ${n.join(", ")}` : ""}\n        ${o.length ? `<span class="stroke-dot-label double">●● Holes:</span> ${o.join(", ")}` : ""}\n      </div>` : ""}\n    </div>`;
   }),
     (l += "</div></div>"),
     (e.innerHTML = l));

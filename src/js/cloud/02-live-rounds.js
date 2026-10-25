@@ -237,8 +237,8 @@ function syncHandicapModeSelect() {
    whether anything changed. */
 function applyLiveSetup(t) {
   let changed = !1;
-  /* Names and handicaps only, merged into this phone's own player objects so
-     the payment handles it holds (never published) stay where they are. */
+  /* Names, handicaps and tees only, merged into this phone's own player
+     objects so the payment handles it holds (never published) stay put. */
   const ps = t.players,
     cur = state.players || [];
   if (Array.isArray(ps) && ps.length) {
@@ -246,8 +246,13 @@ function applyLiveSetup(t) {
     else
       ps.forEach((p, i) => {
         p &&
-          (p.name !== cur[i].name || p.hdcp !== cur[i].hdcp) &&
-          ((cur[i].name = p.name), (cur[i].hdcp = p.hdcp), (changed = !0));
+          (p.name !== cur[i].name ||
+            p.hdcp !== cur[i].hdcp ||
+            JSON.stringify(p.tee || null) !== JSON.stringify(cur[i].tee || null)) &&
+          ((cur[i].name = p.name),
+          (cur[i].hdcp = p.hdcp),
+          p.tee ? (cur[i].tee = p.tee) : delete cur[i].tee,
+          (changed = !0));
       });
   }
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);

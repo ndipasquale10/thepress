@@ -2228,6 +2228,79 @@ section("Edit Round mid-game: a new handicap strokes the round, a new stake pric
   await ctx.close();
 }
 
+// --------------------------------------------------------------------------
+section("Strokes come from each player's course handicap on the tees they play");
+// --------------------------------------------------------------------------
+{
+  const { ctx, p, errors } = await page();
+  // Setup, the way a group does it: pick the course, the round's tee is the
+  // first one, and one player moves up a tee.
+  const set = await p.evaluate(() => {
+    window.showStrokes = () => {};
+    state.players = [
+      // Typed, so the round history does not suggest other figures.
+      { name: "You", hdcp: 15.2, color: "", venmo: "", _hdcpTouched: true },
+      { name: "Big Dave", hdcp: 4, color: "", venmo: "", _hdcpTouched: true },
+    ];
+    enterScreen("setup");
+    setHoleCount(18);
+    renderPlayers();
+    searchCourses("arrowhead");
+    document.querySelector("#course-results .course-item").click();
+    const c = window._selectedCourse;
+    const first = state.selectedTee && state.selectedTee.name;
+    togglePlayerEdit(1);
+    const chips = [...document.querySelectorAll('.player-card[data-pidx="1"] .ptee-chip')];
+    const white = chips.find((b) => b.textContent.trim() === "White");
+    white && white.click();
+    return {
+      course: c && c.name,
+      first,
+      tees: c ? c.tees.map((t) => t.name) : [],
+      par: c ? c.pars.reduce((a, b) => a + b, 0) : 0,
+      black: c && c.tees.find((t) => t.name === "Black"),
+      whiteTee: c && c.tees.find((t) => t.name === "White"),
+      chips: chips.map((b) => b.textContent.trim()),
+      chOnRow: document.querySelector('.player-card[data-pidx="0"] .roster-ch')?.textContent || "",
+      dave: JSON.parse(JSON.stringify(state.players[1].tee || null)),
+    };
+  });
+  ok(set.first === set.tees[0], "picking a course sets its first tee as the round's tee", `${set.first} of ${set.tees}`);
+  ok(set.chips.length === set.tees.length, "each player can pick from the course's tees", set.chips.join(","));
+  ok(set.dave && set.dave.name === "White", "and Big Dave moves to the White tees", JSON.stringify(set.dave));
+  const ch = (i, t) => Math.round(i * (t.slope / 113) + (t.rating - set.par));
+  const youCh = ch(15.2, set.black), daveCh = ch(4, set.whiteTee);
+  ok(new RegExp("Course\\s*" + youCh).test(set.chOnRow), "the roster shows the course handicap beside the index", set.chOnRow);
+
+  await p.evaluate(() => {
+    document.getElementById("start-btn").click();
+  });
+  await p.waitForTimeout(250);
+  const r = await p.evaluate(() => {
+    document.getElementById("handicap-mode").value = "full";
+    selectGameType("skins");
+    startRound();
+    document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden"));
+    return {
+      holes: maxHole(),
+      ph: getPlayingHandicaps(),
+      tees: state.players.map((pl) => pl.tee && pl.tee.name),
+      summary: document.getElementById("stroke-summary").textContent.replace(/\s+/g, " "),
+    };
+  });
+  ok(r.holes === 18, "an 18-hole round", String(r.holes));
+  ok(JSON.stringify(r.tees) === JSON.stringify(["Black", "White"]), "each player leaves the first tee carrying their tees", JSON.stringify(r.tees));
+  ok(
+    JSON.stringify(r.ph) === JSON.stringify([youCh - Math.min(youCh, daveCh), daveCh - Math.min(youCh, daveCh)]),
+    "strokes are the course-handicap difference, not the index difference",
+    `got ${r.ph}, course ${youCh} vs ${daveCh}, index diff ${Math.round(15.2 - 4)}`
+  );
+  ok(r.ph[0] !== Math.round(15.2 - 4), "which on these tees is not what the raw indexes give", `${r.ph[0]}`);
+  ok(new RegExp("Course " + youCh + " \\(Black\\)").test(r.summary) && new RegExp("Course " + daveCh + " \\(White\\)").test(r.summary), "the stroke summary shows each player's course handicap and tees", r.summary.slice(0, 300));
+  ok(errors.length === 0, "course handicap: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
