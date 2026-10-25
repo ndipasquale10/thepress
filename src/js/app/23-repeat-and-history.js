@@ -62,9 +62,12 @@ function repeatLastRound() {
     (state.pickedUp = {}),
     (state.scores = {}),
     (state.bonusPoints = {}));
-  (state.players.forEach((p, i) => {
-    ((state.scores[i] = {}), (state.bonusPoints[i] = {}));
-  }),
+  // Last round's mid-round stake changes were for its holes, not this one's.
+  (delete state.gameOpts.stakeHist,
+    Object.values(state.sideBets).forEach((sb) => sb && delete sb.stakeHist),
+    state.players.forEach((p, i) => {
+      ((state.scores[i] = {}), (state.bonusPoints[i] = {}));
+    }),
     (state.wolfHoles = {}),
     (state.wolfBreakouts = {}),
     (state.bankerHoles = {}),

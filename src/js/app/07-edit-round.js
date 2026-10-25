@@ -19,7 +19,8 @@ function gameStakeLabel(g) {
    (every score is keyed to a player index), but names, handicaps, the round
    name, and the money stakes are safe to change mid-round: net scores and all
    payouts are recomputed from these values, so editing then re-rendering keeps
-   the running money correct. */
+   the running money correct. A handicap is the round's (it re-strokes every
+   hole); a stake applies from the next hole in play (see setStakeFrom). */
 function editRoundStakeFields() {
   const g = state.gameType,
     o = state.gameOpts || {},
@@ -85,12 +86,20 @@ function showEditRound() {
     s +=
       '<div class="er-section"><div class="er-head">Wolf order</div><div class="hint" style="margin:-2px 0 8px">Drag a player to change who is Wolf on each hole. Holes already played keep the Wolf they were played with.</div><div id="er-wolf-order"></div></div>';
   }
-  const stakes = editRoundStakeFields();
+  const stakes = editRoundStakeFields(),
+    from = stakeChangeHole(),
+    stakeHint =
+      from > 0 && from < maxHole()
+        ? '<div class="hint" style="margin:-2px 0 8px">A new stake applies from hole ' +
+          hLbl(from) +
+          ". Holes already played keep the stake they were played for.</div>"
+        : "";
   if (stakes.length) {
     s +=
       '<div class="er-section"><div class="er-head">' +
       esc(GAME_NAMES[state.gameType] || state.gameType || "") +
-      " stakes ($)</div>";
+      " stakes ($)</div>" +
+      stakeHint;
     stakes.forEach((f) => {
       s +=
         '<label class="er-stake-row"><span>' +
@@ -107,7 +116,9 @@ function showEditRound() {
     sbLabels = { skins: "Skins (per skin)", snake: "Snake (pot)", junk: "Junk / Dots (per dot)" },
     sbKeys = Object.keys(SIDE_BET_DEFAULTS).filter((k) => sb[k] && sb[k].on);
   if (sbKeys.length) {
-    s += '<div class="er-section"><div class="er-head">Side bets ($)</div>';
+    s +=
+      '<div class="er-section"><div class="er-head">Side bets ($)</div>' +
+      (stakes.length ? "" : stakeHint);
     sbKeys.forEach((k) => {
       s +=
         '<label class="er-stake-row"><span>' +
@@ -252,12 +263,17 @@ function saveEditRound() {
       }
     }
   }
+  /* A new stake prices the holes still to play; the ones already played keep
+     paying what they were played for. */
+  const from = stakeChangeHole();
   document.querySelectorAll("#edit-round-content .er-stake").forEach((inp) => {
-    state.gameOpts[inp.dataset.key] = Math.max(1, +inp.value || 1);
+    setStakeFrom(state.gameOpts, inp.dataset.key, Math.max(1, +inp.value || 1), from);
   });
   document.querySelectorAll("#edit-round-content .er-sb").forEach((inp) => {
     const k = inp.dataset.key;
-    state.sideBets && state.sideBets[k] && (state.sideBets[k].val = Math.max(0, +inp.value || 0));
+    state.sideBets &&
+      state.sideBets[k] &&
+      setStakeFrom(state.sideBets[k], "val", Math.max(0, +inp.value || 0), from);
   });
   (invalidateHdcpCache(),
     invalidateMoneyCache(),

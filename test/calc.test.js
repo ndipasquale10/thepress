@@ -1812,5 +1812,101 @@ assertEqual(_sup({ players: [{ name: 'A', color: 0 }, { name: 'B', color: 1 }], 
   memoryStorage.removeItem('golfProfiles');
 }
 
+// --- A stake changed mid-round prices only the holes still to play ---
+console.log('Stakes: a stake changed mid-round leaves the holes already played at the old stake');
+{
+  const sh = (o) => JSON.parse(JSON.stringify(o));
+  vm.runInContext('globalThis.__o = { wolfVal: 2 };', context);
+  vm.runInContext('setStakeFrom(__o, "wolfVal", 5, 3)', context);
+  const at = (h) => vm.runInContext(`stakeAt(__o, "wolfVal", ${h})`, context);
+  assertEqual([at(0), at(2), at(3), at(17)], [2, 2, 5, 5], 'holes before the change keep 2, the rest play at 5');
+  vm.runInContext('setStakeFrom(__o, "wolfVal", 10, 6)', context);
+  assertEqual([at(2), at(4), at(6)], [2, 5, 10], 'a second change keeps both earlier stakes');
+  vm.runInContext('setStakeFrom(__o, "wolfVal", 7, 4)', context);
+  assertEqual([at(2), at(3), at(4), at(9)], [2, 5, 7, 7], 'a change from an earlier hole (scores cleared) keeps what came before it');
+  vm.runInContext('setStakeFrom(__o, "wolfVal", 3, 0)', context);
+  assertEqual(sh(vm.runInContext('__o', context)), { wolfVal: 3 }, 'a change before any hole is played just changes the stake');
+  vm.runInContext('globalThis.__o = { ptVal: 2 }; setStakeFrom(__o, "ptVal", 4, 5); setStakeFrom(__o, "ptVal", 2, 5);', context);
+  assertEqual(sh(vm.runInContext('__o', context)), { ptVal: 2 }, 'changing it back leaves no history behind');
+}
+{
+  // Six holes, four players, varied enough that every format moves money.
+  const players = ['A', 'B', 'C', 'D'].map((name) => ({ name, hdcp: 0 }));
+  const card = scoresFor([
+    [3, 4, 5, 4, 3, 4],
+    [4, 4, 4, 5, 4, 3],
+    [5, 3, 4, 4, 5, 4],
+    [4, 5, 4, 3, 4, 5],
+  ]);
+  const upTo = (c) => {
+    const o = {};
+    Object.keys(card).forEach((i) => {
+      o[i] = {};
+      for (let h = 0; h < c; h++) o[i][h] = card[i][h];
+    });
+    return o;
+  };
+  const wolfHoles = {};
+  for (let h = 0; h < 6; h++) wolfHoles[h] = { wolf: h % 4, partners: h % 3 ? [(h + 1) % 4] : [], hammers: h === 4 ? 1 : 0 };
+  const bonus = { 0: { 0: 1, 4: 2 }, 1: { 2: 1 }, 2: { 1: 1, 5: 1 }, 3: { 3: 2 } };
+  const cases = [
+    ['skins', 'calcSkinsMoney', 'skinVal', { carry: false }],
+    ['match', 'calcMatchMoney', 'holeVal', {}],
+    ['stableford', 'calcStablefordMoney', 'ptVal', {}],
+    ['vegas', 'calcVegasMoney', 'vegasVal', { vegasTeams: [[0, 1], [2, 3]] }],
+    ['dots', 'calcBonusMoney', 'dotVal', {}],
+    ['bingo', 'calcBonusMoney', 'ptVal', {}],
+    ['wolf', 'calcWolfMoney', 'wolfVal', { lone2x: true }],
+  ];
+  const C = 3, V0 = 2, V1 = 5;
+  for (const [g, fn, key, extra] of cases) {
+    const run = (scores, opts) => {
+      // Dots count whether or not the hole is scored, so cut them back with the card.
+      const c = Object.keys(scores[0]).length, bonusPoints = {};
+      Object.keys(bonus).forEach((i) => {
+        bonusPoints[i] = {};
+        Object.keys(bonus[i]).forEach((h) => +h < c && (bonusPoints[i][h] = bonus[i][h]));
+      });
+      loadState(freshStateLiteral({ players, gameType: g, holeCount: 6, scores, wolfHoles, bonusPoints, gameOpts: Object.assign({}, extra, opts) }));
+      return call(fn);
+    };
+    // Holes 1-3 as played at $2, plus what holes 4-6 add at $5.
+    const before = run(upTo(C), { [key]: V0 });
+    const at5 = run(card, { [key]: V1 });
+    const first3at5 = run(upTo(C), { [key]: V1 });
+    const want = before.map((v, i) => +(v + at5[i] - first3at5[i]).toFixed(2));
+    const got = run(card, { [key]: V1, stakeHist: { [key]: [{ until: C, val: V0 }] } }).map((v) => +v.toFixed(2));
+    assertEqual(got, want, `${g}: holes 1-3 stay at $${V0}, holes 4-6 pay $${V1}`);
+    assertEqual(+got.reduce((a, b) => a + b, 0).toFixed(9), 0, `${g}: still zero-sum`);
+  }
+
+  // A carry pays each carried hole at the stake it was played for.
+  loadState(freshStateLiteral({
+    players, gameType: 'skins', holeCount: 3,
+    scores: scoresFor([[4, 4, 3], [4, 4, 4], [5, 4, 4], [5, 5, 4]]),
+    gameOpts: { skinVal: 3, carry: true, stakeHist: { skinVal: [{ until: 1, val: 1 }] } },
+  }));
+  assertEqual(call('calcSkinsMoney'), [21, -7, -7, -7], 'a skin carried from a $1 hole into two $3 holes is worth $7 a man');
+
+  // A Nassau bet pays the stake in play on its last hole: a finished front
+  // nine keeps its stake, the overall takes the new one.
+  const frontA = Array.from({ length: 18 }, (_, h) => (h < 9 ? 3 : 4));
+  loadState(freshStateLiteral({
+    players: players.slice(0, 2), gameType: 'nassau', holeCount: 18,
+    scores: scoresFor([frontA, Array(18).fill(4)]),
+    gameOpts: { front: 10, back: 10, overall: 10, stakeHist: { front: [{ until: 9, val: 5 }], overall: [{ until: 9, val: 5 }] } },
+  }));
+  // The back nine is all square, so: $5 front + $10 overall.
+  assertEqual(call('calcNassauMoney'), [15, -15], 'Nassau: the front pays its $5, the overall the $10 it was raised to');
+
+  // A side bet keeps its own history the same way.
+  loadState(freshStateLiteral({
+    players: players.slice(0, 2), gameType: 'none', holeCount: 2,
+    scores: scoresFor([[3, 3], [4, 4]]),
+    sideBets: { skins: { on: true, val: 4, carry: false, stakeHist: { val: [{ until: 1, val: 1 }] } }, snake: { on: false, val: 5 }, junk: { on: false, val: 2 } },
+  }));
+  assertEqual(call('calcMoney'), [5, -5], 'a side-bet skin keeps its $1 on the hole already played and pays $4 after');
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
