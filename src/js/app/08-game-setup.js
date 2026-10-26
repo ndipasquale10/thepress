@@ -582,18 +582,32 @@ const STROKE_RULE = 3,
 function halvesStrokes(r) {
   return 9 === r.holeCount && !!r.gameOpts && r.gameOpts.strokeRule >= NINE_HALF_RULE;
 }
-/* From rule 3 every round plays off each player's course handicap: the index
-   carried to the round's tees, the way the scorecard and the WHS do it --
+/* From rule 3 every round plays off each player's course handicap on the
+   round's tees, worked out the way GHIN and the Rules of Handicapping do it:
 
-     course handicap = index x slope / 113 + (course rating - par)
+     course handicap (Rule 6.1a) = index x slope / 113 + (course rating - par)
+     a nine (Rule 6.1b) = (index / 2, to the tenth) x slope / 113
+                          + (nine-hole rating - the nine's par)
+     playing handicap (Rule 6.2) = course handicap x allowance
 
-   rounded, then the allowance (80%) taken off that and rounded again, then
-   everyone off the low man. Before, "Full" and "80%" gave strokes off the raw
-   index and only a separate "Course" option looked at the tee, so a 15 on a
-   140-slope course played as a 15 instead of the 19 they get there. The whole
-   group plays the same tees, so the rating term is the same for everybody and
-   mostly cancels off the low man; the slope is what spreads the strokes. A
-   nine plays off half of it. */
+   The allowance is applied to the UNROUNDED course handicap and rounded once,
+   .5 up -- rounding the course handicap first and again after the allowance
+   is the double rounding Rule 6.2 exists to prevent. Then everyone plays off
+   the low man, as Appendix C has match play do.
+
+   Before rule 3, "Full" and "80%" gave strokes off the raw index and only a
+   separate "Course" option looked at the tee, so a 15 on a 140-slope course
+   played as a 15 instead of the 19 they get there. The group plays one set of
+   tees, so the rating term is the same for everybody and mostly cancels off
+   the low man; the slope is what spreads the strokes.
+
+   The course list carries 18-hole ratings only, so a nine uses the 18-hole
+   slope and half the 18-hole rating -- the USGA's own fallback when a nine
+   has no rating of its own -- against the par of the nine actually played. */
+const HCP_ALLOWANCE = { "95pct": 0.95, "85pct": 0.85, "80pct": 0.8 };
+function hcpAllowance(mode) {
+  return HCP_ALLOWANCE[mode] || 1;
+}
 function usesCourseHandicap(r) {
   return !!r.gameOpts && r.gameOpts.strokeRule >= COURSE_HCP_RULE;
 }
@@ -619,34 +633,44 @@ function stampPlayerTees() {
       : delete p.tee;
   });
 }
-// Each player's course handicap for this round (a nine's is half), unrounded.
+// A player's course handicap for this round, unrounded (Rule 6.1).
 function courseHandicapExact(r, p) {
   const i = +p.hdcp || 0,
-    t = teeOf(r, p),
-    c = t ? i * (t.slope / 113) + (t.rating - teePar(r, t)) : i;
-  return halvesStrokes(r) ? c / 2 : c;
+    t = teeOf(r, p);
+  if (halvesStrokes(r)) {
+    // Holes 0-8 of the card are the nine being played, front or back.
+    const hi = Math.round((i / 2) * 10) / 10,
+      par9 = (r.pars || []).slice(0, 9).reduce((a, b) => a + b, 0) || teePar(r, t) / 2;
+    return t ? hi * (t.slope / 113) + (t.rating / 2 - par9) : hi;
+  }
+  return t ? i * (t.slope / 113) + (t.rating - teePar(r, t)) : i;
 }
-/* "Index 15.2 · Course 19 (Blue)" -- where a player's strokes come from, so
-   the group can check it against the board. Empty on rounds that predate it. */
+// Rounded to the nearest whole number, .5 up -- for a plus figure too.
+function roundHcp(v) {
+  return Math.floor(v + 0.5 + 1e-9);
+}
+/* "Index 15.2 · Course 20 (Blue) · 95% = 19" -- where a player's strokes come
+   from, so the group can check it against GHIN. Empty on rounds before it. */
 function courseHcpLine(r, p) {
   if (!usesCourseHandicap(r) || "none" === r.handicapMode) return "";
   const t = teeOf(r, p),
     f = (v) => (v < 0 ? "+" + Math.abs(v) : String(v)),
-    c = Math.round(courseHandicapExact(r, p));
+    c = courseHandicapExact(r, p),
+    pct = hcpAllowance(r.handicapMode);
   return (
     "Index " +
     fmtHdcp(+p.hdcp || 0) +
-    (t ? " · Course " + f(c) + (t.name ? " (" + t.name + ")" : "") : " · no slope/rating") +
-    (t && halvesStrokes(r) ? ", half for the nine" : "") +
-    ("80pct" === r.handicapMode ? " · 80% = " + f(Math.round(0.8 * c)) : "")
+    (t
+      ? " · Course " + f(roundHcp(c)) + (t.name ? " (" + t.name + ")" : "")
+      : " · no slope/rating") +
+    (halvesStrokes(r) ? " for the nine" : "") +
+    (pct < 1 ? " · " + Math.round(100 * pct) + "% = " + f(roundHcp(c * pct)) : "")
   );
 }
+// Each player's playing handicap (Rule 6.2): allowance on the unrounded figure.
 function courseHandicapsFor(r) {
-  const pct = "80pct" === r.handicapMode;
-  return (r.players || []).map((p) => {
-    const c = Math.round(courseHandicapExact(r, p));
-    return pct ? Math.round(0.8 * c) : c;
-  });
+  const pct = hcpAllowance(r.handicapMode);
+  return (r.players || []).map((p) => roundHcp(courseHandicapExact(r, p) * pct));
 }
 // The strokes each player gets, off the low handicapper. Pure over a round
 // object (live state or a saved round) so cross-round stats can net a card the

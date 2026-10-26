@@ -1927,6 +1927,22 @@ console.log('Course handicap: index x slope/113 + (rating - par) on the round te
   assertEqual(hc({ players: [{ name: 'A', hdcp: 15.2, tee: blue }, { name: 'B', hdcp: -2, tee: blue }] }), [21, 0], 'a plus handicap gives strokes back off the course figure');
   assertEqual(hc({ players: [{ name: 'A', hdcp: 15.2 }, { name: 'B', hdcp: 0 }] }), [15, 0], 'no slope or rating: the index is the course handicap');
   assertEqual(hc({ handicapMode: 'none', players: [{ name: 'A', hdcp: 15.2, tee: blue }, { name: 'B', hdcp: 0, tee: blue }] }), [0, 0], 'scratch is still scratch');
+  // The USGA's own examples (Rules of Handicapping FAQs and Rule 6.1b guidance).
+  const ph = (o) => {
+    loadState(freshStateLiteral(Object.assign({ gameOpts: { strokeRule: 3 }, holeCount: 18 }, o)));
+    return call('courseHandicapsFor', vm.runInContext('state', context));
+  };
+  // 8.6 and 10.3 on a 125 slope: course 9.51 and 11.39. 85% of the unrounded
+  // figures is 8.09 and 9.68 -> 8 and 10; rounding first (10, 11) gave 9 and 9.
+  const t125 = { name: 'T', rating: 72, slope: 125, par: 72 };
+  assertEqual(ph({ handicapMode: '85pct', players: [{ name: 'A', hdcp: 8.6, tee: t125 }, { name: 'B', hdcp: 10.3, tee: t125 }] }), [8, 10], 'the allowance is applied to the unrounded course handicap (USGA example: 8 and 10, not 9 and 9)');
+  assertEqual(ph({ handicapMode: '95pct', players: [{ name: 'A', hdcp: 8.6, tee: t125 }] }), [9], '95% for stroke play: 9.51 x 0.95 = 9.04 -> 9');
+  // 9 holes: 8.7 / 2 = 4.35 -> 4.4; x 121/113 + (35.3 - 36) = 4.01 -> 4.
+  const nineTee = { name: 'N', rating: 70.6, slope: 121, par: 72 };
+  assertEqual(ph({ holeCount: 9, handicapMode: 'full', pars: [4, 4, 4, 4, 4, 4, 4, 4, 4, ...Array(9).fill(4)], players: [{ name: 'A', hdcp: 8.7, tee: nineTee }] }), [4], 'a nine: half the index to the tenth, then the nine\'s rating and par (USGA example: 4)');
+  // The nine's own par counts: the same player on a par-35 nine gets one more.
+  assertEqual(ph({ holeCount: 9, handicapMode: 'full', pars: [4, 4, 3, 4, 4, 4, 4, 4, 4, ...Array(9).fill(4)], players: [{ name: 'A', hdcp: 8.7, tee: nineTee }] }), [5], 'a par-35 nine gives a stroke more than a par-36 one');
+  assertEqual([call('roundHcp', 4.5), call('roundHcp', 4.49), call('roundHcp', -1.5), call('roundHcp', -1.51)], [5, 4, -1, -2], '.5 rounds up, for a plus figure too');
   // Rounds started under the old rule settle exactly as they were paid.
   assertEqual(hc({ gameOpts: { strokeRule: 2 }, players: [{ name: 'A', hdcp: 15.2, tee: blue }, { name: 'B', hdcp: 0, tee: blue }] }), [15, 0], 'an older round keeps playing off the index');
   // Strokes land on the hardest holes: 19 strokes = one on every hole, two on the 1-index.

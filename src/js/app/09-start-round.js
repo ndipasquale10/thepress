@@ -139,7 +139,7 @@ function renderStrokeSummary() {
   if ("none" === a)
     return void (e.innerHTML =
       '<div class="summary-toggle">Playing Scratch — No Strokes Given <span class="toggle-arrow"><i data-ico="down"></i></span></div>');
-  let l = `<div class="summary-toggle">Stroke Summary <span class="toggle-arrow"><i data-ico="down"></i></span></div><div class="summary-body">\n    <div class="summary-meta">Low handicap: <strong>${esc(o)}${usesCourseHandicap(state) ? "" : ` (${n < 0 ? "+" + Math.abs(n) : n})`}</strong> — plays scratch${usesCourseHandicap(state) ? " · course handicaps" : ""}${"80pct" === a ? " · 80% applied" : ""}${halvesStrokes(state) ? " · half strokes over nine" : ""}</div>\n    <div class="summary-players">`;
+  let l = `<div class="summary-toggle">Stroke Summary <span class="toggle-arrow"><i data-ico="down"></i></span></div><div class="summary-body">\n    <div class="summary-meta">Low handicap: <strong>${esc(o)}${usesCourseHandicap(state) ? "" : ` (${n < 0 ? "+" + Math.abs(n) : n})`}</strong> — plays scratch${usesCourseHandicap(state) ? " · course handicaps" : ""}${hcpAllowance(a) < 1 ? ` · ${Math.round(100 * hcpAllowance(a))}% applied` : ""}${halvesStrokes(state) ? " · half strokes over nine" : ""}</div>\n    <div class="summary-players">`;
   (state.players.forEach((e, a) => {
     const s = t[a],
       n = (e.hdcp < 0 ? Math.abs(e.hdcp) : e.hdcp, []),

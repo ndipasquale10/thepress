@@ -14,8 +14,8 @@ function showStrokes() {
     lowName = state.players[hc.indexOf(low)]?.name || "",
     note =
       (ch ? " · course handicaps" : "") +
-      ("80pct" === mode
-        ? " · 80% handicap"
+      (hcpAllowance(mode) < 1
+        ? " · " + Math.round(100 * hcpAllowance(mode)) + "% handicap"
         : "course" === mode && !ch
           ? " · course handicap"
           : "") +

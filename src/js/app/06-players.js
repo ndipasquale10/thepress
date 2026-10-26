@@ -487,16 +487,19 @@ function togglePlayerEdit(e) {
 }
 let _hcpToastShown = !1;
 /* What the index is worth on this course, beside it: the strokes come from
-   this figure, and it is the number on the clubhouse board. Shown for 18
-   holes, the way the board shows it; a nine plays off half. */
+   this figure, and it is the one GHIN shows for these tees -- for the nine,
+   on a nine-hole round. Worked out as the round about to start will. */
 function rosterCourseHcpHTML(p) {
   const t = teeOf(state, p);
   if (!t) return "";
-  const c = Math.round((+p.hdcp || 0) * (t.slope / 113) + (t.rating - teePar(state, t)));
+  const r = Object.assign({}, state, { gameOpts: { strokeRule: STROKE_RULE } }),
+    c = roundHcp(courseHandicapExact(r, p));
   return (
     '<small class="roster-ch" title="Course handicap from the ' +
     esc(t.name || "selected") +
-    ' tees">Course <b>' +
+    " tees" +
+    (halvesStrokes(r) ? " for the nine" : "") +
+    '">Course <b>' +
     (c < 0 ? "+" + Math.abs(c) : c) +
     "</b></small>"
   );
