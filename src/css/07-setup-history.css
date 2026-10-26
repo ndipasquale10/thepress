@@ -200,3 +200,67 @@
   font-size: var(--fs-2xs);
   color: var(--muted);
 }
+
+/* Tees, rating and slope, editable on the course card. */
+#tee-entry {
+  margin-top: var(--sp-6);
+}
+.tee-edit-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 64px 62px 44px;
+  gap: var(--sp-2);
+  align-items: center;
+  margin-bottom: var(--sp-2);
+}
+.tee-edit-row .te-name {
+  text-align: left;
+}
+.tee-edit-row.unusable .te-rating,
+.tee-edit-row.unusable .te-slope {
+  border-color: var(--gold-c);
+}
+.tee-play {
+  width: 44px;
+  height: 44px;
+  border: var(--bw-strong) solid var(--rule);
+  border-radius: var(--radius-pill);
+  background: var(--panel);
+  color: var(--btn-ink);
+  cursor: pointer;
+}
+.tee-edit-row.active .tee-play {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.tee-add {
+  width: 100%;
+}
+.tee-edit-row input {
+  min-width: 0;
+  min-height: 44px;
+  text-align: center;
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: var(--bw-strong) solid var(--rule);
+  border-radius: var(--radius);
+  font: inherit;
+  font-weight: 600;
+  background: var(--surface);
+  color: var(--ink);
+  box-sizing: border-box;
+}
+.tee-edit-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.tee-edit-head {
+  margin-bottom: 0;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+}
+.tee-edit-head span:nth-child(2) {
+  text-align: left;
+}

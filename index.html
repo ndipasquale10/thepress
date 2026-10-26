@@ -8366,6 +8366,70 @@ body.confirm-bar-open #app {
   font-size: var(--fs-2xs);
   color: var(--muted);
 }
+
+/* Tees, rating and slope, editable on the course card. */
+#tee-entry {
+  margin-top: var(--sp-6);
+}
+.tee-edit-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 64px 62px 44px;
+  gap: var(--sp-2);
+  align-items: center;
+  margin-bottom: var(--sp-2);
+}
+.tee-edit-row .te-name {
+  text-align: left;
+}
+.tee-edit-row.unusable .te-rating,
+.tee-edit-row.unusable .te-slope {
+  border-color: var(--gold-c);
+}
+.tee-play {
+  width: 44px;
+  height: 44px;
+  border: var(--bw-strong) solid var(--rule);
+  border-radius: var(--radius-pill);
+  background: var(--panel);
+  color: var(--btn-ink);
+  cursor: pointer;
+}
+.tee-edit-row.active .tee-play {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.tee-add {
+  width: 100%;
+}
+.tee-edit-row input {
+  min-width: 0;
+  min-height: 44px;
+  text-align: center;
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: var(--bw-strong) solid var(--rule);
+  border-radius: var(--radius);
+  font: inherit;
+  font-weight: 600;
+  background: var(--surface);
+  color: var(--ink);
+  box-sizing: border-box;
+}
+.tee-edit-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.tee-edit-head {
+  margin-bottom: 0;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+}
+.tee-edit-head span:nth-child(2) {
+  text-align: left;
+}
 /* 2. A toast never covers the hole's Confirm. On the scoring screen the
    confirm bar sits above the tab bar, so the toast sits above both. */
 body.confirm-bar-open .app-toast {
@@ -8682,6 +8746,11 @@ function ensureFirebase() {
               <div class="par-grid" id="back-pars"></div>
             </div>
           </div>
+        </div>
+        <div id="tee-entry">
+          <h3>Tees · Rating &amp; Slope</h3>
+          <p class="hint">The 18-hole rating and slope from the scorecard. Everyone plays the checked tees.</p>
+          <div id="tee-editor"></div>
         </div>
         <button class="btn secondary" data-act="saveCourse()" style="width:100%;margin-top:10px">Save Course for Future Rounds</button>
       </section>
@@ -10099,6 +10168,8 @@ function buildParGrid() {
     document.querySelectorAll(".par-input").forEach((e) =>
       e.addEventListener("change", (e) => {
         ((state.pars[+e.target.dataset.hole] = +e.target.value), updateParTotal());
+        // A typed course's tee is rated against the par on this card.
+        !window._selectedCourse && "function" == typeof refreshSelectedTee && refreshSelectedTee();
       }),
     ),
     document.querySelectorAll(".hdcp-input").forEach((e) =>
@@ -10106,7 +10177,8 @@ function buildParGrid() {
         state.hdcps[+e.target.dataset.hole] = +e.target.value;
       }),
     ),
-    updateParTotal());
+    updateParTotal(),
+    "function" == typeof renderTeeEditor && renderTeeEditor());
 }
 function setParDetailCollapsed(c) {
   const e = document.getElementById("par-detail"),
@@ -19451,7 +19523,15 @@ function saveCourse() {
       saved: !0,
       pars: [...state.pars],
       hdcps: [...state.hdcps],
-      tees: [],
+      // The tees with a rating and slope, so the course comes back stroking right.
+      tees: editTees()
+        .filter(teeUsable)
+        .map((x, i) => ({
+          name: x.name || "Tee " + (i + 1),
+          rating: x.rating,
+          slope: x.slope,
+          ...(x.yds ? { yds: x.yds } : {}),
+        })),
     },
     a = getSavedCourses(),
     s = a.findIndex((t) => t.name.toLowerCase() === e.toLowerCase());
@@ -19507,7 +19587,8 @@ function searchCourses(e) {
 function selectCourse(e) {
   const t = window._courseResults[e];
   if (!t) return;
-  ((window._selectedCourse = t),
+  // A copy: correcting a tee's numbers must not rewrite the built-in list.
+  ((window._selectedCourse = JSON.parse(JSON.stringify(t))),
     (document.getElementById("course-name").value = t.name),
     (document.getElementById("course-search").value = ""),
     document.getElementById("course-results").classList.add("hidden"));
@@ -19516,14 +19597,23 @@ function selectCourse(e) {
   /* The first tee is drawn selected, so it is the round's tee until another is
      tapped. It used to be drawn selected and left unset -- the round played
      off no slope at all, or off the last course's tee. */
-  ((state.selectedTee = t.tees && t.tees[0] ? courseTee(t, 0) : null),
+  ((_teeIdx = t.tees && t.tees.length ? 0 : null),
+    (state.selectedTee = null != _teeIdx ? teeForRound(0) : null),
     clearPlayerTees(),
     "function" == typeof renderPlayers && renderPlayers());
   (s.classList.remove("hidden"),
-    (s.innerHTML = `<div class="selected-course-info">\n    <div class="selected-course-name">${esc(t.name)}</div>\n    <div class="selected-course-loc">${esc(t.city)}, ${esc(t.state)} · Par ${a}</div>\n  </div>\n  <div class="tee-selector">\n    <label id="tee-select-label">Select Tees</label>\n    <div class="tee-options" id="tee-options" role="group" aria-labelledby="tee-select-label">\n      ${t.tees.map((e, t) => `\n        <div class="tee-option ${0 === t ? "active" : ""}" data-act="selectTee(${t})" data-tee="${t}" role="button" tabindex="0">\n          <div class="tee-color-bar" style="background:${teeColor(e.name)}"></div>\n          <div class="tee-details">\n            <div class="tee-name">${esc(e.name)}</div>\n            <div class="tee-stats">${e.yds.toLocaleString()} yds · ${e.rating}/${e.slope}</div>\n          </div>\n        </div>\n      `).join("")}\n    </div>\n  </div>\n  <button class="btn small secondary" data-act="clearCourse()" style="margin-top:8px;width:100%"><i data-ico="close"></i> Clear Selection</button>\n  <div class="verify-note">Verify yardage & ratings against your scorecard. Pars & handicaps are editable below.</div>`),
+    (s.innerHTML = `<div class="selected-course-info">\n    <div class="selected-course-name">${esc(t.name)}</div>\n    <div class="selected-course-loc">${esc(t.city)}, ${esc(t.state)} · Par ${a}</div>\n  </div>\n  <div class="tee-selector">\n    <label id="tee-select-label">Select Tees</label>\n    <div class="tee-options" id="tee-options" role="group" aria-labelledby="tee-select-label">\n      ${teeOptionsHTML(t, 0)}\n    </div>\n  </div>\n  <button class="btn small secondary" data-act="clearCourse()" style="margin-top:8px;width:100%"><i data-ico="close"></i> Clear Selection</button>\n  <div class="verify-note">Verify yardage & ratings against your scorecard. Pars & handicaps are editable below.</div>`),
     applyCoursePars(),
     buildParGrid(),
     setParDetailCollapsed(!0));
+}
+function teeOptionsHTML(c, active) {
+  return c.tees
+    .map(
+      (e, t) =>
+        `<div class="tee-option ${t === active ? "active" : ""}" data-act="selectTee(${t})" data-tee="${t}" role="button" tabindex="0"><div class="tee-color-bar" style="background:${teeColor(e.name || "")}"></div><div class="tee-details"><div class="tee-name">${esc(e.name || "Tee " + (t + 1))}</div><div class="tee-stats">${e.yds ? e.yds.toLocaleString() + " yds · " : ""}${e.rating || "–"}/${e.slope || "–"}</div></div></div>`,
+    )
+    .join("");
 }
 // A course's tee, with the 18-hole par its rating is measured against.
 function courseTee(c, i) {
@@ -19556,7 +19646,8 @@ function selectTee(e) {
     (document.querySelectorAll(".tee-option").forEach((t, a) => {
       t.classList.toggle("active", a === e);
     }),
-    (state.selectedTee = t.tees[e] ? courseTee(t, e) : null),
+    (_teeIdx = t.tees[e] ? e : null),
+    (state.selectedTee = teeForRound(e)),
     clearPlayerTees(),
     "function" == typeof renderPlayers && renderPlayers(),
     applyCoursePars(),
@@ -19564,7 +19655,10 @@ function selectTee(e) {
     setParDetailCollapsed(!0));
 }
 function clearCourse() {
-  (document.getElementById("selected-course").classList.add("hidden"),
+  ((window._selectedCourse = null),
+    (window._manualTees = []),
+    (_teeIdx = null),
+    document.getElementById("selected-course").classList.add("hidden"),
     (document.getElementById("course-name").value = ""),
     (state.pars = [...STANDARD_PARS]),
     (state.hdcps = [...STANDARD_HDCP]),
@@ -19573,6 +19667,167 @@ function clearCourse() {
     invalidateHdcpCache(),
     buildParGrid(),
     setParDetailCollapsed(!1));
+}
+/* Tees, rating and slope, editable. The strokes come from the slope and
+   rating of the tees the group plays, so a wrong number on the built-in list
+   or a course typed in by hand (which had nowhere to put them at all) means
+   the wrong strokes. The list edited is the selected course's own copy, or a
+   typed course's; it is saved with the course. The highlighted tee is the
+   one the round plays. */
+let _teeIdx = null;
+// WHS bounds for slope; course ratings for 18 holes sit well inside these.
+const SLOPE_MIN = 55,
+  SLOPE_MAX = 155,
+  RATING_MIN = 50,
+  RATING_MAX = 85;
+function editTees() {
+  return window._selectedCourse
+    ? (window._selectedCourse.tees = window._selectedCourse.tees || [])
+    : (window._manualTees = window._manualTees || []);
+}
+function teeUsable(t) {
+  return (
+    !!t &&
+    t.rating >= RATING_MIN &&
+    t.rating <= RATING_MAX &&
+    t.slope >= SLOPE_MIN &&
+    t.slope <= SLOPE_MAX
+  );
+}
+// The round's tee from list entry i, with the 18-hole par its rating is against.
+function teeForRound(i) {
+  const c = window._selectedCourse,
+    t = editTees()[i];
+  if (!teeUsable(t)) return null;
+  const ps = c && c.pars && c.pars.length >= 18 ? c.pars : state.pars,
+    par = ps.length >= 18 ? ps.slice(0, 18).reduce((a, b) => a + b, 0) : 72;
+  return { ...t, name: t.name || "Tee " + (i + 1), par };
+}
+// After any tee edit: re-point the round's tee and redraw what shows it.
+function refreshSelectedTee() {
+  ((state.selectedTee = null != _teeIdx ? teeForRound(_teeIdx) : null), clearPlayerTees());
+  const box = document.getElementById("tee-options");
+  box &&
+    window._selectedCourse &&
+    (box.innerHTML = teeOptionsHTML(window._selectedCourse, _teeIdx));
+  "function" == typeof renderPlayers && document.getElementById("players-list") && renderPlayers();
+}
+function renderTeeEditor() {
+  const el = document.getElementById("tee-editor");
+  if (!el) return;
+  const list = editTees();
+  let h = list.length
+    ? ""
+    : '<p class="hint">No tees yet. Add the tees you are playing, with the rating and slope from the scorecard, so strokes come from your course handicap.</p>';
+  list.length &&
+    (h +=
+      '<div class="tee-edit-row tee-edit-head" aria-hidden="true"><span>Play</span><span>Tees</span><span>Rating</span><span>Slope</span><span></span></div>');
+  list.forEach((t, i) => {
+    const on = i === _teeIdx,
+      n = esc(t.name || "Tee " + (i + 1));
+    h +=
+      '<div class="tee-edit-row' +
+      (on ? " active" : "") +
+      (teeUsable(t) ? "" : " unusable") +
+      '"><button type="button" class="tee-play" data-act="playTee(' +
+      i +
+      ')" aria-pressed="' +
+      on +
+      '" aria-label="Play the ' +
+      n +
+      ' tees" title="Play these tees">' +
+      (on ? '<i data-ico="check"></i>' : "") +
+      '</button><input type="text" class="te-name" data-i="' +
+      i +
+      '" value="' +
+      esc(t.name || "") +
+      '" placeholder="Tee name" maxlength="20" aria-label="Tee name"><input type="text" inputmode="decimal" class="te-rating" data-i="' +
+      i +
+      '" value="' +
+      (null != t.rating ? t.rating : "") +
+      '" placeholder="Rating" maxlength="4" aria-label="' +
+      n +
+      ' course rating"><input type="text" inputmode="numeric" class="te-slope" data-i="' +
+      i +
+      '" value="' +
+      (null != t.slope ? t.slope : "") +
+      '" placeholder="Slope" maxlength="3" aria-label="' +
+      n +
+      ' slope rating"><button type="button" class="remove-btn" data-act="removeTee(' +
+      i +
+      ')" aria-label="Remove the ' +
+      n +
+      ' tees"><i data-ico="close"></i></button></div>';
+  });
+  h +=
+    '<button type="button" class="btn small secondary tee-add" data-act="addTee()">+ Add tees</button>';
+  el.innerHTML = h;
+  "function" == typeof hydrateIcons && hydrateIcons(el);
+  el.querySelectorAll(".te-name, .te-rating, .te-slope").forEach((inp) =>
+    inp.addEventListener("change", onTeeInput),
+  );
+}
+function onTeeInput(ev) {
+  const inp = ev.target,
+    i = +inp.dataset.i,
+    t = editTees()[i];
+  if (!t) return;
+  const v = inp.value.trim();
+  if (inp.classList.contains("te-name")) t.name = v;
+  else if (inp.classList.contains("te-rating")) {
+    const r = Math.round(10 * parseFloat(v)) / 10;
+    if (v && !(r >= RATING_MIN && r <= RATING_MAX)) {
+      showToast("Course rating is the 18-hole figure on the card, like 71.4.", { type: "error" });
+      return void (inp.value = null != t.rating ? t.rating : "");
+    }
+    ((t.rating = v ? r : null), (inp.value = v ? r : ""));
+  } else {
+    const sl = Math.round(+v);
+    if (v && !(sl >= SLOPE_MIN && sl <= SLOPE_MAX)) {
+      showToast("Slope runs from " + SLOPE_MIN + " to " + SLOPE_MAX + " (113 is average).", {
+        type: "error",
+      });
+      return void (inp.value = null != t.slope ? t.slope : "");
+    }
+    ((t.slope = v ? sl : null), (inp.value = v ? sl : ""));
+  }
+  i === _teeIdx && refreshSelectedTee();
+  const box = document.getElementById("tee-options");
+  box &&
+    window._selectedCourse &&
+    (box.innerHTML = teeOptionsHTML(window._selectedCourse, _teeIdx));
+  inp.closest(".tee-edit-row") &&
+    inp.closest(".tee-edit-row").classList.toggle("unusable", !teeUsable(t));
+}
+function addTee() {
+  const list = editTees();
+  if (list.length >= 12)
+    return void showToast("That is every tee a course can have.", { type: "info" });
+  list.push({ name: "", rating: null, slope: null });
+  null == _teeIdx && (_teeIdx = list.length - 1);
+  (renderTeeEditor(), refreshSelectedTee());
+  const rows = document.querySelectorAll("#tee-editor .te-name");
+  rows.length && rows[rows.length - 1].focus();
+}
+function removeTee(i) {
+  const list = editTees();
+  if (!list[i]) return;
+  list.splice(i, 1);
+  _teeIdx =
+    null == _teeIdx
+      ? null
+      : i === _teeIdx
+        ? list.length
+          ? 0
+          : null
+        : i < _teeIdx
+          ? _teeIdx - 1
+          : _teeIdx;
+  (renderTeeEditor(), refreshSelectedTee());
+}
+function playTee(i) {
+  if (!editTees()[i]) return;
+  ((_teeIdx = i), haptic(), renderTeeEditor(), refreshSelectedTee());
 }
 document.addEventListener("DOMContentLoaded", () => {
   const e = document.getElementById("course-search"),
