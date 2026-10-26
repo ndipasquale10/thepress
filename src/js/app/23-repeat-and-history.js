@@ -63,7 +63,11 @@ function repeatLastRound() {
     (state.scores = {}),
     (state.bonusPoints = {}));
   // Last round's mid-round stake changes were for its holes, not this one's.
-  (delete state.gameOpts.stakeHist,
+  /* Today's round plays today's rules, whatever the old one was started
+     under, and from the tees the old one was played from. */
+  ((state.gameOpts.strokeRule = STROKE_RULE),
+    stampPlayerTees(),
+    delete state.gameOpts.stakeHist,
     Object.values(state.sideBets).forEach((sb) => sb && delete sb.stakeHist),
     state.players.forEach((p, i) => {
       ((state.scores[i] = {}), (state.bonusPoints[i] = {}));

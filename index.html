@@ -8348,6 +8348,24 @@ body.confirm-bar-open #app {
   font-size: var(--fs-2xs);
   color: var(--muted);
 }
+
+/* The course handicap beside the index. */
+.roster-ch {
+  display: block;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+.roster-ch b {
+  display: inline;
+  font-size: var(--fs-2xs);
+  color: var(--accent);
+}
+.summary-ch {
+  display: block;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
 /* 2. A toast never covers the hole's Confirm. On the scoring screen the
    confirm bar sits above the tab bar, so the toast sits above both. */
 body.confirm-bar-open .app-toast {
@@ -8724,9 +8742,10 @@ function ensureFirebase() {
         <div class="form-group">
           <label for="handicap-mode">Handicap Mode</label>
           <select id="handicap-mode">
-            <option value="full">Full Handicap (off low man)</option>
-            <option value="80pct">80% Handicap (off low man)</option>
-            <option value="course">Course Handicap (Slope/Rating, off low man)</option>
+            <option value="full">Full Course Handicap (off low man)</option>
+            <option value="95pct">95% of Course Handicap — stroke play (off low man)</option>
+            <option value="85pct">85% of Course Handicap — four-ball (off low man)</option>
+            <option value="80pct">80% of Course Handicap (off low man)</option>
             <option value="none">No Handicaps (scratch)</option>
           </select>
         </div>
@@ -10595,6 +10614,24 @@ function togglePlayerEdit(e) {
   c ? c.classList.toggle("editing", _pEdit.has(e)) : renderPlayers();
 }
 let _hcpToastShown = !1;
+/* What the index is worth on this course, beside it: the strokes come from
+   this figure, and it is the one GHIN shows for these tees -- for the nine,
+   on a nine-hole round. Worked out as the round about to start will. */
+function rosterCourseHcpHTML(p) {
+  const t = teeOf(state, p);
+  if (!t) return "";
+  const r = Object.assign({}, state, { gameOpts: { strokeRule: STROKE_RULE } }),
+    c = roundHcp(courseHandicapExact(r, p));
+  return (
+    '<small class="roster-ch" title="Course handicap from the ' +
+    esc(t.name || "selected") +
+    " tees" +
+    (halvesStrokes(r) ? " for the nine" : "") +
+    '">Course <b>' +
+    (c < 0 ? "+" + Math.abs(c) : c) +
+    "</b></small>"
+  );
+}
 function renderPlayers() {
   if ("function" == typeof suggestHandicaps) {
     const n = suggestHandicaps();
@@ -10711,7 +10748,7 @@ function renderPlayers() {
     (s += "</div></div></div>"),
     (s += whoAmIPromptHTML()),
     state.players.forEach((t, a) => {
-      s += `<div class="player-card${_pEdit.has(a) ? " editing" : ""}" data-pidx="${a}"><div class="roster-line"><button type="button" class="roster-mono" data-act="openColorPicker('roster',${a})" aria-label="Change player color">${avatarHTML(t, 26)}</button><input type="text" value="${esc(t.name)}" placeholder="Player name" aria-label="Player name" data-idx="${a}" class="pname"><span class="roster-hdcp">Hdcp <b>${t.hdcp < 0 ? "+" + Math.abs(t.hdcp) : t.hdcp}</b></span><button class="roster-edit" data-act="togglePlayerEdit(${a})" aria-label="Edit player"><i data-ico="pencil"></i></button><button class="remove-btn" data-act="removePlayer(${a})" aria-label="Remove player"><i data-ico="close"></i></button></div><div class="player-edit"><label>Handicap Index</label><div class="hdcp-input-wrap"><button data-act="adjHdcp(${a},-1)">−</button><input type="text" inputmode="decimal" class="hdcp" value="${fmtHdcp(t.hdcp)}" maxlength="5" data-idx="${a}" aria-label="Handicap index — type + for a plus handicap"><button data-act="adjHdcp(${a},1)">+</button></div><div class="pay-block${_payOpen.has(a) ? "" : " collapsed"}" data-pidx="${a}"><div class="summary-toggle pay-toggle" data-act="togglePayFields(${a})" role="button" tabindex="0" aria-expanded="${_payOpen.has(a) ? "true" : "false"}"><span>Payment handles <small class="pay-summary">${payHandleSummary(t)}</small></span><span class="toggle-arrow"><i data-ico="down"></i></span></div><div class="pay-fields"><label class="pvenmo-label">Venmo</label><input type="text" class="pvenmo" value="${esc(t.venmo || "")}" data-idx="${a}" placeholder="@handle" aria-label="Venmo username" autocapitalize="off" autocorrect="off" spellcheck="false"><label class="pvenmo-label">Cash App</label><input type="text" class="pvenmo pcashapp" value="${esc(t.cashapp || "")}" data-idx="${a}" placeholder="$cashtag" aria-label="Cash App cashtag" autocapitalize="off" autocorrect="off" spellcheck="false"><label class="pvenmo-label">PayPal</label><input type="text" class="pvenmo ppaypal" value="${esc(t.paypal || "")}" data-idx="${a}" placeholder="paypal.me name" aria-label="PayPal.me name" autocapitalize="off" autocorrect="off" spellcheck="false"></div></div></div></div>`;
+      s += `<div class="player-card${_pEdit.has(a) ? " editing" : ""}" data-pidx="${a}"><div class="roster-line"><button type="button" class="roster-mono" data-act="openColorPicker('roster',${a})" aria-label="Change player color">${avatarHTML(t, 26)}</button><input type="text" value="${esc(t.name)}" placeholder="Player name" aria-label="Player name" data-idx="${a}" class="pname"><span class="roster-hdcp">Hdcp <b>${t.hdcp < 0 ? "+" + Math.abs(t.hdcp) : t.hdcp}</b>${rosterCourseHcpHTML(t)}</span><button class="roster-edit" data-act="togglePlayerEdit(${a})" aria-label="Edit player"><i data-ico="pencil"></i></button><button class="remove-btn" data-act="removePlayer(${a})" aria-label="Remove player"><i data-ico="close"></i></button></div><div class="player-edit"><label>Handicap Index</label><div class="hdcp-input-wrap"><button data-act="adjHdcp(${a},-1)">−</button><input type="text" inputmode="decimal" class="hdcp" value="${fmtHdcp(t.hdcp)}" maxlength="5" data-idx="${a}" aria-label="Handicap index — type + for a plus handicap"><button data-act="adjHdcp(${a},1)">+</button></div><div class="pay-block${_payOpen.has(a) ? "" : " collapsed"}" data-pidx="${a}"><div class="summary-toggle pay-toggle" data-act="togglePayFields(${a})" role="button" tabindex="0" aria-expanded="${_payOpen.has(a) ? "true" : "false"}"><span>Payment handles <small class="pay-summary">${payHandleSummary(t)}</small></span><span class="toggle-arrow"><i data-ico="down"></i></span></div><div class="pay-fields"><label class="pvenmo-label">Venmo</label><input type="text" class="pvenmo" value="${esc(t.venmo || "")}" data-idx="${a}" placeholder="@handle" aria-label="Venmo username" autocapitalize="off" autocorrect="off" spellcheck="false"><label class="pvenmo-label">Cash App</label><input type="text" class="pvenmo pcashapp" value="${esc(t.cashapp || "")}" data-idx="${a}" placeholder="$cashtag" aria-label="Cash App cashtag" autocapitalize="off" autocorrect="off" spellcheck="false"><label class="pvenmo-label">PayPal</label><input type="text" class="pvenmo ppaypal" value="${esc(t.paypal || "")}" data-idx="${a}" placeholder="paypal.me name" aria-label="PayPal.me name" autocapitalize="off" autocorrect="off" spellcheck="false"></div></div></div></div>`;
     }),
     (e.innerHTML = s),
     e.querySelectorAll(".pname").forEach((e) =>
@@ -11176,7 +11213,10 @@ function showEditRound() {
       (i + 1) +
       ' handicap — type + for a plus handicap"><button type="button" class="reorder-btn" data-act="toggleErHdcpSign(this)" aria-label="Toggle plus handicap for player ' +
       (i + 1) +
-      '" title="Plus handicap">\u00b1</button></span></div>';
+      '" title="Plus handicap">\u00b1</button></span></div>' +
+      (courseHcpLine(state, p)
+        ? '<div class="summary-ch er-ch">' + esc(courseHcpLine(state, p)) + "</div>"
+        : "");
   });
   s += "</div>";
   if (erWolfOrderActive()) {
@@ -11975,9 +12015,13 @@ function getPlayingHandicaps() {
   state.handicapMode = e;
   const p = state.players;
   let t = e + "|";
-  for (let i = 0; i < p.length; i++) t += (i ? "," : "") + p[i].hdcp;
+  for (let i = 0; i < p.length; i++) {
+    const pt = p[i].tee;
+    t += (i ? "," : "") + p[i].hdcp + (pt ? "@" + pt.rating + "/" + pt.slope + "/" + pt.par : "");
+  }
   t += "|" + (state.selectedTee ? state.selectedTee.rating + "/" + state.selectedTee.slope : "");
-  t += "|" + (halvesStrokes(state) ? "9" : "");
+  t +=
+    "|" + (halvesStrokes(state) ? "9" : "") + "|" + (state.gameOpts && state.gameOpts.strokeRule);
   if (_hdcpCache && _hdcpCacheKey === t) return _hdcpCache;
   return (
     (_hdcpCache = playingHandicapsFor(Object.assign({}, state, { handicapMode: e }))),
@@ -11989,9 +12033,101 @@ function getPlayingHandicaps() {
    viewing one re-settles it from its card -- so the rule is stamped on the
    round at the first tee and only rounds that carry it play the new way. A
    saved round must keep settling exactly as it was paid. */
-const STROKE_RULE = 2;
+const STROKE_RULE = 3,
+  NINE_HALF_RULE = 2,
+  COURSE_HCP_RULE = 3;
 function halvesStrokes(r) {
-  return 9 === r.holeCount && !!r.gameOpts && r.gameOpts.strokeRule >= STROKE_RULE;
+  return 9 === r.holeCount && !!r.gameOpts && r.gameOpts.strokeRule >= NINE_HALF_RULE;
+}
+/* From rule 3 every round plays off each player's course handicap on the
+   round's tees, worked out the way GHIN and the Rules of Handicapping do it:
+
+     course handicap (Rule 6.1a) = index x slope / 113 + (course rating - par)
+     a nine (Rule 6.1b) = (index / 2, to the tenth) x slope / 113
+                          + (nine-hole rating - the nine's par)
+     playing handicap (Rule 6.2) = course handicap x allowance
+
+   The allowance is applied to the UNROUNDED course handicap and rounded once,
+   .5 up -- rounding the course handicap first and again after the allowance
+   is the double rounding Rule 6.2 exists to prevent. Then everyone plays off
+   the low man, as Appendix C has match play do.
+
+   Before rule 3, "Full" and "80%" gave strokes off the raw index and only a
+   separate "Course" option looked at the tee, so a 15 on a 140-slope course
+   played as a 15 instead of the 19 they get there. The group plays one set of
+   tees, so the rating term is the same for everybody and mostly cancels off
+   the low man; the slope is what spreads the strokes.
+
+   The course list carries 18-hole ratings only, so a nine uses the 18-hole
+   slope and half the 18-hole rating -- the USGA's own fallback when a nine
+   has no rating of its own -- against the par of the nine actually played. */
+const HCP_ALLOWANCE = { "95pct": 0.95, "85pct": 0.85, "80pct": 0.8 };
+function hcpAllowance(mode) {
+  return HCP_ALLOWANCE[mode] || 1;
+}
+function usesCourseHandicap(r) {
+  return !!r.gameOpts && r.gameOpts.strokeRule >= COURSE_HCP_RULE;
+}
+function teeOf(r, p) {
+  const t = (p && p.tee) || r.selectedTee;
+  return t && t.rating && t.slope ? t : null;
+}
+// The 18-hole par a tee's rating is measured against.
+function teePar(r, t) {
+  if (t && t.par) return t.par;
+  const ps = r.pars || [];
+  return 18 === r.holeCount && ps.length >= 18 ? ps.slice(0, 18).reduce((a, b) => a + b, 0) : 72;
+}
+/* Everyone plays the round's tees. Each player leaves the first tee carrying
+   them -- rating, slope and par -- because the roster is what a saved round and
+   every phone in a live round already share, so they all stroke the round the
+   same way without needing the course data. */
+function stampPlayerTees() {
+  const t = state.selectedTee;
+  state.players.forEach((p) => {
+    t && t.rating && t.slope
+      ? (p.tee = { name: t.name, rating: t.rating, slope: t.slope, par: teePar(state, t) })
+      : delete p.tee;
+  });
+}
+// A player's course handicap for this round, unrounded (Rule 6.1).
+function courseHandicapExact(r, p) {
+  const i = +p.hdcp || 0,
+    t = teeOf(r, p);
+  if (halvesStrokes(r)) {
+    // Holes 0-8 of the card are the nine being played, front or back.
+    const hi = Math.round((i / 2) * 10) / 10,
+      par9 = (r.pars || []).slice(0, 9).reduce((a, b) => a + b, 0) || teePar(r, t) / 2;
+    return t ? hi * (t.slope / 113) + (t.rating / 2 - par9) : hi;
+  }
+  return t ? i * (t.slope / 113) + (t.rating - teePar(r, t)) : i;
+}
+// Rounded to the nearest whole number, .5 up -- for a plus figure too.
+function roundHcp(v) {
+  return Math.floor(v + 0.5 + 1e-9);
+}
+/* "Index 15.2 · Course 20 (Blue) · 95% = 19" -- where a player's strokes come
+   from, so the group can check it against GHIN. Empty on rounds before it. */
+function courseHcpLine(r, p) {
+  if (!usesCourseHandicap(r) || "none" === r.handicapMode) return "";
+  const t = teeOf(r, p),
+    f = (v) => (v < 0 ? "+" + Math.abs(v) : String(v)),
+    c = courseHandicapExact(r, p),
+    pct = hcpAllowance(r.handicapMode);
+  return (
+    "Index " +
+    fmtHdcp(+p.hdcp || 0) +
+    (t
+      ? " · Course " + f(roundHcp(c)) + (t.name ? " (" + t.name + ")" : "")
+      : " · no slope/rating") +
+    (halvesStrokes(r) ? " for the nine" : "") +
+    (pct < 1 ? " · " + Math.round(100 * pct) + "% = " + f(roundHcp(c * pct)) : "")
+  );
+}
+// Each player's playing handicap (Rule 6.2): allowance on the unrounded figure.
+function courseHandicapsFor(r) {
+  const pct = hcpAllowance(r.handicapMode);
+  return (r.players || []).map((p) => roundHcp(courseHandicapExact(r, p) * pct));
 }
 // The strokes each player gets, off the low handicapper. Pure over a round
 // object (live state or a saved round) so cross-round stats can net a card the
@@ -12001,6 +12137,11 @@ function playingHandicapsFor(r) {
     a = (r.players || []).map((p) => +p.hdcp || 0);
   if (!a.length) return [];
   if ("none" === e) return a.map(() => 0);
+  if (usesCourseHandicap(r)) {
+    const c = courseHandicapsFor(Object.assign({}, r, { handicapMode: e })),
+      lo = Math.min(...c);
+    return c.map((v) => v - lo);
+  }
   let s = [...a];
   if ("80pct" === e) s = a.map((e) => 0.8 * e);
   else if ("course" === e && r.selectedTee?.rating && r.selectedTee?.slope) {
@@ -12210,6 +12351,8 @@ function startRound() {
       ? vegasSetupValid() && nassauSetupValid() && sixesSetupValid() && bankerSetupValid()
         ? ((state.course = document.getElementById("course-name").value || "Round"),
           (state.gameOpts = Object.assign(readGameOpts(), { strokeRule: STROKE_RULE })),
+          stampPlayerTees(),
+          invalidateHdcpCache(),
           (state.sideBets = readSideBets()),
           saveProfiles(),
           (state.scores = {}),
@@ -12248,11 +12391,12 @@ function renderStrokeSummary() {
     a = state.handicapMode,
     s = state.players.map((e) => e.hdcp),
     n = Math.min(...s),
-    o = state.players[s.indexOf(n)].name;
+    // Off the low course handicap, which on mixed tees need not be the low index.
+    o = state.players[usesCourseHandicap(state) ? t.indexOf(0) : s.indexOf(n)].name;
   if ("none" === a)
     return void (e.innerHTML =
       '<div class="summary-toggle">Playing Scratch — No Strokes Given <span class="toggle-arrow"><i data-ico="down"></i></span></div>');
-  let l = `<div class="summary-toggle">Stroke Summary <span class="toggle-arrow"><i data-ico="down"></i></span></div><div class="summary-body">\n    <div class="summary-meta">Low handicap: <strong>${esc(o)} (${n < 0 ? "+" + Math.abs(n) : n})</strong> — plays scratch${"80pct" === a ? " · 80% applied" : ""}${halvesStrokes(state) ? " · half strokes over nine" : ""}</div>\n    <div class="summary-players">`;
+  let l = `<div class="summary-toggle">Stroke Summary <span class="toggle-arrow"><i data-ico="down"></i></span></div><div class="summary-body">\n    <div class="summary-meta">Low handicap: <strong>${esc(o)}${usesCourseHandicap(state) ? "" : ` (${n < 0 ? "+" + Math.abs(n) : n})`}</strong> — plays scratch${usesCourseHandicap(state) ? " · course handicaps" : ""}${hcpAllowance(a) < 1 ? ` · ${Math.round(100 * hcpAllowance(a))}% applied` : ""}${halvesStrokes(state) ? " · half strokes over nine" : ""}</div>\n    <div class="summary-players">`;
   (state.players.forEach((e, a) => {
     const s = t[a],
       n = (e.hdcp < 0 ? Math.abs(e.hdcp) : e.hdcp, []),
@@ -12261,7 +12405,7 @@ function renderStrokeSummary() {
       const t = getStrokesOnHole(s, e);
       2 === t ? o.push(hLbl(e)) : 1 === t && n.push(hLbl(e));
     }
-    l += `<div class="summary-player">\n      <div class="summary-player-top">\n        ${avatarHTML(e, 10)}\n        <span class="summary-name">${esc(e.name)}</span>\n        <span class="summary-hdcp">${0 === s ? "Scratch" : `<strong>${s}</strong> strokes`}</span>\n      </div>\n      ${s > 0 ? `<div class="summary-holes">\n        ${n.length ? `<span class="stroke-dot-label">● Holes:</span> ${n.join(", ")}` : ""}\n        ${o.length ? `<span class="stroke-dot-label double">●● Holes:</span> ${o.join(", ")}` : ""}\n      </div>` : ""}\n    </div>`;
+    l += `<div class="summary-player">\n      <div class="summary-player-top">\n        ${avatarHTML(e, 10)}\n        <span class="summary-name">${esc(e.name)}</span>\n        <span class="summary-hdcp">${0 === s ? "Scratch" : `<strong>${s}</strong> strokes`}</span>\n      </div>\n      ${courseHcpLine(state, e) ? `<span class="summary-ch">${esc(courseHcpLine(state, e))}</span>` : ""}\n      ${s > 0 ? `<div class="summary-holes">\n        ${n.length ? `<span class="stroke-dot-label">● Holes:</span> ${n.join(", ")}` : ""}\n        ${o.length ? `<span class="stroke-dot-label double">●● Holes:</span> ${o.join(", ")}` : ""}\n      </div>` : ""}\n    </div>`;
   }),
     (l += "</div></div>"),
     (e.innerHTML = l));
@@ -15383,15 +15527,23 @@ function showStrokes() {
       void openModalA11y("strokes-modal")
     );
   }
-  const hc = state.players.map((e) => e.hdcp),
+  const ch = usesCourseHandicap(state),
+    hc = ch ? getPlayingHandicaps() : state.players.map((e) => e.hdcp),
     low = Math.min(...hc),
     lowName = state.players[hc.indexOf(low)]?.name || "",
     note =
-      ("80pct" === mode ? " · 80% handicap" : "course" === mode ? " · course handicap" : "") +
+      (ch ? " · course handicaps" : "") +
+      (hcpAllowance(mode) < 1
+        ? " · " + Math.round(100 * hcpAllowance(mode)) + "% handicap"
+        : "course" === mode && !ch
+          ? " · course handicap"
+          : "") +
       (halvesStrokes(state) ? " · half strokes over nine" : "");
   let s = `<div class="strokes-meta"><strong>${esc(lowName)}</strong> plays scratch (off the low man)${note}. Everyone else gets strokes on their hardest-rated holes.</div><div class="strokes-players">`;
   strokesData().forEach((d) => {
     s += `<div class="strokes-player"><div class="strokes-player-top">${avatarHTML(d.player, 12)}<span class="strokes-name">${esc(d.name)}</span><span class="strokes-count">${d.h > 0 ? d.h + " stroke" + (d.h > 1 ? "s" : "") : "Scratch"}</span></div>`;
+    const line = courseHcpLine(state, d.player);
+    line && (s += `<div class="summary-ch">${esc(line)}</div>`);
     if (d.h > 0) {
       s += '<div class="strokes-holes">';
       d.singles.length &&
@@ -18459,7 +18611,7 @@ function roundDifferential(r, name) {
     null != v && ((gross += v), (par += pars[h]), holes++);
   }
   if (holes < 1) return null;
-  const tee = r.selectedTee;
+  const tee = r.players[idx].tee || r.selectedTee;
   if (tee && tee.rating && tee.slope && holes > 0) {
     const g18 = (gross * 18) / holes;
     return ((g18 - tee.rating) * 113) / tee.slope;
@@ -19361,11 +19513,26 @@ function selectCourse(e) {
     document.getElementById("course-results").classList.add("hidden"));
   const a = t.pars.reduce((e, t) => e + t, 0),
     s = document.getElementById("selected-course");
+  /* The first tee is drawn selected, so it is the round's tee until another is
+     tapped. It used to be drawn selected and left unset -- the round played
+     off no slope at all, or off the last course's tee. */
+  ((state.selectedTee = t.tees && t.tees[0] ? courseTee(t, 0) : null),
+    clearPlayerTees(),
+    "function" == typeof renderPlayers && renderPlayers());
   (s.classList.remove("hidden"),
     (s.innerHTML = `<div class="selected-course-info">\n    <div class="selected-course-name">${esc(t.name)}</div>\n    <div class="selected-course-loc">${esc(t.city)}, ${esc(t.state)} · Par ${a}</div>\n  </div>\n  <div class="tee-selector">\n    <label id="tee-select-label">Select Tees</label>\n    <div class="tee-options" id="tee-options" role="group" aria-labelledby="tee-select-label">\n      ${t.tees.map((e, t) => `\n        <div class="tee-option ${0 === t ? "active" : ""}" data-act="selectTee(${t})" data-tee="${t}" role="button" tabindex="0">\n          <div class="tee-color-bar" style="background:${teeColor(e.name)}"></div>\n          <div class="tee-details">\n            <div class="tee-name">${esc(e.name)}</div>\n            <div class="tee-stats">${e.yds.toLocaleString()} yds · ${e.rating}/${e.slope}</div>\n          </div>\n        </div>\n      `).join("")}\n    </div>\n  </div>\n  <button class="btn small secondary" data-act="clearCourse()" style="margin-top:8px;width:100%"><i data-ico="close"></i> Clear Selection</button>\n  <div class="verify-note">Verify yardage & ratings against your scorecard. Pars & handicaps are editable below.</div>`),
     applyCoursePars(),
     buildParGrid(),
     setParDetailCollapsed(!0));
+}
+// A course's tee, with the 18-hole par its rating is measured against.
+function courseTee(c, i) {
+  return { ...c.tees[i], par: c.pars.reduce((a, b) => a + b, 0) };
+}
+// A roster carried over from another round drops the tees it was stamped with.
+function clearPlayerTees() {
+  (state.players || []).forEach((p) => p && delete p.tee);
+  invalidateHdcpCache();
 }
 function teeColor(e) {
   const t = e.toLowerCase();
@@ -19389,7 +19556,9 @@ function selectTee(e) {
     (document.querySelectorAll(".tee-option").forEach((t, a) => {
       t.classList.toggle("active", a === e);
     }),
-    (state.selectedTee = t.tees[e] ? { ...t.tees[e] } : null),
+    (state.selectedTee = t.tees[e] ? courseTee(t, e) : null),
+    clearPlayerTees(),
+    "function" == typeof renderPlayers && renderPlayers(),
     applyCoursePars(),
     buildParGrid(),
     setParDetailCollapsed(!0));
@@ -19400,6 +19569,7 @@ function clearCourse() {
     (state.pars = [...STANDARD_PARS]),
     (state.hdcps = [...STANDARD_HDCP]),
     (state.selectedTee = null),
+    clearPlayerTees(),
     invalidateHdcpCache(),
     buildParGrid(),
     setParDetailCollapsed(!1));
@@ -19680,7 +19850,11 @@ function repeatLastRound() {
     (state.scores = {}),
     (state.bonusPoints = {}));
   // Last round's mid-round stake changes were for its holes, not this one's.
-  (delete state.gameOpts.stakeHist,
+  /* Today's round plays today's rules, whatever the old one was started
+     under, and from the tees the old one was played from. */
+  ((state.gameOpts.strokeRule = STROKE_RULE),
+    stampPlayerTees(),
+    delete state.gameOpts.stakeHist,
     Object.values(state.sideBets).forEach((sb) => sb && delete sb.stakeHist),
     state.players.forEach((p, i) => {
       ((state.scores[i] = {}), (state.bonusPoints[i] = {}));
@@ -20434,8 +20608,8 @@ function syncHandicapModeSelect() {
    whether anything changed. */
 function applyLiveSetup(t) {
   let changed = !1;
-  /* Names and handicaps only, merged into this phone's own player objects so
-     the payment handles it holds (never published) stay where they are. */
+  /* Names, handicaps and tees only, merged into this phone's own player
+     objects so the payment handles it holds (never published) stay put. */
   const ps = t.players,
     cur = state.players || [];
   if (Array.isArray(ps) && ps.length) {
@@ -20443,8 +20617,13 @@ function applyLiveSetup(t) {
     else
       ps.forEach((p, i) => {
         p &&
-          (p.name !== cur[i].name || p.hdcp !== cur[i].hdcp) &&
-          ((cur[i].name = p.name), (cur[i].hdcp = p.hdcp), (changed = !0));
+          (p.name !== cur[i].name ||
+            p.hdcp !== cur[i].hdcp ||
+            JSON.stringify(p.tee || null) !== JSON.stringify(cur[i].tee || null)) &&
+          ((cur[i].name = p.name),
+          (cur[i].hdcp = p.hdcp),
+          p.tee ? (cur[i].tee = p.tee) : delete cur[i].tee,
+          (changed = !0));
       });
   }
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);

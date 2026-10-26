@@ -182,3 +182,21 @@
   font-size: var(--fs-2xs);
   color: var(--muted);
 }
+
+/* The course handicap beside the index. */
+.roster-ch {
+  display: block;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+.roster-ch b {
+  display: inline;
+  font-size: var(--fs-2xs);
+  color: var(--accent);
+}
+.summary-ch {
+  display: block;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}

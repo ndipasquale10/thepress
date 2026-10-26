@@ -16,7 +16,7 @@ function roundDifferential(r, name) {
     null != v && ((gross += v), (par += pars[h]), holes++);
   }
   if (holes < 1) return null;
-  const tee = r.selectedTee;
+  const tee = r.players[idx].tee || r.selectedTee;
   if (tee && tee.rating && tee.slope && holes > 0) {
     const g18 = (gross * 18) / holes;
     return ((g18 - tee.rating) * 113) / tee.slope;

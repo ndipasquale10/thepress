@@ -79,7 +79,10 @@ function showEditRound() {
       (i + 1) +
       ' handicap — type + for a plus handicap"><button type="button" class="reorder-btn" data-act="toggleErHdcpSign(this)" aria-label="Toggle plus handicap for player ' +
       (i + 1) +
-      '" title="Plus handicap">\u00b1</button></span></div>';
+      '" title="Plus handicap">\u00b1</button></span></div>' +
+      (courseHcpLine(state, p)
+        ? '<div class="summary-ch er-ch">' + esc(courseHcpLine(state, p)) + "</div>"
+        : "");
   });
   s += "</div>";
   if (erWolfOrderActive()) {
