@@ -2383,6 +2383,72 @@ section("Tees, rating and slope can be entered and corrected on the course card"
   await ctx.close();
 }
 
+// --------------------------------------------------------------------------
+section("Solo, no game: fairways, greens and putts on the hole and the card");
+// --------------------------------------------------------------------------
+{
+  const { ctx, p, errors } = await page();
+  await enterRoster(p, 1, { holes: 9 });
+  await p.waitForTimeout(200);
+  await p.evaluate(() => { window.showStrokes = () => {}; selectGameType("none"); startRound(); });
+  await p.waitForTimeout(300);
+  await p.evaluate(() => document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden")));
+  const tap = (sel) => p.evaluate((s) => document.querySelector(s).click(), sel);
+  const par = await p.evaluate(() => state.pars.slice(0, 2));
+  ok(await p.evaluate(() => !!document.querySelector("#score-inputs .solo-stats")), "a solo round shows the stat chips on the hole");
+
+  // Hole 1 is a par 4: hit the fairway, hit the green, two putts.
+  await tap(`[data-act="setFairway(0,'hit')"]`);
+  await tap(`[data-act="setGir(0,1)"]`);
+  await tap(`[data-act="setPutts(0,2)"]`);
+  const h1 = await p.evaluate(() => ({ s: state.holeStats[0], on: document.querySelectorAll(".solo-stats .ss-chip.on").length }));
+  ok(h1.s.fw === "hit" && h1.s.gir === 1 && h1.s.putts === 2 && h1.on === 3, "tapping records them and marks the chosen chips", JSON.stringify(h1));
+  await tap(`[data-act="setPutts(0,2)"]`);
+  ok(await p.evaluate(() => state.holeStats[0].putts === undefined), "a second tap on the chosen value clears it");
+  await tap(`[data-act="setPutts(0,2)"]`);
+
+  // Hole 2: missed left, missed the green, three putts.
+  await p.evaluate(() => { state.currentHole = 1; renderHole(); });
+  const fw2 = await p.evaluate(() => !!document.querySelector(`[data-act="setFairway(1,'l')"]`));
+  ok(fw2 === (par[1] > 3), "a par 3 has no fairway to record", String(par[1]));
+  fw2 && (await tap(`[data-act="setFairway(1,'l')"]`));
+  await tap(`[data-act="setGir(1,0)"]`);
+  await tap(`[data-act="setPutts(1,3)"]`);
+
+  await p.evaluate(() => { saveCurrentRound(); showScorecard(); });
+  const card = await p.evaluate(() => ({
+    rows: [...document.querySelectorAll("#scorecard-table-wrap .ss-tr td:first-child")].map((t) => t.textContent),
+    tiles: [...document.querySelectorAll("#scorecard-table-wrap .ss-summary .gs-val")].map((t) => t.textContent),
+    saved: JSON.parse(localStorage.getItem(ACTIVE_KEY)).holeStats,
+  }));
+  ok(card.rows.join() === "Fairway,Green,Putts", "the card gets Fairway, Green and Putts rows", card.rows.join());
+  ok(card.tiles[0] === (fw2 ? "1/2" : "1/1") && card.tiles[1] === "1/2" && card.tiles[2] === "5", "and the totals: fairways, greens, putts", card.tiles.join(" "));
+  ok(card.saved && card.saved[1] && card.saved[1].putts === 3, "the stats are saved with the round");
+  await p.screenshot({ path: resolve(ROOT, "build/solo-scorecard.png") });
+
+  await p.evaluate(() => { closeModal("scorecard-modal"); state.currentHole = 0; renderHole(); });
+  await p.screenshot({ path: resolve(ROOT, "build/solo-hole.png") });
+  await p.evaluate(() => doUndo());
+  ok(await p.evaluate(() => state.holeStats[1].putts === undefined), "Undo takes back the last stat");
+
+  await p.evaluate(() => finishRound(!0));
+  await p.waitForTimeout(200);
+  ok(await p.evaluate(() => /Your stats/.test(document.getElementById("results-content").textContent)), "the results show the round's stats");
+  ok(/STATS\nFairways/.test(await p.evaluate(() => window._resultsText)), "and so does the shared text");
+
+  // With a second player, or a game on, the chips stay out of the way.
+  const group = await p.evaluate(() => {
+    closeModal("results-modal");
+    state.players.push({ name: "Big Dave", hdcp: 8, color: "", venmo: "" });
+    state.scores[1] = {};
+    renderHole();
+    return !!document.querySelector("#score-inputs .solo-stats");
+  });
+  ok(!group, "a round with two players does not show them");
+  ok(errors.length === 0, "solo stats: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

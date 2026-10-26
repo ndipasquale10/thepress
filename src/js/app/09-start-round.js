@@ -111,6 +111,7 @@ function startRound() {
           (state.bankerHoles = {}),
           (state.bankerPresses = {}),
           (state.confirmedHoles = {}),
+          (state.holeStats = {}),
           (state.pairingsLocked = !1),
           (state.matchPresses = []),
           (state.currentHole = 0),

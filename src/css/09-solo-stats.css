@@ -1,0 +1,91 @@
+/* Solo stats: fairway, green and putts on the hole, then on the card. */
+.solo-stats {
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-6);
+  border-top: var(--bw-strong) solid var(--rule);
+}
+.ss-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-bottom: var(--bw) solid var(--rule);
+}
+.ss-row:last-child {
+  border-bottom: none;
+}
+.ss-label {
+  flex: 0 0 5.5rem;
+  display: flex;
+  flex-direction: column;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--ink);
+}
+.ss-sub {
+  font-size: var(--fs-3xs);
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-label);
+}
+.ss-chips {
+  flex: 1;
+  display: flex;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.ss-chip {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--tap);
+  padding: var(--sp-2) var(--sp-3);
+  border: var(--bw) solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease);
+}
+.ss-chip.on {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--on-solid);
+}
+.ss-na {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.scorecard-tbl .ss-tr td {
+  color: var(--muted);
+}
+.scorecard-tbl .ss-tr td:first-child {
+  font-weight: 600;
+}
+.scorecard-tbl td.ss-hit {
+  color: var(--green);
+  font-weight: 700;
+}
+.scorecard-tbl td.ss-miss {
+  color: var(--under);
+  font-weight: 700;
+}
+.scorecard-tbl .ss-tr .total-col {
+  color: var(--ink);
+}
+.ss-title {
+  margin-top: var(--sp-7);
+}
+.ss-tile-sub {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  margin-top: var(--sp-1);
+}
+.ss-notes {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-bottom: var(--sp-5);
+}
