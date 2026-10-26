@@ -183,6 +183,8 @@ function buildParGrid() {
     document.querySelectorAll(".par-input").forEach((e) =>
       e.addEventListener("change", (e) => {
         ((state.pars[+e.target.dataset.hole] = +e.target.value), updateParTotal());
+        // A typed course's tee is rated against the par on this card.
+        !window._selectedCourse && "function" == typeof refreshSelectedTee && refreshSelectedTee();
       }),
     ),
     document.querySelectorAll(".hdcp-input").forEach((e) =>
@@ -190,7 +192,8 @@ function buildParGrid() {
         state.hdcps[+e.target.dataset.hole] = +e.target.value;
       }),
     ),
-    updateParTotal());
+    updateParTotal(),
+    "function" == typeof renderTeeEditor && renderTeeEditor());
 }
 function setParDetailCollapsed(c) {
   const e = document.getElementById("par-detail"),

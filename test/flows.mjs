@@ -2294,6 +2294,95 @@ section("Strokes come from each player's course handicap on the group's tees");
   await ctx.close();
 }
 
+// --------------------------------------------------------------------------
+section("Tees, rating and slope can be entered and corrected on the course card");
+// --------------------------------------------------------------------------
+{
+  const { ctx, p, errors } = await page();
+  const type = (sel, v) =>
+    p.evaluate(({ sel, v }) => {
+      const el = document.querySelector(sel);
+      el.value = v;
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    }, { sel, v });
+
+  // A course typed in by hand had nowhere to put a rating or slope.
+  await p.evaluate(() => {
+    window.showStrokes = () => {};
+    state.players = [
+      { name: "You", hdcp: 15.2, color: "", venmo: "", _hdcpTouched: true },
+      { name: "Big Dave", hdcp: 4, color: "", venmo: "", _hdcpTouched: true },
+    ];
+    enterScreen("setup");
+    setHoleCount(18);
+    clearCourse();
+    document.getElementById("course-name").value = "Muni Links";
+    renderPlayers();
+    document.querySelector('#tee-editor [data-act="addTee()"]').click();
+  });
+  await type("#tee-editor .te-name", "White");
+  await type("#tee-editor .te-rating", "70.4");
+  await type("#tee-editor .te-slope", "200");
+  const bad = await p.evaluate(() => ({
+    slope: document.querySelector("#tee-editor .te-slope").value,
+    tee: state.selectedTee,
+  }));
+  ok(bad.slope === "" && !bad.tee, "a slope past 155 is refused, and no tee is in play yet", JSON.stringify(bad));
+  await type("#tee-editor .te-slope", "131");
+  const typed = await p.evaluate(() => ({
+    tee: state.selectedTee,
+    checked: document.querySelector("#tee-editor .tee-edit-row.active .te-name")?.value,
+    ch: document.querySelector('.player-card[data-pidx="0"] .roster-ch')?.textContent || "",
+  }));
+  // 15.2 x 131/113 + (70.4 - 72) = 16.02 -> 16
+  ok(typed.tee && typed.tee.rating === 70.4 && typed.tee.slope === 131 && typed.tee.par === 72, "the typed tee is the round's tee, against the card's par", JSON.stringify(typed.tee));
+  ok(typed.checked === "White", "and it is the checked row", typed.checked);
+  ok(/Course\s*16/.test(typed.ch), "the roster's course handicap uses it", typed.ch);
+
+  await p.evaluate(() => saveCourse());
+  const saved = await p.evaluate(() => JSON.parse(localStorage.getItem("golfCourses") || "[]").find((c) => c.name === "Muni Links"));
+  ok(saved && saved.tees.length === 1 && saved.tees[0].slope === 131 && saved.tees[0].rating === 70.4, "saving the course keeps its tees", JSON.stringify(saved && saved.tees));
+
+  // Back next time: search, pick it, and it strokes off the saved tee.
+  const back = await p.evaluate(() => {
+    clearCourse();
+    searchCourses("muni links");
+    document.querySelector("#course-results .course-item").click();
+    return { tee: state.selectedTee, rows: document.querySelectorAll("#tee-editor .tee-edit-row:not(.tee-edit-head)").length };
+  });
+  ok(back.tee && back.tee.slope === 131 && back.rows === 1, "a saved course comes back with its tee in play", JSON.stringify(back));
+
+  // A listed course's numbers can be corrected without touching the built-in list.
+  const listed = await p.evaluate(() => {
+    clearCourse();
+    searchCourses("arrowhead");
+    document.querySelector("#course-results .course-item").click();
+    return { first: state.selectedTee && state.selectedTee.slope, builtIn: COURSE_DB.find((c) => c.name === "Arrowhead Golf Club").tees[0].slope };
+  });
+  await type("#tee-editor .te-slope", "138");
+  const fixed = await p.evaluate(() => ({
+    slope: state.selectedTee && state.selectedTee.slope,
+    stats: document.querySelector("#tee-options .tee-option.active .tee-stats")?.textContent || "",
+    builtIn: COURSE_DB.find((c) => c.name === "Arrowhead Golf Club").tees[0].slope,
+  }));
+  ok(fixed.slope === 138, "correcting the played tee's slope changes the round's tee", JSON.stringify(fixed));
+  ok(/\/138/.test(fixed.stats), "and the tee picker shows the new figure", fixed.stats);
+  ok(fixed.builtIn === listed.builtIn, "the built-in course list is left alone", `${fixed.builtIn} vs ${listed.builtIn}`);
+
+  // And the round plays off it.
+  await p.evaluate(() => document.getElementById("start-btn").click());
+  await p.waitForTimeout(250);
+  const r = await p.evaluate(() => {
+    document.getElementById("handicap-mode").value = "full";
+    selectGameType("skins");
+    startRound();
+    return { tee: state.players[0].tee, ph: getPlayingHandicaps() };
+  });
+  ok(r.tee && r.tee.slope === 138, "the round starts on the corrected slope", JSON.stringify(r.tee));
+  ok(errors.length === 0, "tee editor: no page errors", errors[0] || "");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
