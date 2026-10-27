@@ -197,6 +197,7 @@ function renderHole() {
      anyone has a score -- so those sections lead the card instead of sitting
      under four score rows. Built here, after the rows and the hole's bonus
      buttons, and moved to the front once complete. */
+  _h += soloStatsHoleHTML(e);
   const _gameStart = _h.length;
   if ("wolf" === state.gameType && state.players.length >= 2)
     if (state.gameOpts.fixedPairs) {

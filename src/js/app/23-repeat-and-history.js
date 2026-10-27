@@ -60,6 +60,7 @@ function repeatLastRound() {
     (state.pairings = copy(r.pairings)),
     (state.liveId = state.liveCode = state.liveOwner = null),
     (state.pickedUp = {}),
+    (state.holeStats = {}),
     (state.scores = {}),
     (state.bonusPoints = {}));
   // Last round's mid-round stake changes were for its holes, not this one's.

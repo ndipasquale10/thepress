@@ -154,6 +154,7 @@ function showScorecard() {
       }
       s += `<td class="total-col">${l + r || "-"}</td><td class="total-col">${i || "-"}</td></tr>`;
     }),
+    (s += soloStatsScorecardRows()),
     "wolf" === state.gameType &&
       (() => {
         const _wm = {};
@@ -197,6 +198,7 @@ function showScorecard() {
     a.some((h) => h > 0) &&
       (s +=
         '<div class="sc-legend"><span class="sc-dots" aria-hidden="true"><i></i></span> a handicap stroke on that hole</div>'),
+    (s += soloStatsSummaryHTML()),
     (s += scorecardMoneyHTML()),
     (t.innerHTML = s),
     e.classList.remove("hidden"),
@@ -1049,6 +1051,7 @@ async function finishRound(e) {
       }
     }),
     (o += `<div class="group-stats-bar">\n    ${l.eagle ? `<div class="gs-item eagle"><div class="gs-val">${l.eagle}</div><div class="gs-label">Eagles</div></div>` : ""}\n    <div class="gs-item birdie"><div class="gs-val">${l.birdie}</div><div class="gs-label">Birdies</div></div>\n    <div class="gs-item par"><div class="gs-val">${l.par}</div><div class="gs-label">Pars</div></div>\n    <div class="gs-item bogey"><div class="gs-val">${l.bogey}</div><div class="gs-label">Bogeys</div></div>\n    <div class="gs-item double"><div class="gs-val">${l.double + l.other}</div><div class="gs-label">Double+</div></div>\n  </div>`),
+    (o += soloStatsSummaryHTML()),
     (o += statCardsHTML()),
     (o += roundSuperlativesHTML()),
     "match" === state.gameType && state._matchPresses && state._matchPresses.length > 0)
@@ -1200,6 +1203,7 @@ async function viewFinishedRound(e) {
     (state.bankerPresses = t.bankerPresses || {}),
     (state.confirmedHoles = t.confirmedHoles || {}),
     (state.pickedUp = t.pickedUp || {}),
+    (state.holeStats = t.holeStats || {}),
     (state.pairings = t.pairings),
     (state.pairingsLocked = t.pairingsLocked || !1),
     (state.matchPresses = t.matchPresses || []),
@@ -1230,6 +1234,7 @@ function buildShareText(e, t, a, s) {
         i = 0 === r ? "E" : (r > 0 ? "+" : "") + r;
       o += `${e.name.padEnd(14)} ${(s + " (" + i + ")").padEnd(7)} ${("Net " + l).padEnd(7)} ${n[t]}\n`;
     }),
+    (o += soloStatsShareText()),
     "match" === state.gameType && state._matchPresses && state._matchPresses.length > 0)
   ) {
     const e = state.players.length;
