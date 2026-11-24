@@ -1109,6 +1109,8 @@ async function finishRound(e) {
     ((o += '<div class="results-money-title">Settlement</div>'),
       (o += '<div class="settlement-note">All square — no payments needed!</div>'));
   o += "</div>";
+  "haymarket" === state.gameType &&
+    (o += '<div class="results-money-title">Haymarket</div>' + renderHaymarketDetail());
   if ("wolf" === state.gameType && state.wolfHoles) {
     let e = 0,
       t = 0,

@@ -211,6 +211,7 @@
             <button type="button" class="game-card" data-game="snake" role="radio" aria-checked="false" data-act="selectGameType('snake')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-snake"></i></span><span class="gc-name">Snake</span><span class="gc-desc">Last 3-putt pays the pot</span></button>
             <button type="button" class="game-card" data-game="sixes" role="radio" aria-checked="false" data-act="selectGameType('sixes')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-sixes"></i></span><span class="gc-name">Sixes</span><span class="gc-desc">Partners rotate every 6 holes</span></button>
             <button type="button" class="game-card" data-game="banker" role="radio" aria-checked="false" data-act="selectGameType('banker')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-banker"></i></span><span class="gc-name">Banker</span><span class="gc-desc">Rotating banker vs each player</span></button>
+            <button type="button" class="game-card" data-game="haymarket" role="radio" aria-checked="false" data-act="selectGameType('haymarket')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-haymarket"></i></span><span class="gc-name">Haymarket</span><span class="gc-desc">Beat 39 minus your handicap; greenies &amp; Kennys</span></button>
             <button type="button" class="game-card" data-game="none" role="radio" aria-checked="false" data-act="selectGameType('none')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-none"></i></span><span class="gc-name">None</span><span class="gc-desc">Score only, no betting</span></button>
           </div>
           <select id="game-type" class="hidden" aria-hidden="true" tabindex="-1">
@@ -226,6 +227,7 @@
             <option value="snake">Snake (3-Putt Penalty Pot)</option>
             <option value="sixes">Sixes (Rotating Partners)</option>
             <option value="banker">Banker (Rotating Banker vs Field)</option>
+            <option value="haymarket">Haymarket (Chicago Quota)</option>
           </select>
         </div>
         <button type="button" id="game-more" class="btn secondary game-more hidden" aria-controls="game-grid" aria-expanded="true" data-act="toggleGameList()">Change game</button>

@@ -1952,5 +1952,71 @@ console.log('Course handicap: index x slope/113 + (rating - par) on the round te
   assertEqual(call('courseHcpLine', vm.runInContext('state', context), vm.runInContext('state.players[0]', context)), 'Index 15.2 · Course 20 (Blue)', 'the summary shows where the strokes come from');
 }
 
+console.log('Haymarket: quota 39 - course handicap, gross points, winner takes the pot, Greenies/Kennys carry on par 3s');
+{
+  const P3 = [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 10 }, { name: 'C', hdcp: 20 }];
+  assertEqual([[1, 4], [2, 4], [3, 4], [4, 4], [5, 4], [6, 4], [9, 4]].map(([g, p]) => call('haymarketHolePoints', g, p)), [8, 8, 4, 2, 1, 0, 0], 'albatross/eagle 8, birdie 4, par 2, bogey 1, double or worse 0');
+
+  const pars18 = Array(18).fill(4);
+  loadState(freshStateLiteral({
+    players: P3, gameType: 'haymarket', handicapMode: 'full', pars: pars18, gameOpts: { buyIn: 10, greenieVal: 2, kennyVal: 2, strokeRule: 3 },
+    scores: scoresFor([Array(18).fill(4), Array.from({ length: 18 }, (_, h) => (h < 9 ? 4 : 5)), Array(18).fill(5)]),
+  }));
+  assertEqual(call('haymarketQuotas', vm.runInContext('state', context)), [39, 29, 19], 'quota is 39 minus each course handicap');
+  // A 36 pts (-3), B 27 (-2), C 18 (-1): C beats their quota by the most.
+  assertEqual(call('calcHaymarketMoney'), [-10, -10, 20], 'the player furthest over quota takes every buy-in; 2nd place gets nothing');
+  assertZeroSum('calcHaymarketMoney', 'Haymarket (pot)');
+
+  loadState(freshStateLiteral({
+    players: P3, gameType: 'haymarket', handicapMode: 'none', pars: pars18, gameOpts: { buyIn: 10, greenieVal: 2, kennyVal: 2, strokeRule: 3 },
+    scores: scoresFor([Array(18).fill(4), Array(18).fill(4), Array(18).fill(5)]),
+  }));
+  assertEqual(call('calcHaymarketMoney'), [5, 5, -10], 'a tie at the top splits the pot');
+
+  // Mid-round the quota is pro-rated: after 9 holes of bogeys C (19 -> 9.5 pace) leads A's pars (39 -> 19.5 pace).
+  loadState(freshStateLiteral({
+    players: P3, gameType: 'haymarket', handicapMode: 'full', pars: pars18, gameOpts: { buyIn: 10, strokeRule: 3 },
+    scores: scoresFor([Array(9).fill(4), Array(9).fill(5), Array(9).fill(5)]),
+  }));
+  assertEqual(call('calcHaymarketMoney'), [-10, -10, 20], 'mid-round the leader is whoever is furthest ahead of a pro-rated quota');
+
+  // Three par 3s at $2 Greenie / $3 Kenny, no pot.
+  //  hole 1: nobody wins either -> both carry.
+  //  hole 2: A takes the Greenie ($4 a man); the Kenny pick B made bogey, so it carries again ($6).
+  //  hole 3: C takes the Kenny with par ($9 a man); the Greenie carries off the end unpaid.
+  loadState(freshStateLiteral({
+    players: P3, gameType: 'haymarket', handicapMode: 'none', holeCount: 3, pars: [3, 3, 3, ...Array(15).fill(4)],
+    gameOpts: { buyIn: 0, greenieVal: 2, kennyVal: 3, strokeRule: 3 },
+    scores: scoresFor([[3, 3, 3], [3, 4, 3], [3, 3, 3]]),
+    bonusPoints: { 0: { 1: { hmG: true } }, 1: { 1: { hmK: true } }, 2: { 2: { hmK: true } } },
+  }));
+  assertEqual(call('calcHaymarketMoney'), [-1, -13, 14], 'Greenie and Kenny carry separately, and a Kenny without par does not count');
+  assertZeroSum('calcHaymarketMoney', 'Haymarket (Greenies/Kennys)');
+  const log = call('haymarketPar3Log');
+  assertEqual(log.map((r) => [r.greeniePot, r.kennyPot]), [[2, 3], [4, 6], [2, 9]], 'each par 3 shows its value plus what carried in');
+  assertEqual(log[1].kennyVoid, true, 'a Kenny pick who missed par is flagged void');
+
+  // A par 3 nobody has finished does not carry yet.
+  loadState(freshStateLiteral({
+    players: P3, gameType: 'haymarket', handicapMode: 'none', holeCount: 2, pars: [3, 3, ...Array(16).fill(4)],
+    gameOpts: { buyIn: 0, greenieVal: 2, kennyVal: 0, strokeRule: 3 },
+    scores: { 0: { 0: 3, 1: 3 }, 1: { 1: 3 }, 2: { 1: 3 } },
+    bonusPoints: { 0: { 1: { hmG: true } } },
+  }));
+  assertEqual(call('calcHaymarketMoney'), [4, -2, -2], 'an unfinished par 3 passes nothing on');
+
+  // Picks: one winner per hole, a second tap clears, and Clear on the junk row keeps them.
+  loadState(freshStateLiteral({ players: P3, gameType: 'haymarket', holeCount: 1, pars: [3, ...Array(17).fill(4)], scores: { 0: {}, 1: {}, 2: {} }, bonusPoints: { 0: {}, 1: {}, 2: {} }, gameOpts: { buyIn: 0, greenieVal: 2, kennyVal: 2 } }));
+  call('setHaymarketAward', 0, 'hmG', 0);
+  call('setHaymarketAward', 0, 'hmG', 1);
+  assertEqual([0, 1, 2].map((i) => call('isBonusAwarded', i, 0, 'hmG')), [false, true, false], 'a new Greenie pick replaces the old one');
+  call('addBonus', 1, 0, 4);
+  assertEqual(call('getBonusCount', 1, 0), 1, 'Greenie/Kenny picks are not counted as junk');
+  call('removeBonus', 1, 0);
+  assertEqual([call('isBonusAwarded', 1, 0, 'hmG'), call('getBonusCount', 1, 0)], [true, 0], 'clearing junk leaves the Greenie in place');
+  call('setHaymarketAward', 0, 'hmG', 1);
+  assertEqual(call('bonusHolder', 0, 'hmG'), -1, 'tapping the holder again clears the Greenie');
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

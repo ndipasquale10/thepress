@@ -13,6 +13,16 @@ function gameStakeLabel(g) {
   if ("vegas" === g) return "$" + (o.vegasVal || 0) + " / point";
   if ("sixes" === g) return "$" + (o.sixesVal || 0) + " / segment";
   if ("banker" === g) return "$" + (o.bankerVal || 0) + " / hole";
+  if ("haymarket" === g)
+    return (
+      "$" +
+      (o.buyIn || 0) +
+      " / player · $" +
+      (o.greenieVal || 0) +
+      " greenie · $" +
+      (o.kennyVal || 0) +
+      " kenny"
+    );
   return "";
 }
 /* Edit Round — the roster count and order stay locked once a round starts
@@ -47,6 +57,12 @@ function editRoundStakeFields() {
   else if ("snake" === g) add("potVal", "Pot");
   else if ("sixes" === g) add("sixesVal", "Per segment");
   else if ("banker" === g) add("bankerVal", "Per hole");
+  else if ("haymarket" === g) {
+    // A Greenie or Kenny set to $0 is off; the editor's $1 floor would turn it on.
+    (add("buyIn", "Per player (pot)"),
+      o.greenieVal > 0 && add("greenieVal", "Per Greenie"),
+      o.kennyVal > 0 && add("kennyVal", "Per Kenny"));
+  }
   return f;
 }
 function showEditRound() {

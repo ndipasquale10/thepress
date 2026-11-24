@@ -44,6 +44,7 @@ const ICONS = {
   "g-vegas": "M3 3h18v18H3zM8 8h.01M16 8h.01M12 12h.01M8 16h.01M16 16h.01",
   "g-snake": "M6 5h9a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h8l2-2M17 17l2 2",
   "g-sixes": "M15 4h-4l-3 7a4 4 0 1 0 6.5 2.5",
+  "g-haymarket": "M7 21V3l10 4-10 4M3 21h18M13 17h.01",
   "g-banker": "M3 10l9-6 9 6M5 10v8M12 10v8M19 10v8M3 21h18",
   "g-none": "M6 3h12v18H6zM9 8h6M9 12h6M9 16h4",
 };

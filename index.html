@@ -8879,6 +8879,7 @@ function ensureFirebase() {
             <button type="button" class="game-card" data-game="snake" role="radio" aria-checked="false" data-act="selectGameType('snake')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-snake"></i></span><span class="gc-name">Snake</span><span class="gc-desc">Last 3-putt pays the pot</span></button>
             <button type="button" class="game-card" data-game="sixes" role="radio" aria-checked="false" data-act="selectGameType('sixes')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-sixes"></i></span><span class="gc-name">Sixes</span><span class="gc-desc">Partners rotate every 6 holes</span></button>
             <button type="button" class="game-card" data-game="banker" role="radio" aria-checked="false" data-act="selectGameType('banker')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-banker"></i></span><span class="gc-name">Banker</span><span class="gc-desc">Rotating banker vs each player</span></button>
+            <button type="button" class="game-card" data-game="haymarket" role="radio" aria-checked="false" data-act="selectGameType('haymarket')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-haymarket"></i></span><span class="gc-name">Haymarket</span><span class="gc-desc">Beat 39 minus your handicap; greenies &amp; Kennys</span></button>
             <button type="button" class="game-card" data-game="none" role="radio" aria-checked="false" data-act="selectGameType('none')"><span class="gc-ico" aria-hidden="true"><i data-ico="g-none"></i></span><span class="gc-name">None</span><span class="gc-desc">Score only, no betting</span></button>
           </div>
           <select id="game-type" class="hidden" aria-hidden="true" tabindex="-1">
@@ -8894,6 +8895,7 @@ function ensureFirebase() {
             <option value="snake">Snake (3-Putt Penalty Pot)</option>
             <option value="sixes">Sixes (Rotating Partners)</option>
             <option value="banker">Banker (Rotating Banker vs Field)</option>
+            <option value="haymarket">Haymarket (Chicago Quota)</option>
           </select>
         </div>
         <button type="button" id="game-more" class="btn secondary game-more hidden" aria-controls="game-grid" aria-expanded="true" data-act="toggleGameList()">Change game</button>
@@ -9163,6 +9165,7 @@ const ICONS = {
   "g-vegas": "M3 3h18v18H3zM8 8h.01M16 8h.01M12 12h.01M8 16h.01M16 16h.01",
   "g-snake": "M6 5h9a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h8l2-2M17 17l2 2",
   "g-sixes": "M15 4h-4l-3 7a4 4 0 1 0 6.5 2.5",
+  "g-haymarket": "M7 21V3l10 4-10 4M3 21h18M13 17h.01",
   "g-banker": "M3 10l9-6 9 6M5 10v8M12 10v8M19 10v8M3 21h18",
   "g-none": "M6 3h12v18H6zM9 8h6M9 12h6M9 16h4",
 };
@@ -10116,6 +10119,8 @@ var GAME_DESCS = {
     "Award a 3-Putt whenever a player 3-putts a hole. Whoever holds the Snake (the last player to 3-putt) pays the pot to everyone else.",
   sixes:
     "Requires exactly 4 players. Partners rotate automatically every 6 holes through all 3 pairings (best with 18 holes). Best-ball per team settles each 6-hole segment.",
+  haymarket:
+    "Chicago-style quota game. Your quota is 39 minus your course handicap; gross points are Bogey 1, Par 2, Birdie 4, Eagle 8. Beat your quota by the most and take the whole pot. Par 3s pay a Greenie and a Kenny, carrying over when nobody wins.",
   banker:
     "One player is the Banker each hole, rotating automatically. The Banker plays a separate match against every other player — low net wins. Win or lose the stake against each opponent, hole by hole. Ties push.",
 };
@@ -11312,6 +11317,16 @@ function gameStakeLabel(g) {
   if ("vegas" === g) return "$" + (o.vegasVal || 0) + " / point";
   if ("sixes" === g) return "$" + (o.sixesVal || 0) + " / segment";
   if ("banker" === g) return "$" + (o.bankerVal || 0) + " / hole";
+  if ("haymarket" === g)
+    return (
+      "$" +
+      (o.buyIn || 0) +
+      " / player · $" +
+      (o.greenieVal || 0) +
+      " greenie · $" +
+      (o.kennyVal || 0) +
+      " kenny"
+    );
   return "";
 }
 /* Edit Round — the roster count and order stay locked once a round starts
@@ -11346,6 +11361,12 @@ function editRoundStakeFields() {
   else if ("snake" === g) add("potVal", "Pot");
   else if ("sixes" === g) add("sixesVal", "Per segment");
   else if ("banker" === g) add("bankerVal", "Per hole");
+  else if ("haymarket" === g) {
+    // A Greenie or Kenny set to $0 is off; the editor's $1 floor would turn it on.
+    (add("buyIn", "Per player (pot)"),
+      o.greenieVal > 0 && add("greenieVal", "Per Greenie"),
+      o.kennyVal > 0 && add("kennyVal", "Per Kenny"));
+  }
   return f;
 }
 function showEditRound() {
@@ -11771,6 +11792,8 @@ function updateGameOptions() {
       '<div class="game-opt"><label for="opt-snake-val">Pot Value ($)</label> <input type="number" inputmode="decimal" id="opt-snake-val" value="5" min="1"></div>\n      <div class="hint">Award 3-Putt manually each hole. Whoever holds it (the last to 3-putt) pays the pot to everyone else at the end.</div>',
     sixes:
       '<div class="game-opt"><label for="opt-sixes-val">$ Per Segment</label> <input type="number" inputmode="decimal" id="opt-sixes-val" value="5" min="1"></div>\n      <div class="hint">Requires exactly 4 players. Partners rotate automatically every 6 holes (best with 18 holes) - no roster picker needed.</div>',
+    haymarket:
+      '<div class="game-opt"><label for="opt-hm-buyin">$ Per Player (pot)</label> <input type="number" inputmode="decimal" id="opt-hm-buyin" value="10" min="1"></div>\n      <div class="game-opt"><label for="opt-hm-greenie">$ Per Greenie</label> <input type="number" inputmode="decimal" id="opt-hm-greenie" value="2" min="0"></div>\n      <div class="game-opt"><label for="opt-hm-kenny">$ Per Kenny</label> <input type="number" inputmode="decimal" id="opt-hm-kenny" value="2" min="0"></div>\n      <div id="hm-quotas"></div>\n      <div class="hint">Gross points: Bogey 1 | Par 2 | Birdie 4 | Eagle 8. Each player’s quota is 39 minus their course handicap; whoever beats their quota by the most takes the whole pot — 2nd place doesn’t pay. Greenies (closest to the pin) and Kennys (furthest from the hole who makes par) are par 3s only, paid by every other player. No winner carries it to the next par 3.</div>',
     banker:
       '<div class="game-opt"><label for="opt-banker-val">$ Per Hole</label> <input type="number" inputmode="decimal" id="opt-banker-val" value="2" min="1"></div>\n      <div class="game-opt"><label><input type="checkbox" id="opt-banker-teams"> Teams (2v2v2 — banker is a team)</label></div>\n      <div id="banker-team-setup" class="hidden"></div>\n      <div class="hint">The Banker plays an individual match against every other player — low net beats the Banker to win the stake, the Banker beats them to collect it; ties push. Each hole the Banker defaults to whoever won the last hole, and you can override it during scoring. Teams (2v2v2) makes the Banker a 2-player side playing best ball — needs an even roster (4, 6, or 8).</div>',
   };
@@ -11820,6 +11843,7 @@ function updateGameOptions() {
       t = document.getElementById("quota-setup");
     e && t && (e.addEventListener("change", () => renderQuotaSetup()), renderQuotaSetup());
   }
+  "haymarket" === state.gameType && renderHaymarketQuotas();
   if ("banker" === state.gameType) {
     const e = document.getElementById("opt-banker-teams"),
       t = document.getElementById("banker-team-setup");
@@ -12041,6 +12065,16 @@ function readSideBets() {
 function readGameOpts() {
   const e = state.gameType,
     t = {};
+  if ("haymarket" === e) {
+    const num = (id, d) => {
+      const v = document.getElementById(id)?.value;
+      return null == v || "" === v ? d : Math.max(0, +v || 0);
+    };
+    t.buyIn = Math.max(1, num("opt-hm-buyin", 10));
+    t.greenieVal = num("opt-hm-greenie", 2);
+    t.kennyVal = num("opt-hm-kenny", 2);
+    return t;
+  }
   return (
     "nassau" === e
       ? ((t.front = Math.max(1, +(document.getElementById("opt-front")?.value || 5))),
@@ -12775,6 +12809,7 @@ function renderHole() {
      anyone has a score -- so those sections lead the card instead of sitting
      under four score rows. Built here, after the rows and the hole's bonus
      buttons, and moved to the front once complete. */
+  "haymarket" === state.gameType && (_h += haymarketHoleHTML(e));
   _h += soloStatsHoleHTML(e);
   const _gameStart = _h.length;
   if ("wolf" === state.gameType && state.players.length >= 2)
@@ -13423,9 +13458,14 @@ function getBonusCountIn(p, h, cats) {
   for (let i = 0; i < cats.length; i++) r[cats[i]] && n++;
   return n;
 }
+// Greenie/Kenny picks for Haymarket share the record but are not junk.
 function getBonusCount(e, t) {
   const a = state.bonusPoints[e]?.[t];
-  return null == a ? 0 : "number" == typeof a ? a : Object.keys(a).length;
+  return null == a
+    ? 0
+    : "number" == typeof a
+      ? a
+      : Object.keys(a).filter((k) => !isHaymarketKey(k)).length;
 }
 function isBonusAwarded(e, t, a) {
   const s = getBonusRecord(e, t);
@@ -13444,8 +13484,11 @@ function addBonus(e, t, a) {
 }
 function removeBonus(e, t) {
   if (!canMutateRound()) return;
+  const keep = {},
+    cur = getBonusRecord(e, t);
+  cur && Object.keys(cur).forEach((k) => isHaymarketKey(k) && (keep[k] = cur[k]));
   (pushUndo(),
-    state.bonusPoints[e] && (state.bonusPoints[e][t] = {}),
+    state.bonusPoints[e] && (state.bonusPoints[e][t] = keep),
     invalidateMoneyCache(),
     debouncedSave(),
     renderHole());
@@ -13776,7 +13819,9 @@ function renderGameStatus() {
                   ? (s += renderSnakeDetail())
                   : "sixes" === t
                     ? (s += renderSixesDetail())
-                    : "banker" === t && (s += renderBankerDetail()),
+                    : "banker" === t
+                      ? (s += renderBankerDetail())
+                      : "haymarket" === t && (s += renderHaymarketDetail()),
     (e.innerHTML = s));
   e.classList.toggle("hidden", "wolf" === t);
   const n = document.getElementById("sticky-leaderboard");
@@ -14510,7 +14555,9 @@ function mainGameMoney() {
                     ? calcSixesMoney()
                     : "banker" === e
                       ? calcBankerMoney()
-                      : state.players.map(() => 0);
+                      : "haymarket" === e
+                        ? calcHaymarketMoney()
+                        : state.players.map(() => 0);
 }
 function calcMoney() {
   if (_moneyCache) return _moneyCache;
@@ -16795,6 +16842,8 @@ async function finishRound(e) {
     ((o += '<div class="results-money-title">Settlement</div>'),
       (o += '<div class="settlement-note">All square — no payments needed!</div>'));
   o += "</div>";
+  "haymarket" === state.gameType &&
+    (o += '<div class="results-money-title">Haymarket</div>' + renderHaymarketDetail());
   if ("wolf" === state.gameType && state.wolfHoles) {
     let e = 0,
       t = 0,
@@ -19399,7 +19448,7 @@ function showSettings(focus) {
       <div class="settings-row"><span>You’re playing as<small style="display:block;font-size:0.72rem;color:var(--muted);font-weight:500">${primaryPlayerIsGuess() ? "Guessed from your round history — pick yourself so every “your” total is really yours." : "Every “your” total in the app is read off this name."}</small></span><select id="settings-me" aria-label="Which player are you" data-change="setPrimaryPlayer(this.value)">${primaryPlayerOptionsHTML()}</select></div>
       ${myProfileName() ? `<div class="settings-row"><span>Your handicap<small class="my-hdcp-state" style="display:block;font-size:0.72rem;color:var(--muted);font-weight:500">${null == myHandicap() ? MY_HDCP_UNSET : MY_HDCP_SET}</small></span>${myHdcpFieldHTML("")}</div>` : ""}
     </div>
-    <div class="settings-label">Round Defaults</div><div class="settings-section">\n      <div class="settings-row skin-row"><span>Skin <small style="display:block;font-size:0.72rem;color:var(--muted);font-weight:500">Clubhouse is the scorecard, Broadcast the odds board, Sunlight for when the screen is fighting the sun.</small></span><div class="skin-picker" role="radiogroup" aria-label="Skin">${SKINS.map((k) => `<button type="button" class="skin-opt${activeSkin() === k ? " active" : ""}" role="radio" aria-checked="${activeSkin() === k ? "true" : "false"}" data-act="pickSkin('${k}',this)"><span class="skin-swatch" data-skin="${k}" aria-hidden="true"></span><span class="skin-name">${k.charAt(0).toUpperCase() + k.slice(1)}</span><span class="skin-desc">${SKIN_DESC[k]}</span></button>`).join("")}</div></div>\n      ${wakeLockSupported() ? `<div class="settings-row" data-act="toggleKeepAwake(this)" role="switch" tabindex="0" aria-checked="${keepAwakeEnabled() ? "true" : "false"}"><span>Keep Screen Awake <small style="display:block;font-size:0.72rem;color:var(--muted);font-weight:500">Holds the screen on while a round is open, so you are not unlocking the phone on every tee.</small></span><span class="ui-switch${keepAwakeEnabled() ? " on" : ""}" aria-hidden="true"><span class="ui-switch-knob"></span></span></div>` : ""}\n      <div class="settings-row"><span>Default Game</span><select id="settings-game" data-change="saveDefaultGame(this.value)">${["none", "wolf", "nassau", "skins", "match", "stableford", "bingo", "dots", "vegas", "snake", "sixes", "banker"].map((e) => '<option value="' + e + '"' + (localStorage.getItem("defaultGame") === e || (!localStorage.getItem("defaultGame") && "wolf" === e) ? " selected" : "") + ">" + (GAME_NAMES[e] || e) + "</option>").join("")}</select></div>\n      <div class="settings-row"><span>Default Holes</span><div class="hole-toggle settings-holes-toggle" role="group" aria-label="Default holes"><button class="hole-toggle-btn ${"18" === localStorage.getItem("defaultHoles") ? "" : "active"}" data-act="pickDefaultHoles('9',this)">9</button><button class="hole-toggle-btn ${"18" === localStorage.getItem("defaultHoles") ? "active" : ""}" data-act="pickDefaultHoles('18',this)">18</button></div></div>\n    </div>\n    <div class="settings-label">Legal</div><div class="settings-section">\n      <div class="settings-row" data-act="showLegal('privacy')" role="button" tabindex="0"><span>Privacy Policy</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="showLegal('terms')" role="button" tabindex="0"><span>Terms of Service</span><span><i data-ico="right"></i></span></div>\n    </div>\n    <div class="settings-label">Help &amp; Data</div><div class="settings-section">\n      <div class="settings-row" data-act="showGuide()" role="button" tabindex="0"><span>How to Play &amp; Features</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="showOnboarding()" role="button" tabindex="0"><span>Quick Tour</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="exportAllData()" role="button" tabindex="0"><span>Export Data</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="exportCSV()" role="button" tabindex="0"><span>Export Rounds as CSV</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="openImportPicker()" role="button" tabindex="0"><span>Import Data</span><span><i data-ico="right"></i></span></div><input type="file" id="import-file-input" accept="application/json" class="hidden" data-change="handleImportFile(event)">\n    </div>\n    ${
+    <div class="settings-label">Round Defaults</div><div class="settings-section">\n      <div class="settings-row skin-row"><span>Skin <small style="display:block;font-size:0.72rem;color:var(--muted);font-weight:500">Clubhouse is the scorecard, Broadcast the odds board, Sunlight for when the screen is fighting the sun.</small></span><div class="skin-picker" role="radiogroup" aria-label="Skin">${SKINS.map((k) => `<button type="button" class="skin-opt${activeSkin() === k ? " active" : ""}" role="radio" aria-checked="${activeSkin() === k ? "true" : "false"}" data-act="pickSkin('${k}',this)"><span class="skin-swatch" data-skin="${k}" aria-hidden="true"></span><span class="skin-name">${k.charAt(0).toUpperCase() + k.slice(1)}</span><span class="skin-desc">${SKIN_DESC[k]}</span></button>`).join("")}</div></div>\n      ${wakeLockSupported() ? `<div class="settings-row" data-act="toggleKeepAwake(this)" role="switch" tabindex="0" aria-checked="${keepAwakeEnabled() ? "true" : "false"}"><span>Keep Screen Awake <small style="display:block;font-size:0.72rem;color:var(--muted);font-weight:500">Holds the screen on while a round is open, so you are not unlocking the phone on every tee.</small></span><span class="ui-switch${keepAwakeEnabled() ? " on" : ""}" aria-hidden="true"><span class="ui-switch-knob"></span></span></div>` : ""}\n      <div class="settings-row"><span>Default Game</span><select id="settings-game" data-change="saveDefaultGame(this.value)">${["none", "wolf", "nassau", "skins", "match", "stableford", "bingo", "dots", "vegas", "snake", "sixes", "banker", "haymarket"].map((e) => '<option value="' + e + '"' + (localStorage.getItem("defaultGame") === e || (!localStorage.getItem("defaultGame") && "wolf" === e) ? " selected" : "") + ">" + (GAME_NAMES[e] || e) + "</option>").join("")}</select></div>\n      <div class="settings-row"><span>Default Holes</span><div class="hole-toggle settings-holes-toggle" role="group" aria-label="Default holes"><button class="hole-toggle-btn ${"18" === localStorage.getItem("defaultHoles") ? "" : "active"}" data-act="pickDefaultHoles('9',this)">9</button><button class="hole-toggle-btn ${"18" === localStorage.getItem("defaultHoles") ? "active" : ""}" data-act="pickDefaultHoles('18',this)">18</button></div></div>\n    </div>\n    <div class="settings-label">Legal</div><div class="settings-section">\n      <div class="settings-row" data-act="showLegal('privacy')" role="button" tabindex="0"><span>Privacy Policy</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="showLegal('terms')" role="button" tabindex="0"><span>Terms of Service</span><span><i data-ico="right"></i></span></div>\n    </div>\n    <div class="settings-label">Help &amp; Data</div><div class="settings-section">\n      <div class="settings-row" data-act="showGuide()" role="button" tabindex="0"><span>How to Play &amp; Features</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="showOnboarding()" role="button" tabindex="0"><span>Quick Tour</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="exportAllData()" role="button" tabindex="0"><span>Export Data</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="exportCSV()" role="button" tabindex="0"><span>Export Rounds as CSV</span><span><i data-ico="right"></i></span></div>\n      <div class="settings-row" data-act="openImportPicker()" role="button" tabindex="0"><span>Import Data</span><span><i data-ico="right"></i></span></div><input type="file" id="import-file-input" accept="application/json" class="hidden" data-change="handleImportFile(event)">\n    </div>\n    ${
       window.__PRESS_DEMO__
         ? `<div class="settings-label">Demo</div><div class="settings-section">
       <div class="settings-row" data-act="loadDemoSeason()" role="button" tabindex="0"><span>Load demo season</span><span><i data-ico="right"></i></span></div>
@@ -19516,6 +19565,7 @@ function showGuide() {
 <p class="g-game"><strong>Vegas</strong> — two teams combine their scores into a number; the low team wins the difference.</p>
 <p class="g-game"><strong>Snake</strong> — whoever three-putts most recently holds the snake and pays the pot at the end.</p>
 <p class="g-game"><strong>Sixes</strong> — partners rotate every six holes across three mini-matches.</p>
+<p class="g-game"><strong>Haymarket</strong> — a Chicago-style quota game. Your quota is 39 minus your course handicap; gross points are bogey 1, par 2, birdie 4, eagle 8. Beat your quota by the most and take the whole pot (2nd place doesn't pay). Par 3s also pay a Greenie (closest to the pin) and a Kenny (furthest from the hole who makes par); with no winner, each carries to the next par 3.</p>
 <h3>Wolf picks, presses &amp; junk</h3><p>During a hole the on-screen buttons set the wolf's pick, add a hammer, concede the hole for a team, or award dots and points. Conceding gives the hole to the other team at the current stakes — handy when a team picks up. Tap an awarded dot again to remove just that one. For a press in Match or Nassau, tap <strong>Press</strong> and pick the player from the list — no typing.</p>
 <h3>Play live with friends</h3><p>On the scoring screen tap <strong>Share</strong> to broadcast the round (needs a Google sign-in). Friends enter the 6-character code to score together, or open the watch link to follow along read-only. Join someone else's round from the <strong>Live</strong> tab.</p>
 <h3>Settle up</h3><p>Finish the round to see the champion, the fewest payments needed to square everyone, and one-tap Venmo links. Add a player's Venmo handle (tap the pencil on their setup row) to enable payout links for them.</p>
@@ -19568,6 +19618,7 @@ const GAME_NAMES = {
   snake: "Snake",
   sixes: "Sixes",
   banker: "Banker",
+  haymarket: "Haymarket",
 };
 const ONBOARDING_SCREENS = [
   {
@@ -20655,6 +20706,244 @@ function soloStatsShareText() {
   t.girOf && (o += `Greens    ${t.gir}/${t.girOf} (${_pct(t.gir, t.girOf)})\n`);
   t.puttHoles && (o += `Putts     ${t.putts} (${(t.putts / t.puttHoles).toFixed(1)} per hole)\n`);
   return o;
+}
+/* Haymarket -- a Chicago-style quota game.
+
+   Each player's quota is 39 minus their course handicap (on a nine, 20 minus
+   the nine's course handicap). Gross points per hole: bogey 1, par 2, birdie
+   4, eagle or better 8, anything worse 0. Whoever beats their quota by the
+   most takes the pot -- every player's buy-in; second place pays nothing and
+   a tie splits it. Mid-round the quota is pro-rated by holes played, so the
+   standings read as "on pace".
+
+   Par 3s carry a Greenie (closest to the pin) and a Kenny (furthest from the
+   hole who still makes par), each paid to the winner by every other player.
+   A par 3 finished with no winner carries its value to the next par 3;
+   Greenie and Kenny carry separately, and a carry left after the last par 3
+   is not paid. The picks live in bonusPoints under their own keys, so undo,
+   saved rounds and live rounds carry them the way they carry junk. */
+// The bonusPoints keys: "hmG" is a Greenie, "hmK" a Kenny.
+function isHaymarketKey(k) {
+  return "hmG" === k || "hmK" === k;
+}
+function haymarketBase(r) {
+  return 9 === r.holeCount ? 20 : 39;
+}
+// Base minus the full course handicap (no allowance) on the round's tees.
+function haymarketQuotas(r) {
+  r = r || state;
+  const base = haymarketBase(r),
+    ps = r.players || [];
+  if ("none" === r.handicapMode) return ps.map(() => base);
+  const go = r.gameOpts || {},
+    rr = Object.assign({}, r, {
+      gameOpts: Object.assign({}, go, { strokeRule: Math.max(STROKE_RULE, go.strokeRule || 0) }),
+    });
+  return ps.map((p) => base - roundHcp(courseHandicapExact(rr, p)));
+}
+function haymarketHolePoints(gross, par) {
+  if (null == gross) return 0;
+  const d = gross - par;
+  return d <= -2 ? 8 : -1 === d ? 4 : 0 === d ? 2 : 1 === d ? 1 : 0;
+}
+function haymarketStandings() {
+  const nh = maxHole(),
+    q = haymarketQuotas(state);
+  return state.players.map((p, i) => {
+    let pts = 0,
+      played = 0;
+    for (let h = 0; h < nh; h++) {
+      const g = state.scores[i]?.[h];
+      null != g && (played++, (pts += haymarketHolePoints(g, state.pars[h])));
+    }
+    const pace = nh ? (q[i] * played) / nh : 0;
+    return { i, pts, played, quota: q[i], pace, diff: pts - pace };
+  });
+}
+function haymarketPotWinners(st) {
+  if (!st.some((s) => s.played)) return [];
+  const best = Math.max(...st.map((s) => s.diff));
+  return st.filter((s) => Math.abs(s.diff - best) < 1e-9).map((s) => s.i);
+}
+function bonusHolder(h, key) {
+  if (!state.bonusPoints) return -1;
+  for (let i = 0; i < state.players.length; i++) if (isBonusAwarded(i, h, key)) return i;
+  return -1;
+}
+/* Every par 3 in order, with what its Greenie and Kenny are worth (the
+   hole's own value plus whatever carried in) and who won them. A hole only
+   passes its value on once everyone has a score on it, so the hole being
+   played never looks like it carried. A Kenny pick whose player did not make
+   par wins nothing. */
+function haymarketPar3Log() {
+  const o = state.gameOpts || {},
+    out = [];
+  let carryG = 0,
+    carryK = 0;
+  for (let h = 0; h < maxHole(); h++) {
+    if (3 !== +state.pars[h]) continue;
+    const vG = +stakeAt(o, "greenieVal", h) || 0,
+      vK = +stakeAt(o, "kennyVal", h) || 0,
+      done = !state.players.some((p, i) => null == state.scores[i]?.[h]),
+      g = bonusHolder(h, "hmG"),
+      kp = bonusHolder(h, "hmK"),
+      kg = kp >= 0 ? state.scores[kp]?.[h] : null,
+      kOk = kp >= 0 && null != kg && kg <= state.pars[h],
+      rec = {
+        h,
+        done,
+        greenie: g,
+        kenny: kOk ? kp : -1,
+        kennyPick: kp,
+        kennyVoid: kp >= 0 && null != kg && !kOk,
+        greeniePot: vG + carryG,
+        kennyPot: vK + carryK,
+        greenieCarryIn: carryG,
+        kennyCarryIn: carryK,
+      };
+    g >= 0 ? (carryG = 0) : done && (carryG += vG);
+    kOk ? (carryK = 0) : done && (carryK += vK);
+    rec.greenieCarryOut = carryG;
+    rec.kennyCarryOut = carryK;
+    out.push(rec);
+  }
+  return out;
+}
+function calcHaymarketMoney() {
+  const n = state.players.length,
+    out = Array(n).fill(0);
+  if (n < 2) return out;
+  const buy = +(state.gameOpts || {}).buyIn || 0,
+    w = haymarketPotWinners(haymarketStandings());
+  if (w.length && buy) {
+    const share = (buy * n) / w.length;
+    for (let i = 0; i < n; i++) out[i] += (w.includes(i) ? share : 0) - buy;
+  }
+  haymarketPar3Log().forEach((r) => {
+    [
+      [r.greenie, r.greeniePot],
+      [r.kenny, r.kennyPot],
+    ].forEach(([p, v]) => {
+      if (p < 0 || !v) return;
+      for (let i = 0; i < n; i++) out[i] += i === p ? v * (n - 1) : -v;
+    });
+  });
+  return out;
+}
+// Tap a player to give them the hole's Greenie or Kenny; tap them again to clear it.
+function setHaymarketAward(h, key, p) {
+  if (!canMutateRound() || !isHaymarketKey(key)) return;
+  pushUndo();
+  haptic();
+  const cur = bonusHolder(h, key);
+  state.bonusPoints || (state.bonusPoints = {});
+  state.players.forEach((pl, i) => {
+    const r = getBonusRecord(i, h);
+    r && delete r[key];
+  });
+  if (p !== cur && Number.isInteger(p) && p >= 0 && p < state.players.length) {
+    state.bonusPoints[p] || (state.bonusPoints[p] = {});
+    let s = state.bonusPoints[p][h];
+    (s && "object" == typeof s) || ((s = {}), (state.bonusPoints[p][h] = s));
+    s[key] = !0;
+  }
+  invalidateMoneyCache();
+  debouncedSave();
+  renderHole();
+}
+function _hmNum(v) {
+  const r = Math.round(10 * v) / 10;
+  return (r > 0 ? "+" : r < 0 ? "−" : "") + Math.abs(r);
+}
+// The Greenie and Kenny pickers, shown on par 3s only.
+function haymarketHoleHTML(h) {
+  if (3 !== +state.pars[h] || state.players.length < 2) return "";
+  const rec = haymarketPar3Log().find((r) => r.h === h);
+  if (!rec) return "";
+  const n = state.players.length,
+    block = (key, title, rule, pot, carryIn, holder, note) =>
+      `<div class="wolf-section hm-award" data-award="${key}"><div class="wolf-header">${title}: <strong>$${pot}</strong> <span class="wolf-hole-num">from each · $${pot * (n - 1)} total</span></div><div class="wolf-pick-label">${rule}${carryIn > 0 ? ` · includes $${carryIn} carried over` : ""}</div><div class="wolf-choices">${state.players
+        .map(
+          (pl, pi) =>
+            `<button class="wolf-pick ${pi === holder ? "selected" : ""}" aria-pressed="${pi === holder ? "true" : "false"}" data-act="setHaymarketAward(${h},'${key}',${pi})">${avatarHTML(pl, 10)}${esc(pl.name)}${pi === holder ? " " + ico("check") : ""}</button>`,
+        )
+        .join(
+          "",
+        )}</div><div class="hint" style="margin-top:6px">${note || "No winner? Leave it blank and it carries to the next par 3."}</div></div>`;
+  const kp = rec.kennyPick;
+  return (
+    block("hmG", "Greenie", "Closest to the pin", rec.greeniePot, rec.greenieCarryIn, rec.greenie) +
+    block(
+      "hmK",
+      "Kenny",
+      "Furthest from the hole and makes par",
+      rec.kennyPot,
+      rec.kennyCarryIn,
+      kp,
+      rec.kennyVoid
+        ? `${esc(state.players[kp].name)} didn’t make par — no Kenny, so it carries to the next par 3.`
+        : "",
+    )
+  );
+}
+function renderHaymarketDetail() {
+  const st = haymarketStandings(),
+    n = state.players.length,
+    buy = +(state.gameOpts || {}).buyIn || 0,
+    w = haymarketPotWinners(st),
+    allDone = st.every((s) => s.played === maxHole()),
+    log = haymarketPar3Log(),
+    last = log.length ? log[log.length - 1] : null;
+  let t = '<div class="game-detail">';
+  t += `<div class="detail-bet"><span class="detail-label">Pot</span><span class="detail-status">$${buy * n} · winner takes all${w.length ? " · " + (allDone ? "won by " : "leader: ") + w.map((i) => esc(state.players[i].name)).join(" & ") : ""}</span></div>`;
+  st.slice()
+    .sort((a, b) => b.diff - a.diff)
+    .forEach((s) => {
+      const p = state.players[s.i],
+        vs = s.played === maxHole() ? "vs quota" : "on pace";
+      t += `<div class="detail-bet"><span class="detail-label">${esc(p.name)}</span><span class="detail-status">${s.pts} pts · quota ${s.quota}${s.played ? " · " + _hmNum(s.diff) + " " + vs : ""}</span></div>`;
+    });
+  const won = (key) =>
+    log
+      .filter((r) => r[key] >= 0)
+      .map((r) => esc(state.players[r[key]].name.split(" ")[0]) + " #" + hLbl(r.h))
+      .join(", ");
+  if (log.length) {
+    const g = won("greenie"),
+      k = won("kenny");
+    t += `<div class="detail-bet" style="margin-top:4px;border-top:1px solid var(--rule);padding-top:4px"><span class="detail-label">Greenies</span><span class="detail-status">${g || "None yet"}${last && last.greenieCarryOut ? ` · $${last.greenieCarryOut} carrying` : ""}</span></div>`;
+    t += `<div class="detail-bet"><span class="detail-label">Kennys</span><span class="detail-status">${k || "None yet"}${last && last.kennyCarryOut ? ` · $${last.kennyCarryOut} carrying` : ""}</span></div>`;
+  } else
+    t +=
+      '<div class="detail-bet"><span class="detail-label">Greenies &amp; Kennys</span><span class="detail-status">No par 3s on this card</span></div>';
+  return t + "</div>";
+}
+// Setup: show each player's quota so the group can check it before teeing off.
+function renderHaymarketQuotas() {
+  const el = document.getElementById("hm-quotas");
+  if (!el) return;
+  const hm = document.getElementById("handicap-mode"),
+    r = Object.assign({}, state, { handicapMode: (hm && hm.value) || state.handicapMode }),
+    q = haymarketQuotas(r),
+    base = haymarketBase(r);
+  el.innerHTML = state.players.length
+    ? '<div class="wolf-pick-label" style="margin:6px 0 4px">Quotas (' +
+      base +
+      " − course handicap)</div>" +
+      state.players
+        .map(
+          (p, i) =>
+            '<div class="detail-bet hm-quota"><span class="detail-label">' +
+            esc(p.name) +
+            '</span><span class="detail-status">' +
+            q[i] +
+            " pts</span></div>",
+        )
+        .join("")
+    : "";
+  hm &&
+    !hm._hmBound &&
+    ((hm._hmBound = !0), hm.addEventListener("change", () => renderHaymarketQuotas()));
 }
 </script><script>
 let currentUser = null;

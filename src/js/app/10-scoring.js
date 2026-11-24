@@ -197,6 +197,7 @@ function renderHole() {
      anyone has a score -- so those sections lead the card instead of sitting
      under four score rows. Built here, after the rows and the hole's bonus
      buttons, and moved to the front once complete. */
+  "haymarket" === state.gameType && (_h += haymarketHoleHTML(e));
   _h += soloStatsHoleHTML(e);
   const _gameStart = _h.length;
   if ("wolf" === state.gameType && state.players.length >= 2)
@@ -845,9 +846,14 @@ function getBonusCountIn(p, h, cats) {
   for (let i = 0; i < cats.length; i++) r[cats[i]] && n++;
   return n;
 }
+// Greenie/Kenny picks for Haymarket share the record but are not junk.
 function getBonusCount(e, t) {
   const a = state.bonusPoints[e]?.[t];
-  return null == a ? 0 : "number" == typeof a ? a : Object.keys(a).length;
+  return null == a
+    ? 0
+    : "number" == typeof a
+      ? a
+      : Object.keys(a).filter((k) => !isHaymarketKey(k)).length;
 }
 function isBonusAwarded(e, t, a) {
   const s = getBonusRecord(e, t);
@@ -866,8 +872,11 @@ function addBonus(e, t, a) {
 }
 function removeBonus(e, t) {
   if (!canMutateRound()) return;
+  const keep = {},
+    cur = getBonusRecord(e, t);
+  cur && Object.keys(cur).forEach((k) => isHaymarketKey(k) && (keep[k] = cur[k]));
   (pushUndo(),
-    state.bonusPoints[e] && (state.bonusPoints[e][t] = {}),
+    state.bonusPoints[e] && (state.bonusPoints[e][t] = keep),
     invalidateMoneyCache(),
     debouncedSave(),
     renderHole());
@@ -1198,7 +1207,9 @@ function renderGameStatus() {
                   ? (s += renderSnakeDetail())
                   : "sixes" === t
                     ? (s += renderSixesDetail())
-                    : "banker" === t && (s += renderBankerDetail()),
+                    : "banker" === t
+                      ? (s += renderBankerDetail())
+                      : "haymarket" === t && (s += renderHaymarketDetail()),
     (e.innerHTML = s));
   e.classList.toggle("hidden", "wolf" === t);
   const n = document.getElementById("sticky-leaderboard");

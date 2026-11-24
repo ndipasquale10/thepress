@@ -149,6 +149,8 @@ function updateGameOptions() {
       '<div class="game-opt"><label for="opt-snake-val">Pot Value ($)</label> <input type="number" inputmode="decimal" id="opt-snake-val" value="5" min="1"></div>\n      <div class="hint">Award 3-Putt manually each hole. Whoever holds it (the last to 3-putt) pays the pot to everyone else at the end.</div>',
     sixes:
       '<div class="game-opt"><label for="opt-sixes-val">$ Per Segment</label> <input type="number" inputmode="decimal" id="opt-sixes-val" value="5" min="1"></div>\n      <div class="hint">Requires exactly 4 players. Partners rotate automatically every 6 holes (best with 18 holes) - no roster picker needed.</div>',
+    haymarket:
+      '<div class="game-opt"><label for="opt-hm-buyin">$ Per Player (pot)</label> <input type="number" inputmode="decimal" id="opt-hm-buyin" value="10" min="1"></div>\n      <div class="game-opt"><label for="opt-hm-greenie">$ Per Greenie</label> <input type="number" inputmode="decimal" id="opt-hm-greenie" value="2" min="0"></div>\n      <div class="game-opt"><label for="opt-hm-kenny">$ Per Kenny</label> <input type="number" inputmode="decimal" id="opt-hm-kenny" value="2" min="0"></div>\n      <div id="hm-quotas"></div>\n      <div class="hint">Gross points: Bogey 1 | Par 2 | Birdie 4 | Eagle 8. Each player’s quota is 39 minus their course handicap; whoever beats their quota by the most takes the whole pot — 2nd place doesn’t pay. Greenies (closest to the pin) and Kennys (furthest from the hole who makes par) are par 3s only, paid by every other player. No winner carries it to the next par 3.</div>',
     banker:
       '<div class="game-opt"><label for="opt-banker-val">$ Per Hole</label> <input type="number" inputmode="decimal" id="opt-banker-val" value="2" min="1"></div>\n      <div class="game-opt"><label><input type="checkbox" id="opt-banker-teams"> Teams (2v2v2 — banker is a team)</label></div>\n      <div id="banker-team-setup" class="hidden"></div>\n      <div class="hint">The Banker plays an individual match against every other player — low net beats the Banker to win the stake, the Banker beats them to collect it; ties push. Each hole the Banker defaults to whoever won the last hole, and you can override it during scoring. Teams (2v2v2) makes the Banker a 2-player side playing best ball — needs an even roster (4, 6, or 8).</div>',
   };
@@ -198,6 +200,7 @@ function updateGameOptions() {
       t = document.getElementById("quota-setup");
     e && t && (e.addEventListener("change", () => renderQuotaSetup()), renderQuotaSetup());
   }
+  "haymarket" === state.gameType && renderHaymarketQuotas();
   if ("banker" === state.gameType) {
     const e = document.getElementById("opt-banker-teams"),
       t = document.getElementById("banker-team-setup");
@@ -419,6 +422,16 @@ function readSideBets() {
 function readGameOpts() {
   const e = state.gameType,
     t = {};
+  if ("haymarket" === e) {
+    const num = (id, d) => {
+      const v = document.getElementById(id)?.value;
+      return null == v || "" === v ? d : Math.max(0, +v || 0);
+    };
+    t.buyIn = Math.max(1, num("opt-hm-buyin", 10));
+    t.greenieVal = num("opt-hm-greenie", 2);
+    t.kennyVal = num("opt-hm-kenny", 2);
+    return t;
+  }
   return (
     "nassau" === e
       ? ((t.front = Math.max(1, +(document.getElementById("opt-front")?.value || 5))),

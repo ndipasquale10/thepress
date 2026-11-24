@@ -137,7 +137,9 @@ function mainGameMoney() {
                     ? calcSixesMoney()
                     : "banker" === e
                       ? calcBankerMoney()
-                      : state.players.map(() => 0);
+                      : "haymarket" === e
+                        ? calcHaymarketMoney()
+                        : state.players.map(() => 0);
 }
 function calcMoney() {
   if (_moneyCache) return _moneyCache;

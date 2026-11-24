@@ -40,6 +40,8 @@ var GAME_DESCS = {
     "Award a 3-Putt whenever a player 3-putts a hole. Whoever holds the Snake (the last player to 3-putt) pays the pot to everyone else.",
   sixes:
     "Requires exactly 4 players. Partners rotate automatically every 6 holes through all 3 pairings (best with 18 holes). Best-ball per team settles each 6-hole segment.",
+  haymarket:
+    "Chicago-style quota game. Your quota is 39 minus your course handicap; gross points are Bogey 1, Par 2, Birdie 4, Eagle 8. Beat your quota by the most and take the whole pot. Par 3s pay a Greenie and a Kenny, carrying over when nobody wins.",
   banker:
     "One player is the Banker each hole, rotating automatically. The Banker plays a separate match against every other player — low net wins. Win or lose the stake against each opponent, hole by hole. Ties push.",
 };
