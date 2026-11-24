@@ -7940,6 +7940,83 @@
     ]
   },
   {
+    "name": "Bull Run Golf Club",
+    "city": "Haymarket",
+    "state": "VA",
+    "tees": [
+      {
+        "name": "Black",
+        "rating": 73.4,
+        "slope": 143,
+        "yds": 6961
+      },
+      {
+        "name": "Blue",
+        "rating": 70.9,
+        "slope": 135,
+        "yds": 6552
+      },
+      {
+        "name": "White",
+        "rating": 69.3,
+        "slope": 132,
+        "yds": 6219
+      },
+      {
+        "name": "Green",
+        "rating": 67.0,
+        "slope": 122,
+        "yds": 5746
+      },
+      {
+        "name": "Red",
+        "rating": 67.9,
+        "slope": 116,
+        "yds": 4850
+      }
+    ],
+    "pars": [
+      4,
+      5,
+      3,
+      4,
+      4,
+      3,
+      5,
+      4,
+      4,
+      4,
+      3,
+      4,
+      4,
+      5,
+      4,
+      3,
+      4,
+      5
+    ],
+    "hdcps": [
+      5,
+      11,
+      13,
+      1,
+      7,
+      15,
+      9,
+      17,
+      3,
+      6,
+      12,
+      18,
+      2,
+      14,
+      8,
+      16,
+      4,
+      10
+    ]
+  },
+  {
     "name": "TPC Boston",
     "city": "Norton",
     "state": "MA",
