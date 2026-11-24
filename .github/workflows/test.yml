@@ -21,7 +21,9 @@ jobs:
   # Slower gate: drives a real browser through complete rounds. This is the only
   # check that can see a bug living in the seam between two screens.
   flows:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest is now 26.04, which Playwright 1.56 cannot install
+    # Chromium on. Move back to ubuntu-latest after upgrading Playwright.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -81,7 +83,9 @@ jobs:
   # stripped out and rules.test.mjs runs with no browser, so publishing a round,
   # joining it by code, and scores crossing the wire were executed by nothing.
   live-round:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest is now 26.04, which Playwright 1.56 cannot install
+    # Chromium on. Move back to ubuntu-latest after upgrading Playwright.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
