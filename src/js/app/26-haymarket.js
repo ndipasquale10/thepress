@@ -3,15 +3,16 @@
    Each player's quota is 39 minus their course handicap (on a nine, 20 minus
    the nine's course handicap). Gross points per hole: bogey 1, par 2, birdie
    4, eagle or better 8, anything worse 0. Whoever beats their quota by the
-   most takes the pot -- every player's buy-in; second place pays nothing and
-   a tie splits it. Mid-round the quota is pro-rated by holes played, so the
-   standings read as "on pace".
+   most takes the pot -- every player's buy-in; a tie splits it. Mid-round the
+   quota is pro-rated by holes played, so the standings read as "on pace".
 
-   Par 3s carry a Greenie (closest to the pin) and a Kenny (furthest from the
-   hole who still makes par), each paid to the winner by every other player.
-   A par 3 finished with no winner carries its value to the next par 3;
-   Greenie and Kenny carry separately, and a carry left after the last par 3
-   is not paid. The picks live in bonusPoints under their own keys, so undo,
+   Par 3s carry a Greenie (closest to the pin and makes par) and a Kenny
+   (furthest from the hole and makes par). Second place in the standings pays
+   every Greenie and Kenny to its winner; if second place is tied, they split
+   it. A par 3 finished with no qualifying winner carries its value to the
+   next par 3, Greenie and Kenny separately. The last par 3 always has a
+   winner: whoever the group picks takes it, par or not, with everything that
+   carried in. The picks live in bonusPoints under their own keys, so undo,
    saved rounds and live rounds carry them the way they carry junk. */
 // The bonusPoints keys: "hmG" is a Greenie, "hmK" a Kenny.
 function isHaymarketKey(k) {
@@ -21,16 +22,15 @@ function haymarketBase(r) {
   return 9 === r.holeCount ? 20 : 39;
 }
 // Base minus the full course handicap (no allowance) on the round's tees.
+// Haymarket is always played off handicaps, so the scratch mode is ignored.
 function haymarketQuotas(r) {
   r = r || state;
   const base = haymarketBase(r),
-    ps = r.players || [];
-  if ("none" === r.handicapMode) return ps.map(() => base);
-  const go = r.gameOpts || {},
+    go = r.gameOpts || {},
     rr = Object.assign({}, r, {
       gameOpts: Object.assign({}, go, { strokeRule: Math.max(STROKE_RULE, go.strokeRule || 0) }),
     });
-  return ps.map((p) => base - roundHcp(courseHandicapExact(rr, p)));
+  return (r.players || []).map((p) => base - roundHcp(courseHandicapExact(rr, p)));
 }
 function haymarketHolePoints(gross, par) {
   if (null == gross) return 0;
@@ -51,72 +51,112 @@ function haymarketStandings() {
     return { i, pts, played, quota: q[i], pace, diff: pts - pace };
   });
 }
+// First and second place, each a list of player indexes (ties share a place).
+function haymarketPlaces(st) {
+  const eq = (a, b) => Math.abs(a - b) < 1e-9,
+    best = Math.max(...st.map((s) => s.diff)),
+    first = st.filter((s) => eq(s.diff, best)).map((s) => s.i),
+    rest = st.filter((s) => !first.includes(s.i)),
+    next = rest.length ? Math.max(...rest.map((s) => s.diff)) : null,
+    second = rest.filter((s) => eq(s.diff, next)).map((s) => s.i);
+  return { first, second };
+}
 function haymarketPotWinners(st) {
-  if (!st.some((s) => s.played)) return [];
-  const best = Math.max(...st.map((s) => s.diff));
-  return st.filter((s) => Math.abs(s.diff - best) < 1e-9).map((s) => s.i);
+  return st.some((s) => s.played) ? haymarketPlaces(st).first : [];
+}
+// Who pays the Greenies and Kennys: second place, or -- with everyone tied
+// for first -- the whole group.
+function haymarketPayers(st) {
+  if (!st.length) return [];
+  const sec = haymarketPlaces(st).second;
+  return sec.length ? sec : st.map((s) => s.i);
 }
 function bonusHolder(h, key) {
   if (!state.bonusPoints) return -1;
   for (let i = 0; i < state.players.length; i++) if (isBonusAwarded(i, h, key)) return i;
   return -1;
 }
+function haymarketLastPar3() {
+  for (let h = maxHole() - 1; h >= 0; h--) if (3 === +state.pars[h]) return h;
+  return -1;
+}
 /* Every par 3 in order, with what its Greenie and Kenny are worth (the
-   hole's own value plus whatever carried in) and who won them. A hole only
-   passes its value on once everyone has a score on it, so the hole being
-   played never looks like it carried. A Kenny pick whose player did not make
-   par wins nothing. */
+   hole's own value plus whatever carried in) and who won them. A pick only
+   wins if that player made par, except on the last par 3, where the pick
+   always stands. A hole passes its value on only once everyone has a score
+   on it, so the hole being played never looks like it carried. */
 function haymarketPar3Log() {
   const o = state.gameOpts || {},
+    last = haymarketLastPar3(),
     out = [];
   let carryG = 0,
     carryK = 0;
   for (let h = 0; h < maxHole(); h++) {
     if (3 !== +state.pars[h]) continue;
-    const vG = +stakeAt(o, "greenieVal", h) || 0,
-      vK = +stakeAt(o, "kennyVal", h) || 0,
+    const isLast = h === last,
       done = !state.players.some((p, i) => null == state.scores[i]?.[h]),
-      g = bonusHolder(h, "hmG"),
-      kp = bonusHolder(h, "hmK"),
-      kg = kp >= 0 ? state.scores[kp]?.[h] : null,
-      kOk = kp >= 0 && null != kg && kg <= state.pars[h],
+      judge = (key) => {
+        const p = bonusHolder(h, key),
+          g = p >= 0 ? state.scores[p]?.[h] : null,
+          made = null != g && g <= state.pars[h];
+        return {
+          pick: p,
+          win: p >= 0 && (isLast || made) ? p : -1,
+          void: p >= 0 && !isLast && null != g && !made,
+        };
+      },
+      G = judge("hmG"),
+      K = judge("hmK"),
       rec = {
         h,
         done,
-        greenie: g,
-        kenny: kOk ? kp : -1,
-        kennyPick: kp,
-        kennyVoid: kp >= 0 && null != kg && !kOk,
-        greeniePot: vG + carryG,
-        kennyPot: vK + carryK,
+        isLast,
+        greenie: G.win,
+        greeniePick: G.pick,
+        greenieVoid: G.void,
+        kenny: K.win,
+        kennyPick: K.pick,
+        kennyVoid: K.void,
+        greeniePot: (+stakeAt(o, "greenieVal", h) || 0) + carryG,
+        kennyPot: (+stakeAt(o, "kennyVal", h) || 0) + carryK,
         greenieCarryIn: carryG,
         kennyCarryIn: carryK,
       };
-    g >= 0 ? (carryG = 0) : done && (carryG += vG);
-    kOk ? (carryK = 0) : done && (carryK += vK);
+    G.win >= 0 ? (carryG = 0) : done && (carryG = rec.greeniePot);
+    K.win >= 0 ? (carryK = 0) : done && (carryK = rec.kennyPot);
     rec.greenieCarryOut = carryG;
     rec.kennyCarryOut = carryK;
     out.push(rec);
   }
   return out;
 }
+// The last par 3 if it is still missing a Greenie or Kenny winner, else -1.
+function haymarketMissingFinalPick() {
+  const log = haymarketPar3Log(),
+    r = log[log.length - 1];
+  return r && ((r.greeniePot > 0 && r.greenie < 0) || (r.kennyPot > 0 && r.kenny < 0)) ? r.h : -1;
+}
 function calcHaymarketMoney() {
   const n = state.players.length,
     out = Array(n).fill(0);
   if (n < 2) return out;
-  const buy = +(state.gameOpts || {}).buyIn || 0,
-    w = haymarketPotWinners(haymarketStandings());
+  const st = haymarketStandings(),
+    buy = +(state.gameOpts || {}).buyIn || 0,
+    w = haymarketPotWinners(st);
   if (w.length && buy) {
     const share = (buy * n) / w.length;
     for (let i = 0; i < n; i++) out[i] += (w.includes(i) ? share : 0) - buy;
   }
+  // Second place pays each Greenie and Kenny; a payer who won it pays themselves.
+  const payers = haymarketPayers(st);
   haymarketPar3Log().forEach((r) => {
     [
       [r.greenie, r.greeniePot],
       [r.kenny, r.kennyPot],
     ].forEach(([p, v]) => {
       if (p < 0 || !v) return;
-      for (let i = 0; i < n; i++) out[i] += i === p ? v * (n - 1) : -v;
+      const each = v / payers.length;
+      payers.forEach((i) => i !== p && ((out[i] -= each), (out[p] += each)));
     });
   });
   return out;
@@ -151,29 +191,48 @@ function haymarketHoleHTML(h) {
   if (3 !== +state.pars[h] || state.players.length < 2) return "";
   const rec = haymarketPar3Log().find((r) => r.h === h);
   if (!rec) return "";
-  const n = state.players.length,
+  const payers = haymarketPayers(haymarketStandings()),
+    payBy =
+      payers.length === state.players.length
+        ? "split by everyone"
+        : "paid by 2nd place: " + payers.map((i) => esc(state.players[i].name)).join(" & "),
+    lastNote =
+      "Last par 3 — there’s always a winner. Pick who takes it; everything carrying goes with it.",
+    voidNote = (i, what) =>
+      `${esc(state.players[i].name)} didn’t make par — no ${what}, so it carries to the next par 3.`,
     block = (key, title, rule, pot, carryIn, holder, note) =>
-      `<div class="wolf-section hm-award" data-award="${key}"><div class="wolf-header">${title}: <strong>$${pot}</strong> <span class="wolf-hole-num">from each · $${pot * (n - 1)} total</span></div><div class="wolf-pick-label">${rule}${carryIn > 0 ? ` · includes $${carryIn} carried over` : ""}</div><div class="wolf-choices">${state.players
+      `<div class="wolf-section hm-award" data-award="${key}"><div class="wolf-header">${title}: <strong>$${pot}</strong> <span class="wolf-hole-num">${payBy}</span></div><div class="wolf-pick-label">${rule}${carryIn > 0 ? ` · includes $${carryIn} carried over` : ""}</div><div class="wolf-choices">${state.players
         .map(
           (pl, pi) =>
             `<button class="wolf-pick ${pi === holder ? "selected" : ""}" aria-pressed="${pi === holder ? "true" : "false"}" data-act="setHaymarketAward(${h},'${key}',${pi})">${avatarHTML(pl, 10)}${esc(pl.name)}${pi === holder ? " " + ico("check") : ""}</button>`,
         )
-        .join(
-          "",
-        )}</div><div class="hint" style="margin-top:6px">${note || "No winner? Leave it blank and it carries to the next par 3."}</div></div>`;
-  const kp = rec.kennyPick;
+        .join("")}</div><div class="hint" style="margin-top:6px">${note}</div></div>`;
   return (
-    block("hmG", "Greenie", "Closest to the pin", rec.greeniePot, rec.greenieCarryIn, rec.greenie) +
+    block(
+      "hmG",
+      "Greenie",
+      "Closest to the pin and makes par",
+      rec.greeniePot,
+      rec.greenieCarryIn,
+      rec.greeniePick,
+      rec.isLast
+        ? lastNote
+        : rec.greenieVoid
+          ? voidNote(rec.greeniePick, "Greenie")
+          : "Closest didn’t make par? Leave it blank and it carries to the next par 3.",
+    ) +
     block(
       "hmK",
       "Kenny",
       "Furthest from the hole and makes par",
       rec.kennyPot,
       rec.kennyCarryIn,
-      kp,
-      rec.kennyVoid
-        ? `${esc(state.players[kp].name)} didn’t make par — no Kenny, so it carries to the next par 3.`
-        : "",
+      rec.kennyPick,
+      rec.isLast
+        ? lastNote
+        : rec.kennyVoid
+          ? voidNote(rec.kennyPick, "Kenny")
+          : "No one made par? Leave it blank and it carries to the next par 3.",
     )
   );
 }
@@ -182,11 +241,13 @@ function renderHaymarketDetail() {
     n = state.players.length,
     buy = +(state.gameOpts || {}).buyIn || 0,
     w = haymarketPotWinners(st),
+    payers = haymarketPayers(st),
     allDone = st.every((s) => s.played === maxHole()),
     log = haymarketPar3Log(),
-    last = log.length ? log[log.length - 1] : null;
+    last = log.length ? log[log.length - 1] : null,
+    names = (ix) => ix.map((i) => esc(state.players[i].name)).join(" & ");
   let t = '<div class="game-detail">';
-  t += `<div class="detail-bet"><span class="detail-label">Pot</span><span class="detail-status">$${buy * n} · winner takes all${w.length ? " · " + (allDone ? "won by " : "leader: ") + w.map((i) => esc(state.players[i].name)).join(" & ") : ""}</span></div>`;
+  t += `<div class="detail-bet"><span class="detail-label">Pot</span><span class="detail-status">$${buy * n} · winner takes all${w.length ? " · " + (allDone ? "won by " : "leader: ") + names(w) : ""}</span></div>`;
   st.slice()
     .sort((a, b) => b.diff - a.diff)
     .forEach((s) => {
@@ -197,12 +258,16 @@ function renderHaymarketDetail() {
   const won = (key) =>
     log
       .filter((r) => r[key] >= 0)
-      .map((r) => esc(state.players[r[key]].name.split(" ")[0]) + " #" + hLbl(r.h))
+      .map(
+        (r) =>
+          esc(state.players[r[key]].name.split(" ")[0]) + " #" + hLbl(r.h) + " $" + r[key + "Pot"],
+      )
       .join(", ");
   if (log.length) {
     const g = won("greenie"),
       k = won("kenny");
-    t += `<div class="detail-bet" style="margin-top:4px;border-top:1px solid var(--rule);padding-top:4px"><span class="detail-label">Greenies</span><span class="detail-status">${g || "None yet"}${last && last.greenieCarryOut ? ` · $${last.greenieCarryOut} carrying` : ""}</span></div>`;
+    t += `<div class="detail-bet" style="margin-top:4px;border-top:1px solid var(--rule);padding-top:4px"><span class="detail-label">${allDone ? "Paid by" : "Paying now"}</span><span class="detail-status">${payers.length === n ? "Everyone (tied)" : "2nd place: " + names(payers)}</span></div>`;
+    t += `<div class="detail-bet"><span class="detail-label">Greenies</span><span class="detail-status">${g || "None yet"}${last && last.greenieCarryOut ? ` · $${last.greenieCarryOut} carrying` : ""}</span></div>`;
     t += `<div class="detail-bet"><span class="detail-label">Kennys</span><span class="detail-status">${k || "None yet"}${last && last.kennyCarryOut ? ` · $${last.kennyCarryOut} carrying` : ""}</span></div>`;
   } else
     t +=
@@ -213,13 +278,10 @@ function renderHaymarketDetail() {
 function renderHaymarketQuotas() {
   const el = document.getElementById("hm-quotas");
   if (!el) return;
-  const hm = document.getElementById("handicap-mode"),
-    r = Object.assign({}, state, { handicapMode: (hm && hm.value) || state.handicapMode }),
-    q = haymarketQuotas(r),
-    base = haymarketBase(r);
+  const q = haymarketQuotas(state);
   el.innerHTML = state.players.length
     ? '<div class="wolf-pick-label" style="margin:6px 0 4px">Quotas (' +
-      base +
+      haymarketBase(state) +
       " − course handicap)</div>" +
       state.players
         .map(
@@ -232,7 +294,4 @@ function renderHaymarketQuotas() {
         )
         .join("")
     : "";
-  hm &&
-    !hm._hmBound &&
-    ((hm._hmBound = !0), hm.addEventListener("change", () => renderHaymarketQuotas()));
 }

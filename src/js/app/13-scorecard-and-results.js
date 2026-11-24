@@ -972,6 +972,18 @@ async function finishRound(e) {
      about to be filled in and let it be cancelled. `e` marks the internal call
      from viewing an already-finished round, which must not prompt. */
   if (!e) {
+    // Haymarket: the last par 3 always has a Greenie and a Kenny winner.
+    if ("haymarket" === state.gameType) {
+      const h = haymarketMissingFinalPick();
+      if (h >= 0)
+        return (
+          goToHole(h),
+          void showToast(
+            "Hole " + hLbl(h) + " is the last par 3 — pick the Greenie and Kenny winners first.",
+            { type: "error" },
+          )
+        );
+    }
     const _left = (() => {
       let n = 0;
       for (let h = 0; h < maxHole(); h++)
