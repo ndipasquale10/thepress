@@ -145,7 +145,7 @@ section("Every game settles zero-sum, at every roster size it accepts");
 // --------------------------------------------------------------------------
 const GAMES = [
   "wolf", "nassau", "skins", "match", "stableford",
-  "bingo", "dots", "vegas", "snake", "sixes", "banker", "none",
+  "bingo", "dots", "vegas", "snake", "sixes", "banker", "haymarket", "none",
 ];
 // Vegas and Sixes are 4-player formats by rule; the rest take any roster.
 const EXACTLY_FOUR = new Set(["vegas", "sixes"]);
@@ -2102,7 +2102,7 @@ section("UI pass: pick first, toasts clear Confirm, one row per nine, slim heade
     return { a, b, c: vis(), label: document.getElementById("game-more").textContent };
   });
   ok(fold.a === 1 && fold.c === 1, "the game list shows only the chosen game", JSON.stringify(fold));
-  ok(fold.b === 12 && /Change game · 11 more/.test(fold.label), "and Change game opens all twelve, folding again on a pick", JSON.stringify(fold));
+  ok(fold.b === 13 && /Change game · 12 more/.test(fold.label), "and Change game opens all thirteen, folding again on a pick", JSON.stringify(fold));
 
   // 5. Full header and sign-in banner on Home only.
   const head = await p.evaluate(() => {

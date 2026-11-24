@@ -7,7 +7,8 @@ pick a game, and the app tracks the money as you play — then shows exactly who
 owes whom, in the fewest transactions, when you walk off 18.
 
 Games: Wolf (with Hammer and Breakout), Nassau with presses, Skins, Match Play,
-Stableford, Vegas, Snake, Bingo Bango Bongo, Sixes, Banker, and Trash/Dots.
+Stableford, Vegas, Snake, Bingo Bango Bongo, Sixes, Banker, Haymarket (a
+Chicago-style quota game with Greenies and Kennys on par 3s), and Trash/Dots.
 
 ## Running it
 
