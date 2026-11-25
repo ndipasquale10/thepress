@@ -137,3 +137,35 @@
   font-size: var(--fs-2xs);
   color: var(--muted);
 }
+/* The top strip: points / quota, then what is still needed. */
+.hm-ribbon .ribbon-cell {
+  position: relative;
+  flex-direction: column;
+  padding-top: var(--sp-6);
+}
+.hm-ribbon .rib-amt small {
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  color: var(--muted);
+}
+.hm-rib-need {
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.hm-rib-need.up {
+  color: var(--up);
+}
+.hm-rib-need.down {
+  color: var(--down);
+}
+.hm-rib-tag {
+  position: absolute;
+  top: var(--sp-1);
+  font-size: var(--fs-3xs);
+  font-weight: 800;
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--gold-t);
+}

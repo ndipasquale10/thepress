@@ -2059,6 +2059,9 @@ console.log('Haymarket points: score rows, the quota board and the scorecard all
   assertEqual([/<b>7<\/b> \/ 39/.test(board), /Needs <b>32<\/b>/.test(board), /<b>8<\/b> \/ 29/.test(board), /\+4 pts on 1/.test(board)], [true, true, true, true], 'the board shows points against quota, what is still needed, and the hole on screen');
   const rows = call('haymarketScorecardRows', 9, true);
   assertEqual([/A <small>Q39/.test(rows), /−32<\/td><\/tr>/.test(rows)], [true, true], 'the scorecard lists points per hole and what is left of the quota');
+  const rib = call('haymarketRibbonHTML');
+  assertEqual([/7\/39 <small>pts<\/small>/.test(rib), /needs 32</.test(rib), /needs 21</.test(rib), (rib.match(/hm-rib-tag/g) || []).length], [true, true, true, 1], 'the top strip labels points vs quota, shows what each still needs, and tags one leader');
+  assertEqual([call('haymarketNeedText', { pts: 30, quota: 27, played: 4 }), call('haymarketNeedText', { pts: 40, quota: 39, played: 18 }), call('haymarketNeedText', { pts: 35, quota: 39, played: 18 })], ['+3 over', 'Made it +1', 'Short 4'], 'past quota it reads "over"; at the end "Made it" or "Short"');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

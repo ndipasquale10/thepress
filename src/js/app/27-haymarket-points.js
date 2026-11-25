@@ -126,26 +126,61 @@ function _hmDiffCls(d) {
   return d > 0.05 ? "up" : d < -0.05 ? "down" : "even";
 }
 // The strip across the top of the scoring screen: everyone's points vs quota, leader first.
+// "needs 9", "+2 over", and at the end "Made it +3" / "Short 2".
+function haymarketNeedText(s) {
+  const left = s.quota - s.pts;
+  return s.played === maxHole()
+    ? left <= 0
+      ? "Made it +" + -left
+      : "Short " + left
+    : left <= 0
+      ? "+" + -left + " over"
+      : "needs " + left;
+}
+/* Two lines under each name: points against quota, labelled, then what is
+   still needed. Green or red is ahead of or behind pace; the leader is also
+   tagged in words, so the colour is never the only signal. */
 function haymarketRibbonHTML() {
-  const me = getPrimaryPlayerName();
+  const me = getPrimaryPlayerName(),
+    st = haymarketStandings(),
+    w = haymarketPotWinners(st);
   return (
-    '<div class="ribbon-strip">' +
+    '<div class="ribbon-strip hm-ribbon">' +
     _hmRanked()
       .map((s) => {
-        const p = state.players[s.i];
+        const p = state.players[s.i],
+          lead = s.played && w.includes(s.i),
+          cls = s.played ? _hmDiffCls(s.diff) : "even";
         return (
           '<div class="ribbon-cell' +
           (p.name === me ? " is-me" : "") +
+          (lead ? " hm-rib-lead" : "") +
+          '" aria-label="' +
+          esc(p.name) +
+          ": " +
+          s.pts +
+          " of " +
+          s.quota +
+          " points, " +
+          haymarketNeedText(s) +
+          (lead ? ", leading" : "") +
           '">' +
+          (lead ? '<span class="hm-rib-tag">Leader</span>' : "") +
           avatarHTML(p, 18) +
           '<span class="rib-who">' +
           esc(p.name.split(" ")[0]) +
           '</span><span class="rib-amt ' +
-          (s.played ? _hmDiffCls(s.diff) : "even") +
+          cls +
           '">' +
           s.pts +
           "/" +
           s.quota +
+          // Six or more cells are too narrow for the label; the number still fits.
+          (state.players.length > 5 ? "" : " <small>pts</small>") +
+          '</span><span class="hm-rib-need ' +
+          cls +
+          '">' +
+          haymarketNeedText(s) +
           "</span></div>"
         );
       })
@@ -158,7 +193,7 @@ function haymarketStickyHTML() {
     .map((s) => {
       const p = state.players[s.i],
         c = s.played ? _hmDiffCls(s.diff) : "even";
-      return `<span class="lb-item ${"up" === c ? "lb-up" : "down" === c ? "lb-dn" : "lb-even"}">${avatarHTML(p, 6)}${esc(p.name)} ${s.pts}/${s.quota}${s.played ? " (" + _hmNum(s.diff) + ")" : ""}</span>`;
+      return `<span class="lb-item ${"up" === c ? "lb-up" : "down" === c ? "lb-dn" : "lb-even"}">${avatarHTML(p, 6)}${esc(p.name)} ${s.pts}/${s.quota} pts · ${haymarketNeedText(s)}</span>`;
     })
     .join("");
 }
