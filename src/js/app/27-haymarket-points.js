@@ -83,7 +83,7 @@ function haymarketBoardHTML(h) {
         return `<div class="hm-row${lead ? " lead" : ""}"><div class="hm-row-top"><span class="hm-name">${avatarHTML(p, 10)}${esc(p.name)}${lead ? ' <span class="hm-lead">Leader</span>' : ""}</span><span class="hm-score"><b>${s.pts}</b> / ${s.quota}</span></div><div class="hm-bar${s.pts >= s.quota ? " made" : ""}" role="img" aria-label="${esc(p.name)}: ${s.pts} of ${s.quota} points"><i style="width:${fill.toFixed(1)}%"></i>${s.played && s.played < nh ? `<b class="hm-tick" style="left:${tick.toFixed(1)}%"></b>` : ""}</div><div class="hm-row-sub"><span>${_hmStatus(s, nh)} · thru ${s.played}${here}</span>${pace}</div></div>`;
       })
       .join("");
-  return `<div class="hm-board"><div class="hm-board-head"><span class="hm-board-title">Points vs Quota</span><span class="hm-board-sub">Bogey 1 · Par 2 · Birdie 4 · Eagle 8${buy ? ` · $${buy * st.length} pot` : ""}</span></div>${rows}<div class="hm-board-key"><b class="hm-tick-key"></b> where you should be by now</div></div>`;
+  return `<div class="hm-board"><div class="hm-board-head"><span class="hm-board-title">Points vs Quota</span><span class="hm-board-sub">Bogey 1 · Par 2 · Birdie 4 · Eagle 8${buy ? ` · $${buy * st.length} pot · 1st $${(buy * st.length) / 2}` : ""}</span></div>${rows}<div class="hm-board-key"><b class="hm-tick-key"></b> where you should be by now</div></div>`;
 }
 // Scorecard: each player's points by hole, then the total and what is left of the quota.
 function haymarketScorecardRows(n, o) {
