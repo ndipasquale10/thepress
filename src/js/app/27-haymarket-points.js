@@ -113,3 +113,122 @@ function haymarketScorecardRows(n, o) {
   });
   return s;
 }
+/* The pot goes to whoever is furthest past quota at the end, so it changes
+   hands hole by hole as the lead does. Shown as money that read as players
+   winning and losing $50 a hole; in Haymarket the running story is points,
+   so these views follow the points race instead. */
+function _hmRanked() {
+  return haymarketStandings()
+    .slice()
+    .sort((a, b) => b.diff - a.diff || b.pts - a.pts);
+}
+function _hmDiffCls(d) {
+  return d > 0.05 ? "up" : d < -0.05 ? "down" : "even";
+}
+// The strip across the top of the scoring screen: everyone's points vs quota, leader first.
+function haymarketRibbonHTML() {
+  const me = getPrimaryPlayerName();
+  return (
+    '<div class="ribbon-strip">' +
+    _hmRanked()
+      .map((s) => {
+        const p = state.players[s.i];
+        return (
+          '<div class="ribbon-cell' +
+          (p.name === me ? " is-me" : "") +
+          '">' +
+          avatarHTML(p, 18) +
+          '<span class="rib-who">' +
+          esc(p.name.split(" ")[0]) +
+          '</span><span class="rib-amt ' +
+          (s.played ? _hmDiffCls(s.diff) : "even") +
+          '">' +
+          s.pts +
+          "/" +
+          s.quota +
+          "</span></div>"
+        );
+      })
+      .join("") +
+    "</div>"
+  );
+}
+function haymarketStickyHTML() {
+  return _hmRanked()
+    .map((s) => {
+      const p = state.players[s.i],
+        c = s.played ? _hmDiffCls(s.diff) : "even";
+      return `<span class="lb-item ${"up" === c ? "lb-up" : "down" === c ? "lb-dn" : "lb-even"}">${avatarHTML(p, 6)}${esc(p.name)} ${s.pts}/${s.quota}${s.played ? " (" + _hmNum(s.diff) + ")" : ""}</span>`;
+    })
+    .join("");
+}
+// The Money tab's hole-by-hole log, in points: each hole, then total and what is left.
+function haymarketPointsLogHTML() {
+  const st = haymarketStandings(),
+    holes = [];
+  for (let h = 0; h < maxHole(); h++)
+    state.players.some((p, i) => null != state.scores[i]?.[h]) && holes.push(h);
+  if (!holes.length) return "";
+  const cell = (v, cls) =>
+    '<span class="hole-log-cell' + (cls ? " " + cls : "") + '">' + v + "</span>";
+  let s =
+    scHead("Hole-by-Hole Points", "moneylog") +
+    '<div class="hole-log-table"><div class="hole-log-row hole-log-header">' +
+    cell("H") +
+    state.players.map((p) => cell(esc(p.name.slice(0, 4)))).join("") +
+    "</div>";
+  holes.forEach((h) => {
+    const pts = state.players.map((p, i) => haymarketPointsOn(i, h)),
+      best = Math.max(...pts.map((v) => (null == v ? -1 : v)));
+    s +=
+      '<div class="hole-log-row">' +
+      cell(hLbl(h)) +
+      pts
+        .map((v) => (null == v ? cell("·") : cell(v, v === best && v > 0 ? "hl-win" : "")))
+        .join("") +
+      "</div>";
+  });
+  s +=
+    '<div class="hole-log-row hole-log-total">' +
+    cell("Σ") +
+    st.map((t) => cell(t.pts + "/" + t.quota)).join("") +
+    "</div>" +
+    '<div class="hole-log-row hole-log-total">' +
+    cell("±") +
+    st
+      .map((t) =>
+        cell(
+          t.played ? _hmNum(t.diff) : "·",
+          t.played ? (t.diff > 0.05 ? "hl-win" : t.diff < -0.05 ? "hl-lose" : "") : "",
+        ),
+      )
+      .join("") +
+    "</div></div>";
+  return s;
+}
+// One Play-by-Play line: who earned what on the hole.
+function haymarketFeedText(h) {
+  return state.players
+    .map((p, i) => ({ n: p.name.split(" ")[0], v: haymarketPointsOn(i, h) }))
+    .filter((o) => null != o.v)
+    .sort((a, b) => b.v - a.v)
+    .map((o) => esc(o.n) + " +" + o.v)
+    .join(" · ");
+}
+// After a hole is confirmed: what everyone earned on it, then who leads the race.
+function haymarketHoleResultHTML(h) {
+  const st = haymarketStandings(),
+    w = haymarketPotWinners(st),
+    rows = state.players
+      .map((p, i) => ({ p, i, g: state.scores[i]?.[h], v: haymarketPointsOn(i, h) }))
+      .sort((a, b) => (b.v || 0) - (a.v || 0));
+  let c = '<div class="hole-result-section">';
+  rows.forEach((r) => {
+    const t = st[r.i];
+    c += `<div class="hole-result-row ${r.v >= 2 ? "win" : r.v ? "push" : "lose"}">${avatarHTML(r.p, 10)}<span class="hr-name">${esc(r.p.name)}</span><span class="hr-score">${null == r.g ? "—" : r.g + " (" + (isPickedUp(r.i, h) ? "Picked up" : haymarketGrossLabel(r.g, state.pars[h])) + ")"}</span><span class="hr-money ${r.v >= 2 ? "win" : r.v ? "push" : "lose"}">${_hmPts(r.v || 0)}</span></div><div class="hm-hr-sub">${t.pts}/${t.quota} · ${t.played ? _hmNum(t.diff) + " on pace" : ""}</div>`;
+  });
+  c += "</div>";
+  w.length &&
+    (c += `<div class="hole-result-push" style="margin-top:10px">Leading the points race: <b>${w.map((i) => esc(state.players[i].name)).join(" & ")}</b></div>`);
+  return c;
+}

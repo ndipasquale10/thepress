@@ -131,3 +131,9 @@
   font-weight: 700;
   color: var(--accent);
 }
+.hm-hr-sub {
+  margin: calc(var(--sp-2) * -1) 0 var(--sp-2);
+  padding-left: var(--sp-10);
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}

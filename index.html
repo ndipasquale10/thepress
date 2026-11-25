@@ -8762,6 +8762,12 @@ body[data-screen]:not([data-screen="home"]) #app > header .settings-toggle {
   font-weight: 700;
   color: var(--accent);
 }
+.hm-hr-sub {
+  margin: calc(var(--sp-2) * -1) 0 var(--sp-2);
+  padding-left: var(--sp-10);
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
 </style></head><body>
 <!-- The Firebase SDK is NOT a blocking script tag any more. As three plain
      script-src tags at the top of the body (spelled out rather than written
@@ -13417,7 +13423,8 @@ function showHoleResult(e, t) {
     });
   if (!o && t.every((e) => Math.abs(e) < 0.005) && "none" === state.gameType) return;
   let c = `<div class="hole-result-header">Hole ${hLbl(e)} Results</div>`;
-  if (o) {
+  if ("haymarket" === state.gameType) c += haymarketHoleResultHTML(e);
+  else if (o) {
     const t = netRow(e);
     let a = "";
     if (l && r) {
@@ -13935,6 +13942,8 @@ function renderGameStatus() {
         .join("") +
       "</div>";
     animateRibbon(_rb, a);
+    // Haymarket: the strip follows the points race, not the pot changing hands.
+    "haymarket" === t && (_rb.innerHTML = haymarketRibbonHTML());
   }
   let s = `<div class="money-banner">\n    <div class="money-title">Running Money</div>\n    <div class="money-grid">\n      ${state.players
     .map((e, t) => {
@@ -13977,6 +13986,7 @@ function renderGameStatus() {
           `<span class="lb-item ${e.m > 0.01 ? "lb-up" : e.m < -0.01 ? "lb-dn" : "lb-even"}">${avatarHTML(e, 6)}${esc(e.name)} ${fmtMoney(e.m)}</span>`,
       )
       .join("");
+    "haymarket" === state.gameType && (n.innerHTML = haymarketStickyHTML());
   }
 }
 function holeIsComplete(hole) {
@@ -14224,7 +14234,7 @@ function drawMoneyFlow(cv) {
   });
 }
 function moneyFlowHTML(id) {
-  return computeRunningTotals().length < 2
+  return "haymarket" === state.gameType || computeRunningTotals().length < 2
     ? ""
     : '<div class="money-flow-wrap"><div class="money-flow-title">Money Flow · hole by hole</div><canvas id="' +
         id +
@@ -14335,6 +14345,7 @@ function renderPlayFeed() {
         .map((v, i) => ({ v: v, i: i }))
         .filter((o) => o.v > 0.005)
         .sort((a, b) => b.v - a.v);
+      "haymarket" === state.gameType && (winners.length = 0);
       let money = winners.length
         ? winners.map((o) => esc(_pfName(state.players[o.i])) + " " + fmtMoney(o.v)).join(" · ")
         : "skins" === state.gameType
@@ -14346,7 +14357,7 @@ function renderPlayFeed() {
         '</div><div class="pf-par">PAR ' +
         par +
         '</div></div><div class="pf-text">' +
-        esc(story.join(" · ")) +
+        ("haymarket" === state.gameType ? haymarketFeedText(h) : esc(story.join(" · "))) +
         '</div><div class="pf-money' +
         (winners.length ? " up" : "") +
         '">' +
@@ -14514,6 +14525,11 @@ function renderHoleMoneyLog() {
   const el = document.getElementById("hole-money-log");
   if (!el) return;
   if ("none" === state.gameType) return void (el.innerHTML = "");
+  if ("haymarket" === state.gameType)
+    return (
+      (el.className = "card sc-collapsible" + (scCollapsed("moneylog") ? " collapsed" : "")),
+      void (el.innerHTML = haymarketPointsLogHTML())
+    );
   const rows = computeHoleMoney();
   if (!rows.length) return void (el.innerHTML = "");
   el.className = "card sc-collapsible" + (scCollapsed("moneylog") ? " collapsed" : "");
@@ -15921,7 +15937,8 @@ function maybeShowStrokesAtStart() {
   } catch (e) {}
 }
 function scorecardMoneyHTML() {
-  if ("none" === state.gameType) return "";
+  // Haymarket's pot changes hands with the lead; the card shows points instead.
+  if ("none" === state.gameType || "haymarket" === state.gameType) return "";
   const rows = computeHoleMoney();
   if (!rows.length) return "";
   const mh = {};
@@ -16294,7 +16311,7 @@ function computeSettlement(nets) {
    into the shared results image (html2canvas). */
 function swingHeatmapHTML() {
   const rows = computeHoleMoney();
-  if (rows.length < 2 || "none" === state.gameType) return "";
+  if (rows.length < 2 || "none" === state.gameType || "haymarket" === state.gameType) return "";
   let maxAbs = 0;
   rows.forEach((r) =>
     r.deltas.forEach((v) => {
@@ -16770,7 +16787,9 @@ function showStandings() {
     t = document.getElementById("standings-content"),
     a = roundNetsToCents(calcMoney());
   state.players.length;
-  let s = moneyFlowHTML("standings-flow-chart");
+  let s =
+    ("haymarket" === state.gameType ? haymarketBoardHTML(null) : "") +
+    moneyFlowHTML("standings-flow-chart");
   s += swingHeatmapHTML();
   ((s += "<h3>Final Settlement</h3>"),
     (s += payoutTable(a)),
@@ -21277,6 +21296,125 @@ function haymarketScorecardRows(n, o) {
     s += `<td class="total-col">${t.pts}</td><td class="total-col ${left <= 0 ? "hl-win" : t.played === maxHole() ? "hl-lose" : ""}">${left <= 0 ? "+" + -left : "−" + left}</td></tr>`;
   });
   return s;
+}
+/* The pot goes to whoever is furthest past quota at the end, so it changes
+   hands hole by hole as the lead does. Shown as money that read as players
+   winning and losing $50 a hole; in Haymarket the running story is points,
+   so these views follow the points race instead. */
+function _hmRanked() {
+  return haymarketStandings()
+    .slice()
+    .sort((a, b) => b.diff - a.diff || b.pts - a.pts);
+}
+function _hmDiffCls(d) {
+  return d > 0.05 ? "up" : d < -0.05 ? "down" : "even";
+}
+// The strip across the top of the scoring screen: everyone's points vs quota, leader first.
+function haymarketRibbonHTML() {
+  const me = getPrimaryPlayerName();
+  return (
+    '<div class="ribbon-strip">' +
+    _hmRanked()
+      .map((s) => {
+        const p = state.players[s.i];
+        return (
+          '<div class="ribbon-cell' +
+          (p.name === me ? " is-me" : "") +
+          '">' +
+          avatarHTML(p, 18) +
+          '<span class="rib-who">' +
+          esc(p.name.split(" ")[0]) +
+          '</span><span class="rib-amt ' +
+          (s.played ? _hmDiffCls(s.diff) : "even") +
+          '">' +
+          s.pts +
+          "/" +
+          s.quota +
+          "</span></div>"
+        );
+      })
+      .join("") +
+    "</div>"
+  );
+}
+function haymarketStickyHTML() {
+  return _hmRanked()
+    .map((s) => {
+      const p = state.players[s.i],
+        c = s.played ? _hmDiffCls(s.diff) : "even";
+      return `<span class="lb-item ${"up" === c ? "lb-up" : "down" === c ? "lb-dn" : "lb-even"}">${avatarHTML(p, 6)}${esc(p.name)} ${s.pts}/${s.quota}${s.played ? " (" + _hmNum(s.diff) + ")" : ""}</span>`;
+    })
+    .join("");
+}
+// The Money tab's hole-by-hole log, in points: each hole, then total and what is left.
+function haymarketPointsLogHTML() {
+  const st = haymarketStandings(),
+    holes = [];
+  for (let h = 0; h < maxHole(); h++)
+    state.players.some((p, i) => null != state.scores[i]?.[h]) && holes.push(h);
+  if (!holes.length) return "";
+  const cell = (v, cls) =>
+    '<span class="hole-log-cell' + (cls ? " " + cls : "") + '">' + v + "</span>";
+  let s =
+    scHead("Hole-by-Hole Points", "moneylog") +
+    '<div class="hole-log-table"><div class="hole-log-row hole-log-header">' +
+    cell("H") +
+    state.players.map((p) => cell(esc(p.name.slice(0, 4)))).join("") +
+    "</div>";
+  holes.forEach((h) => {
+    const pts = state.players.map((p, i) => haymarketPointsOn(i, h)),
+      best = Math.max(...pts.map((v) => (null == v ? -1 : v)));
+    s +=
+      '<div class="hole-log-row">' +
+      cell(hLbl(h)) +
+      pts
+        .map((v) => (null == v ? cell("·") : cell(v, v === best && v > 0 ? "hl-win" : "")))
+        .join("") +
+      "</div>";
+  });
+  s +=
+    '<div class="hole-log-row hole-log-total">' +
+    cell("Σ") +
+    st.map((t) => cell(t.pts + "/" + t.quota)).join("") +
+    "</div>" +
+    '<div class="hole-log-row hole-log-total">' +
+    cell("±") +
+    st
+      .map((t) =>
+        cell(
+          t.played ? _hmNum(t.diff) : "·",
+          t.played ? (t.diff > 0.05 ? "hl-win" : t.diff < -0.05 ? "hl-lose" : "") : "",
+        ),
+      )
+      .join("") +
+    "</div></div>";
+  return s;
+}
+// One Play-by-Play line: who earned what on the hole.
+function haymarketFeedText(h) {
+  return state.players
+    .map((p, i) => ({ n: p.name.split(" ")[0], v: haymarketPointsOn(i, h) }))
+    .filter((o) => null != o.v)
+    .sort((a, b) => b.v - a.v)
+    .map((o) => esc(o.n) + " +" + o.v)
+    .join(" · ");
+}
+// After a hole is confirmed: what everyone earned on it, then who leads the race.
+function haymarketHoleResultHTML(h) {
+  const st = haymarketStandings(),
+    w = haymarketPotWinners(st),
+    rows = state.players
+      .map((p, i) => ({ p, i, g: state.scores[i]?.[h], v: haymarketPointsOn(i, h) }))
+      .sort((a, b) => (b.v || 0) - (a.v || 0));
+  let c = '<div class="hole-result-section">';
+  rows.forEach((r) => {
+    const t = st[r.i];
+    c += `<div class="hole-result-row ${r.v >= 2 ? "win" : r.v ? "push" : "lose"}">${avatarHTML(r.p, 10)}<span class="hr-name">${esc(r.p.name)}</span><span class="hr-score">${null == r.g ? "—" : r.g + " (" + (isPickedUp(r.i, h) ? "Picked up" : haymarketGrossLabel(r.g, state.pars[h])) + ")"}</span><span class="hr-money ${r.v >= 2 ? "win" : r.v ? "push" : "lose"}">${_hmPts(r.v || 0)}</span></div><div class="hm-hr-sub">${t.pts}/${t.quota} · ${t.played ? _hmNum(t.diff) + " on pace" : ""}</div>`;
+  });
+  c += "</div>";
+  w.length &&
+    (c += `<div class="hole-result-push" style="margin-top:10px">Leading the points race: <b>${w.map((i) => esc(state.players[i].name)).join(" & ")}</b></div>`);
+  return c;
 }
 </script><script>
 let currentUser = null;

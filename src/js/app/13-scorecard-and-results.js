@@ -47,7 +47,8 @@ function maybeShowStrokesAtStart() {
   } catch (e) {}
 }
 function scorecardMoneyHTML() {
-  if ("none" === state.gameType) return "";
+  // Haymarket's pot changes hands with the lead; the card shows points instead.
+  if ("none" === state.gameType || "haymarket" === state.gameType) return "";
   const rows = computeHoleMoney();
   if (!rows.length) return "";
   const mh = {};
@@ -420,7 +421,7 @@ function computeSettlement(nets) {
    into the shared results image (html2canvas). */
 function swingHeatmapHTML() {
   const rows = computeHoleMoney();
-  if (rows.length < 2 || "none" === state.gameType) return "";
+  if (rows.length < 2 || "none" === state.gameType || "haymarket" === state.gameType) return "";
   let maxAbs = 0;
   rows.forEach((r) =>
     r.deltas.forEach((v) => {
@@ -896,7 +897,9 @@ function showStandings() {
     t = document.getElementById("standings-content"),
     a = roundNetsToCents(calcMoney());
   state.players.length;
-  let s = moneyFlowHTML("standings-flow-chart");
+  let s =
+    ("haymarket" === state.gameType ? haymarketBoardHTML(null) : "") +
+    moneyFlowHTML("standings-flow-chart");
   s += swingHeatmapHTML();
   ((s += "<h3>Final Settlement</h3>"),
     (s += payoutTable(a)),

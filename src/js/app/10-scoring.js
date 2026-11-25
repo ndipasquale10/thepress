@@ -672,7 +672,8 @@ function showHoleResult(e, t) {
     });
   if (!o && t.every((e) => Math.abs(e) < 0.005) && "none" === state.gameType) return;
   let c = `<div class="hole-result-header">Hole ${hLbl(e)} Results</div>`;
-  if (o) {
+  if ("haymarket" === state.gameType) c += haymarketHoleResultHTML(e);
+  else if (o) {
     const t = netRow(e);
     let a = "";
     if (l && r) {
@@ -1190,6 +1191,8 @@ function renderGameStatus() {
         .join("") +
       "</div>";
     animateRibbon(_rb, a);
+    // Haymarket: the strip follows the points race, not the pot changing hands.
+    "haymarket" === t && (_rb.innerHTML = haymarketRibbonHTML());
   }
   let s = `<div class="money-banner">\n    <div class="money-title">Running Money</div>\n    <div class="money-grid">\n      ${state.players
     .map((e, t) => {
@@ -1232,6 +1235,7 @@ function renderGameStatus() {
           `<span class="lb-item ${e.m > 0.01 ? "lb-up" : e.m < -0.01 ? "lb-dn" : "lb-even"}">${avatarHTML(e, 6)}${esc(e.name)} ${fmtMoney(e.m)}</span>`,
       )
       .join("");
+    "haymarket" === state.gameType && (n.innerHTML = haymarketStickyHTML());
   }
 }
 function holeIsComplete(hole) {
