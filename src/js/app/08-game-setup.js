@@ -150,7 +150,7 @@ function updateGameOptions() {
     sixes:
       '<div class="game-opt"><label for="opt-sixes-val">$ Per Segment</label> <input type="number" inputmode="decimal" id="opt-sixes-val" value="5" min="1"></div>\n      <div class="hint">Requires exactly 4 players. Partners rotate automatically every 6 holes (best with 18 holes) - no roster picker needed.</div>',
     haymarket:
-      '<div class="game-opt"><label for="opt-hm-buyin">$ Per Player (pot)</label> <input type="number" inputmode="decimal" id="opt-hm-buyin" value="10" min="1"></div>\n      <div class="game-opt"><label for="opt-hm-greenie">$ Per Greenie</label> <input type="number" inputmode="decimal" id="opt-hm-greenie" value="2" min="0"></div>\n      <div class="game-opt"><label for="opt-hm-kenny">$ Per Kenny</label> <input type="number" inputmode="decimal" id="opt-hm-kenny" value="2" min="0"></div>\n      <div id="hm-quotas"></div>\n      <div class="hint">Gross points: Bogey 1 | Par 2 | Birdie 4 | Eagle 8. Each player’s quota is 39 minus their course handicap; whoever beats their quota by the most takes the whole pot. 2nd place pays every Greenie (closest to the pin and makes par) and Kenny (furthest from the hole and makes par) — par 3s only. No winner carries it to the next par 3; the last par 3 always has a winner.</div>',
+      '<div class="game-opt"><label for="opt-hm-buyin">$ Per Player (pot)</label> <input type="number" inputmode="decimal" id="opt-hm-buyin" value="20" min="1"></div>\n      <div class="game-opt"><label for="opt-hm-greenie">$ Per Greenie</label> <input type="number" inputmode="decimal" id="opt-hm-greenie" value="2" min="0"></div>\n      <div class="game-opt"><label for="opt-hm-kenny">$ Per Kenny</label> <input type="number" inputmode="decimal" id="opt-hm-kenny" value="2" min="0"></div>\n      <div id="hm-quotas"></div>\n      <div class="hint">Gross points: Bogey 1 | Par 2 | Birdie 4 | Eagle 8. Each player’s quota is 39 minus their course handicap; the pot is every buy-in and nothing more. Whoever beats their quota by the most takes half the pot — the most anyone can win, Greenies and Kennys included. 2nd place’s half pays every Greenie (closest to the pin and makes par) and Kenny (furthest from the hole and makes par) on the par 3s, and 2nd keeps the rest. No winner carries it to the next par 3; the last par 3 always has a winner.</div>',
     banker:
       '<div class="game-opt"><label for="opt-banker-val">$ Per Hole</label> <input type="number" inputmode="decimal" id="opt-banker-val" value="2" min="1"></div>\n      <div class="game-opt"><label><input type="checkbox" id="opt-banker-teams"> Teams (2v2v2 — banker is a team)</label></div>\n      <div id="banker-team-setup" class="hidden"></div>\n      <div class="hint">The Banker plays an individual match against every other player — low net beats the Banker to win the stake, the Banker beats them to collect it; ties push. Each hole the Banker defaults to whoever won the last hole, and you can override it during scoring. Teams (2v2v2) makes the Banker a 2-player side playing best ball — needs an even roster (4, 6, or 8).</div>',
   };
@@ -427,7 +427,7 @@ function readGameOpts() {
       const v = document.getElementById(id)?.value;
       return null == v || "" === v ? d : Math.max(0, +v || 0);
     };
-    t.buyIn = Math.max(1, num("opt-hm-buyin", 10));
+    t.buyIn = Math.max(1, num("opt-hm-buyin", 20));
     t.greenieVal = num("opt-hm-greenie", 2);
     t.kennyVal = num("opt-hm-kenny", 2);
     return t;

@@ -2,15 +2,19 @@
 
    Each player's quota is 39 minus their course handicap (on a nine, 20 minus
    the nine's course handicap). Gross points per hole: bogey 1, par 2, birdie
-   4, eagle or better 8, anything worse 0. Whoever beats their quota by the
-   most takes the pot -- every player's buy-in; a tie splits it. Mid-round the
-   quota is pro-rated by holes played, so the standings read as "on pace".
+   4, eagle or better 8, anything worse 0. Mid-round the quota is pro-rated
+   by holes played, so the standings read as "on pace".
+
+   The money is the pot and nothing more: every player's buy-in, paid out
+   exactly once. Whoever beats their quota by the most takes half the pot --
+   the most anyone can win, Greenies and Kennys included. The other half is
+   second place's: it pays every Greenie and Kenny won by anyone outside first
+   place, and second place keeps what is left. Ties split their place's half.
 
    Par 3s carry a Greenie (closest to the pin and makes par) and a Kenny
-   (furthest from the hole and makes par). Second place in the standings pays
-   every Greenie and Kenny to its winner; if second place is tied, they split
-   it. A par 3 finished with no qualifying winner carries its value to the
-   next par 3, Greenie and Kenny separately. The last par 3 always has a
+   (furthest from the hole and makes par). A par 3 finished with no
+   qualifying winner carries its value to the next par 3, Greenie and Kenny
+   separately. The last par 3 always has a
    winner: whoever the group picks takes it, par or not, with everything that
    carried in. The picks live in bonusPoints under their own keys, so undo,
    saved rounds and live rounds carry them the way they carry junk. */
@@ -64,12 +68,12 @@ function haymarketPlaces(st) {
 function haymarketPotWinners(st) {
   return st.some((s) => s.played) ? haymarketPlaces(st).first : [];
 }
-// Who pays the Greenies and Kennys: second place, or -- with everyone tied
-// for first -- the whole group.
+// Whose half pays the Greenies and Kennys: second place, or -- with everyone
+// tied for first -- the whole (tied) field.
 function haymarketPayers(st) {
   if (!st.length) return [];
-  const sec = haymarketPlaces(st).second;
-  return sec.length ? sec : st.map((s) => s.i);
+  const pl = haymarketPlaces(st);
+  return pl.second.length ? pl.second : pl.first;
 }
 function bonusHolder(h, key) {
   if (!state.bonusPoints) return -1;
@@ -136,30 +140,42 @@ function haymarketMissingFinalPick() {
     r = log[log.length - 1];
   return r && ((r.greeniePot > 0 && r.greenie < 0) || (r.kennyPot > 0 && r.kenny < 0)) ? r.h : -1;
 }
-function calcHaymarketMoney() {
+/* How the pot is paid out, as it stands now. `recv` is what each player
+   takes home (their buy-in is already in the pot); `awards` is each Greenie
+   and Kenny with what it actually paid. First place's half is fixed, so a
+   Greenie or Kenny won by first place pays nothing extra. Second place's half
+   pays the rest in hole order and can never go below zero. */
+function haymarketPayout() {
   const n = state.players.length,
-    out = Array(n).fill(0);
-  if (n < 2) return out;
-  const st = haymarketStandings(),
+    st = haymarketStandings(),
     buy = +(state.gameOpts || {}).buyIn || 0,
-    w = haymarketPotWinners(st);
-  if (w.length && buy) {
-    const share = (buy * n) / w.length;
-    for (let i = 0; i < n; i++) out[i] += (w.includes(i) ? share : 0) - buy;
-  }
-  // Second place pays each Greenie and Kenny; a payer who won it pays themselves.
-  const payers = haymarketPayers(st);
+    pot = buy * n,
+    half = pot / 2,
+    recv = Array(n).fill(0),
+    pl = st.length ? haymarketPlaces(st) : { first: [], second: [] },
+    first = pl.first,
+    second = pl.second.length ? pl.second : first,
+    awards = [];
   haymarketPar3Log().forEach((r) => {
-    [
-      [r.greenie, r.greeniePot],
-      [r.kenny, r.kennyPot],
-    ].forEach(([p, v]) => {
-      if (p < 0 || !v) return;
-      const each = v / payers.length;
-      payers.forEach((i) => i !== p && ((out[i] -= each), (out[p] += each)));
-    });
+    r.greenie >= 0 && awards.push({ h: r.h, kind: "Greenie", p: r.greenie, v: r.greeniePot });
+    r.kenny >= 0 && awards.push({ h: r.h, kind: "Kenny", p: r.kenny, v: r.kennyPot });
   });
-  return out;
+  let left = half;
+  first.forEach((i) => (recv[i] += half / first.length));
+  awards.forEach((a) => {
+    a.toFirst = first.includes(a.p);
+    a.paid = a.toFirst ? 0 : Math.min(a.v, left);
+    left -= a.paid;
+    recv[a.p] += a.paid;
+  });
+  second.forEach((i) => (recv[i] += left / second.length));
+  return { pot, half, buy, first, second, awards, left, recv, started: st.some((s) => s.played) };
+}
+function calcHaymarketMoney() {
+  const n = state.players.length;
+  if (n < 2) return Array(n).fill(0);
+  const po = haymarketPayout();
+  return po.started ? po.recv.map((v) => v - po.buy) : Array(n).fill(0);
 }
 // Tap a player to give them the hole's Greenie or Kenny; tap them again to clear it.
 function setHaymarketAward(h, key, p) {
@@ -192,10 +208,7 @@ function haymarketHoleHTML(h) {
   const rec = haymarketPar3Log().find((r) => r.h === h);
   if (!rec) return "";
   const payers = haymarketPayers(haymarketStandings()),
-    payBy =
-      payers.length === state.players.length
-        ? "split by everyone"
-        : "paid by 2nd place: " + payers.map((i) => esc(state.players[i].name)).join(" & "),
+    payBy = "from 2nd place’s half: " + payers.map((i) => esc(state.players[i].name)).join(" & "),
     lastNote =
       "Last par 3 — there’s always a winner. Pick who takes it; everything carrying goes with it.",
     voidNote = (i, what) =>
@@ -236,18 +249,24 @@ function haymarketHoleHTML(h) {
     )
   );
 }
+function _hm$(v) {
+  const r = Math.round(100 * v) / 100;
+  return "$" + (r % 1 ? r.toFixed(2) : r);
+}
 function renderHaymarketDetail() {
   const st = haymarketStandings(),
-    n = state.players.length,
-    buy = +(state.gameOpts || {}).buyIn || 0,
-    w = haymarketPotWinners(st),
-    payers = haymarketPayers(st),
+    po = haymarketPayout(),
     allDone = st.every((s) => s.played === maxHole()),
     log = haymarketPar3Log(),
     last = log.length ? log[log.length - 1] : null,
-    names = (ix) => ix.map((i) => esc(state.players[i].name)).join(" & ");
+    names = (ix) => ix.map((i) => esc(state.players[i].name)).join(" & "),
+    // What 2nd's half paid to other players; 2nd's own Greenies/Kennys stay in its take.
+    paidOut = po.awards.reduce((a, x) => a + (po.second.includes(x.p) ? 0 : x.paid), 0);
   let t = '<div class="game-detail">';
-  t += `<div class="detail-bet"><span class="detail-label">Pot</span><span class="detail-status">$${buy * n} · winner takes all${w.length ? " · " + (allDone ? "won by " : "leader: ") + names(w) : ""}</span></div>`;
+  t += `<div class="detail-bet"><span class="detail-label">Pot</span><span class="detail-status">${_hm$(po.pot)} · 1st ${_hm$(po.half)} · 2nd ${_hm$(po.half)} less Greenies/Kennys</span></div>`;
+  po.started &&
+    ((t += `<div class="detail-bet"><span class="detail-label">${allDone ? "1st" : "1st now"}</span><span class="detail-status">${names(po.first)} · ${_hm$(po.half)}</span></div>`),
+    (t += `<div class="detail-bet"><span class="detail-label">${allDone ? "2nd" : "2nd now"}</span><span class="detail-status">${names(po.second)} · ${_hm$(po.half - paidOut)}${paidOut ? ` (${_hm$(po.half)} − ${_hm$(paidOut)} Greenies/Kennys to others)` : ""}</span></div>`));
   st.slice()
     .sort((a, b) => b.diff - a.diff)
     .forEach((s) => {
@@ -255,19 +274,22 @@ function renderHaymarketDetail() {
         vs = s.played === maxHole() ? "vs quota" : "on pace";
       t += `<div class="detail-bet"><span class="detail-label">${esc(p.name)}</span><span class="detail-status">${s.pts} pts · quota ${s.quota}${s.played ? " · " + _hmNum(s.diff) + " " + vs : ""}</span></div>`;
     });
-  const won = (key) =>
-    log
-      .filter((r) => r[key] >= 0)
+  const won = (kind) =>
+    po.awards
+      .filter((a) => a.kind === kind)
       .map(
-        (r) =>
-          esc(state.players[r[key]].name.split(" ")[0]) + " #" + hLbl(r.h) + " $" + r[key + "Pot"],
+        (a) =>
+          esc(state.players[a.p].name.split(" ")[0]) +
+          " #" +
+          hLbl(a.h) +
+          " " +
+          (a.toFirst ? "(1st — no extra)" : _hm$(a.paid)),
       )
       .join(", ");
   if (log.length) {
-    const g = won("greenie"),
-      k = won("kenny");
-    t += `<div class="detail-bet" style="margin-top:4px;border-top:1px solid var(--rule);padding-top:4px"><span class="detail-label">${allDone ? "Paid by" : "Paying now"}</span><span class="detail-status">${payers.length === n ? "Everyone (tied)" : "2nd place: " + names(payers)}</span></div>`;
-    t += `<div class="detail-bet"><span class="detail-label">Greenies</span><span class="detail-status">${g || "None yet"}${last && last.greenieCarryOut ? ` · $${last.greenieCarryOut} carrying` : ""}</span></div>`;
+    const g = won("Greenie"),
+      k = won("Kenny");
+    t += `<div class="detail-bet" style="margin-top:4px;border-top:1px solid var(--rule);padding-top:4px"><span class="detail-label">Greenies</span><span class="detail-status">${g || "None yet"}${last && last.greenieCarryOut ? ` · $${last.greenieCarryOut} carrying` : ""}</span></div>`;
     t += `<div class="detail-bet"><span class="detail-label">Kennys</span><span class="detail-status">${k || "None yet"}${last && last.kennyCarryOut ? ` · $${last.kennyCarryOut} carrying` : ""}</span></div>`;
   } else
     t +=
