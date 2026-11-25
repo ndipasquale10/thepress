@@ -112,11 +112,13 @@ function renderHole() {
     (document.getElementById("hole-info").innerHTML =
       `<div class="hole-head-l"><div class="hole-meta">PAR <b>${state.pars[e]}</b> · HCP <b>${state.hdcps[e]}</b>${_holeYards(e) ? ` · <b>${_holeYards(e)}</b>y` : ""}</div><div class="hole-big">Hole ${hLbl(e)}</div></div><div class="hole-head-r"><div class="hole-of">of ${(state.holeStart || 0) + maxHole()}</div></div>`));
   const t = getPlayingHandicaps(),
-    a = document.getElementById("score-inputs");
+    a = document.getElementById("score-inputs"),
+    _hm = "haymarket" === state.gameType,
+    _hmNoStrokes = _hm && haymarketHidesStrokes();
   let _h = "";
   if (
     (state.players.forEach((s, n) => {
-      const o = getStrokesOnHole(t[n], e),
+      const o = _hmNoStrokes ? 0 : getStrokesOnHole(t[n], e),
         hs = null != state.scores[n][e],
         _pu = isPickedUp(n, e),
         l = state.scores[n][e] ?? state.pars[e],
@@ -145,7 +147,7 @@ function renderHole() {
                   ? "Bogey"
                   : `+${i}`,
         m = o > 0 ? `<span class="stroke-dots">${"●".repeat(o)}</span>` : "";
-      _h += `<div class="score-row${hs ? "" : " unscored"}${o ? " gets-stroke" : ""}"${o ? ` style="--pc:${esc(playerColor(s))}"` : ""}>\n      <div class="player-info" data-act="quickScore(${n},${e})" role="button" tabindex="0" aria-label="Enter score for ${esc(s.name)}${o ? `, ${o} stroke${o > 1 ? "s" : ""} on this hole` : ""}">\n        <div class="player-name">${avatarHTML(s, 12)}${esc(s.name)}</div>\n        ${o ? `<div class="strokes-badge">${m} ${o} stroke${o > 1 ? "s" : ""}</div>` : ""}\n      </div>\n      <div class="score-counter">\n        <button data-act="adjScore(${n},${e},-1)">−</button>\n        <div class="score-val ${c}${_pu ? " picked-up" : ""}"${o ? ` data-dots="${"●".repeat(o)}"` : ""} data-act="quickScore(${n},${e})" role="button" tabindex="0" aria-label="${_pu ? `Picked up, scored ${l}. Edit score` : "Edit score"}">${_pu ? "X" : l}</div>\n        <button data-act="adjScore(${n},${e},1)">+</button>\n      </div>\n      <div class="score-result ${c}">${d}<br><span class="net-label">${_pu ? `max ${l} → Net ${r}` : `${l} → Net ${r}`}</span></div>\n    </div>`;
+      _h += `<div class="score-row${hs ? "" : " unscored"}${o ? " gets-stroke" : ""}"${o ? ` style="--pc:${esc(playerColor(s))}"` : ""}>\n      <div class="player-info" data-act="quickScore(${n},${e})" role="button" tabindex="0" aria-label="Enter score for ${esc(s.name)}${o ? `, ${o} stroke${o > 1 ? "s" : ""} on this hole` : ""}">\n        <div class="player-name">${avatarHTML(s, 12)}${esc(s.name)}</div>\n        ${o ? `<div class="strokes-badge">${m} ${o} stroke${o > 1 ? "s" : ""}</div>` : ""}\n      </div>\n      <div class="score-counter">\n        <button data-act="adjScore(${n},${e},-1)">−</button>\n        <div class="score-val ${c}${_pu ? " picked-up" : ""}"${o ? ` data-dots="${"●".repeat(o)}"` : ""} data-act="quickScore(${n},${e})" role="button" tabindex="0" aria-label="${_pu ? `Picked up, scored ${l}. Edit score` : "Edit score"}">${_pu ? "X" : l}</div>\n        <button data-act="adjScore(${n},${e},1)">+</button>\n      </div>\n      ${_hm ? haymarketResultHTML(l, state.pars[e], _pu) : `<div class="score-result ${c}">${d}<br><span class="net-label">${_pu ? `max ${l} → Net ${r}` : `${l} → Net ${r}`}</span></div>`}\n    </div>`;
     }),
     "match" === state.gameType)
   ) {
@@ -197,7 +199,7 @@ function renderHole() {
      anyone has a score -- so those sections lead the card instead of sitting
      under four score rows. Built here, after the rows and the hole's bonus
      buttons, and moved to the front once complete. */
-  "haymarket" === state.gameType && (_h += haymarketHoleHTML(e));
+  _hm && (_h += haymarketBoardHTML(e) + haymarketHoleHTML(e));
   _h += soloStatsHoleHTML(e);
   const _gameStart = _h.length;
   if ("wolf" === state.gameType && state.players.length >= 2)
@@ -645,6 +647,7 @@ function unlockHole(e) {
    as a bug to everyone who did not write it, on the screen where the money is
    announced. Show the stroke instead of hiding it. */
 function hrScore(r) {
+  if (null != r.hmPts) return `${r.gross} (${r.hmLbl}) · ${_hmPts(r.hmPts)}`;
   return r.net !== r.gross ? `${r.gross} \u2192 ${r.net} (${r.lbl})` : `${r.gross} (${r.lbl})`;
 }
 function showHoleResult(e, t) {
@@ -660,7 +663,12 @@ function showHoleResult(e, t) {
         l = o - getStrokesOnHole(s[n], e),
         r = l - state.pars[e],
         i = r <= -2 ? "Eagle" : -1 === r ? "Birdie" : 0 === r ? "Par" : 1 === r ? "Bogey" : `+${r}`;
-      return { name: a.name, color: a.color, gross: o, net: l, lbl: i, delta: t[n] };
+      return Object.assign(
+        { name: a.name, color: a.color, gross: o, net: l, lbl: i, delta: t[n] },
+        "haymarket" === state.gameType
+          ? { hmPts: haymarketPointsOn(n, e), hmLbl: haymarketGrossLabel(o, state.pars[e]) }
+          : {},
+      );
     });
   if (!o && t.every((e) => Math.abs(e) < 0.005) && "none" === state.gameType) return;
   let c = `<div class="hole-result-header">Hole ${hLbl(e)} Results</div>`;
