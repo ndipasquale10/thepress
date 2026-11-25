@@ -1,0 +1,139 @@
+/* Haymarket: points vs quota. */
+.hm-board {
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-6);
+  border-top: var(--bw-strong) solid var(--rule);
+}
+.hm-board-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+.hm-board-title {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--ink);
+}
+.hm-board-sub {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+.hm-row {
+  padding: var(--sp-4) 0;
+  border-bottom: var(--bw) solid var(--rule);
+}
+.hm-row:last-of-type {
+  border-bottom: none;
+}
+.hm-row-top,
+.hm-row-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+.hm-name {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  font-weight: 700;
+  color: var(--ink);
+}
+.hm-lead {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--gold-t);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+.hm-score {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.hm-score b {
+  font-size: var(--fs-lg);
+  color: var(--ink);
+}
+.hm-bar {
+  position: relative;
+  height: 10px;
+  margin: var(--sp-2) 0;
+  border-radius: var(--radius);
+  background: var(--surface-3);
+}
+.hm-bar > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--radius);
+  background: var(--accent);
+}
+.hm-bar.made > i {
+  background: var(--up);
+}
+.hm-tick,
+.hm-tick-key {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 16px;
+  margin-left: calc(var(--sp-1) / -2);
+  background: var(--ink);
+}
+.hm-tick-key {
+  position: relative;
+  display: inline-block;
+  top: 3px;
+  margin: 0 var(--sp-2) 0 0;
+}
+.hm-row-sub {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.hm-row-sub b {
+  color: var(--ink);
+}
+.hm-row-sub .up,
+.hm-board .up {
+  color: var(--up);
+  font-weight: 700;
+}
+.hm-row-sub .down,
+.hm-board .down {
+  color: var(--down);
+  font-weight: 700;
+}
+.hm-here {
+  color: var(--accent);
+  font-weight: 700;
+}
+.hm-board-key {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+.hm-res-pts {
+  font-size: var(--fs-sm);
+  font-weight: 800;
+}
+.hm-sc-head td {
+  text-align: left;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--muted);
+  padding-top: var(--sp-4);
+}
+.hm-sc {
+  font-weight: 700;
+  color: var(--accent);
+}
+.hm-hr-sub {
+  margin: calc(var(--sp-2) * -1) 0 var(--sp-2);
+  padding-left: var(--sp-10);
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}

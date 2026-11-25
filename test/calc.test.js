@@ -2043,5 +2043,23 @@ console.log('Haymarket: quota 39 - course handicap, gross points, winner takes t
   assertEqual(call('bonusHolder', 0, 'hmG'), -1, 'tapping the holder again clears the Greenie');
 }
 
+console.log('Haymarket points: score rows, the quota board and the scorecard all read the same gross points');
+{
+  const P2 = [{ name: 'A', hdcp: 0 }, { name: 'B', hdcp: 10 }];
+  loadState(freshStateLiteral({
+    players: P2, gameType: 'haymarket', handicapMode: 'full', pars: Array(18).fill(4), gameOpts: { buyIn: 10, strokeRule: 3 },
+    scores: scoresFor([[3, 4, 5, 6], [4, 4, 4, 4]]), sideBets: {},
+  }));
+  assertEqual([call('haymarketPointsOn', 0, 0), call('haymarketPointsOn', 0, 3), call('haymarketPointsOn', 0, 4)], [4, 0, null], 'points on a hole: birdie 4, double 0, unplayed null');
+  assertEqual(/Birdie<br><span class="hm-res-pts">\+4 pts/.test(call('haymarketResultHTML', 3, 4, false)), true, 'a score row shows the gross result and the points it earns');
+  assertEqual(/Picked up.*\+0 pts/.test(call('haymarketResultHTML', 7, 4, true)), true, 'a pickup earns nothing');
+  assertEqual(call('haymarketHidesStrokes'), true, 'Haymarket hides handicap strokes on the score rows');
+  const board = call('haymarketBoardHTML', 0);
+  // A: 4+2+1+0 = 7 of 39; B: 2 x 4 = 8 of 29.
+  assertEqual([/<b>7<\/b> \/ 39/.test(board), /Needs <b>32<\/b>/.test(board), /<b>8<\/b> \/ 29/.test(board), /\+4 pts on 1/.test(board)], [true, true, true, true], 'the board shows points against quota, what is still needed, and the hole on screen');
+  const rows = call('haymarketScorecardRows', 9, true);
+  assertEqual([/A <small>Q39/.test(rows), /−32<\/td><\/tr>/.test(rows)], [true, true], 'the scorecard lists points per hole and what is left of the quota');
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

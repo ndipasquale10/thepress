@@ -47,7 +47,8 @@ function maybeShowStrokesAtStart() {
   } catch (e) {}
 }
 function scorecardMoneyHTML() {
-  if ("none" === state.gameType) return "";
+  // Haymarket's pot changes hands with the lead; the card shows points instead.
+  if ("none" === state.gameType || "haymarket" === state.gameType) return "";
   const rows = computeHoleMoney();
   if (!rows.length) return "";
   const mh = {};
@@ -110,9 +111,11 @@ function scorecardMoneyHTML() {
   return s;
 }
 function showScorecard() {
-  const e = document.getElementById("scorecard-modal"),
+  // Haymarket plays its handicap through the quota, so the card shows no strokes.
+  const _hmNoStrokes = haymarketHidesStrokes(),
+    e = document.getElementById("scorecard-modal"),
     t = document.getElementById("scorecard-table-wrap"),
-    a = getPlayingHandicaps();
+    a = _hmNoStrokes ? state.players.map(() => 0) : getPlayingHandicaps();
   let s = '<table class="scorecard-tbl"><thead><tr><th></th>';
   const n = Math.min(9, maxHole()),
     o = maxHole() > 9;
@@ -133,7 +136,7 @@ function showScorecard() {
   ((s += `<td class="total-col">${l + r}</td><td></td></tr>`),
     state.players.forEach((e, t) => {
       const hc = a[t];
-      s += `<tr${hc > 0 ? ' class="has-strokes"' : ""}><td style="white-space:nowrap">${esc(e.name)} (${a[t]})</td>`;
+      s += `<tr${hc > 0 ? ' class="has-strokes"' : ""}><td style="white-space:nowrap">${esc(e.name)}${_hmNoStrokes ? "" : ` (${a[t]})`}</td>`;
       let l = 0,
         r = 0,
         i = 0;
@@ -155,6 +158,7 @@ function showScorecard() {
       s += `<td class="total-col">${l + r || "-"}</td><td class="total-col">${i || "-"}</td></tr>`;
     }),
     (s += soloStatsScorecardRows()),
+    "haymarket" === state.gameType && (s += haymarketScorecardRows(n, o)),
     "wolf" === state.gameType &&
       (() => {
         const _wm = {};
@@ -417,7 +421,7 @@ function computeSettlement(nets) {
    into the shared results image (html2canvas). */
 function swingHeatmapHTML() {
   const rows = computeHoleMoney();
-  if (rows.length < 2 || "none" === state.gameType) return "";
+  if (rows.length < 2 || "none" === state.gameType || "haymarket" === state.gameType) return "";
   let maxAbs = 0;
   rows.forEach((r) =>
     r.deltas.forEach((v) => {
@@ -893,7 +897,9 @@ function showStandings() {
     t = document.getElementById("standings-content"),
     a = roundNetsToCents(calcMoney());
   state.players.length;
-  let s = moneyFlowHTML("standings-flow-chart");
+  let s =
+    ("haymarket" === state.gameType ? haymarketBoardHTML(null) : "") +
+    moneyFlowHTML("standings-flow-chart");
   s += swingHeatmapHTML();
   ((s += "<h3>Final Settlement</h3>"),
     (s += payoutTable(a)),
@@ -1122,7 +1128,10 @@ async function finishRound(e) {
       (o += '<div class="settlement-note">All square — no payments needed!</div>'));
   o += "</div>";
   "haymarket" === state.gameType &&
-    (o += '<div class="results-money-title">Haymarket</div>' + renderHaymarketDetail());
+    (o +=
+      '<div class="results-money-title">Haymarket</div>' +
+      haymarketBoardHTML(null) +
+      renderHaymarketDetail());
   if ("wolf" === state.gameType && state.wolfHoles) {
     let e = 0,
       t = 0,

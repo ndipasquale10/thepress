@@ -194,7 +194,7 @@ function drawMoneyFlow(cv) {
   });
 }
 function moneyFlowHTML(id) {
-  return computeRunningTotals().length < 2
+  return "haymarket" === state.gameType || computeRunningTotals().length < 2
     ? ""
     : '<div class="money-flow-wrap"><div class="money-flow-title">Money Flow · hole by hole</div><canvas id="' +
         id +
@@ -305,6 +305,7 @@ function renderPlayFeed() {
         .map((v, i) => ({ v: v, i: i }))
         .filter((o) => o.v > 0.005)
         .sort((a, b) => b.v - a.v);
+      "haymarket" === state.gameType && (winners.length = 0);
       let money = winners.length
         ? winners.map((o) => esc(_pfName(state.players[o.i])) + " " + fmtMoney(o.v)).join(" · ")
         : "skins" === state.gameType
@@ -316,7 +317,7 @@ function renderPlayFeed() {
         '</div><div class="pf-par">PAR ' +
         par +
         '</div></div><div class="pf-text">' +
-        esc(story.join(" · ")) +
+        ("haymarket" === state.gameType ? haymarketFeedText(h) : esc(story.join(" · "))) +
         '</div><div class="pf-money' +
         (winners.length ? " up" : "") +
         '">' +
@@ -484,6 +485,11 @@ function renderHoleMoneyLog() {
   const el = document.getElementById("hole-money-log");
   if (!el) return;
   if ("none" === state.gameType) return void (el.innerHTML = "");
+  if ("haymarket" === state.gameType)
+    return (
+      (el.className = "card sc-collapsible" + (scCollapsed("moneylog") ? " collapsed" : "")),
+      void (el.innerHTML = haymarketPointsLogHTML())
+    );
   const rows = computeHoleMoney();
   if (!rows.length) return void (el.innerHTML = "");
   el.className = "card sc-collapsible" + (scCollapsed("moneylog") ? " collapsed" : "");
